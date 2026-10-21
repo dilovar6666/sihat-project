@@ -1,0 +1,2 @@
+"""SIHAT API package."""
+
