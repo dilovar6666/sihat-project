@@ -14,7 +14,7 @@ conditions or prescribe treatment.
    python -m pip install -e ".[test]"
    ```
 
-4. Copy `.env.example` to `.env` and set `DATABASE_URL` to a PostgreSQL database.
+4. Copy `.env.example` to `.env`, then set `DATABASE_URL` and a random `JWT_SECRET`.
 5. Run the API with `uvicorn sihat.main:app --reload`.
 6. Open `/docs` for OpenAPI. `/health` is independent of the database.
 
@@ -30,3 +30,9 @@ PostgreSQL, OAuth credentials, mail delivery, Gemini credentials, and a GitHub r
 are intentionally not bundled. Configure them through environment variables when the
 corresponding stages are implemented.
 
+## Authentication currently available
+
+Email/password registration and login issue a short-lived bearer access token plus a
+rotating refresh token. The API exposes refresh, logout, current-profile, and reset
+password endpoints. Password-reset email delivery and the Google OAuth callback remain
+unavailable until their provider credentials are configured.

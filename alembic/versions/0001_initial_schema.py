@@ -19,4 +19,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove the baseline revision marker."""
-

@@ -2,7 +2,7 @@
 
 ## Current stage
 
-**Stage 1 — Foundation: complete**
+**Stage 2 — Identity and access: in progress**
 
 ## Evidence
 
@@ -37,5 +37,23 @@
 ## Stage 1 result
 
 - Acceptance criteria currently available in the local environment have passed.
-- Stage 2 may begin. Google OAuth and mail credentials remain intentionally deferred
-  until the corresponding integration is implemented.
+
+## Stage 2 implementation
+
+- Email/password registration and login with Argon2 password hashing.
+- Exactly two persisted roles: `user` and `admin`; public registration always creates
+  a `user` account.
+- Short-lived JWT access tokens, hashed rotating refresh tokens, logout/revocation,
+  and authenticated profile access.
+- Password-reset token persistence, expiry, single-use semantics, and session
+  invalidation after a successful reset.
+- Google OAuth configuration detection without embedded credentials or a simulated
+  login flow.
+
+## Stage 2 verification and blockers
+
+- Ruff passes; pytest passes 4 tests covering successful and negative auth flows.
+- PostgreSQL migration `0002_identity_and_access` is applied locally.
+- Google OAuth and password-reset delivery are intentionally incomplete until Google
+  OAuth and outbound-email credentials are supplied. The API reports this state rather
+  than pretending either integration works.

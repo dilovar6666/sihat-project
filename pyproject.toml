@@ -9,8 +9,11 @@ description = "SIHAT health screening platform API"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.13,<2.0",
+  "email-validator>=2.2,<3.0",
   "fastapi>=0.115,<1.0",
   "pydantic-settings>=2.6,<3.0",
+  "pwdlib[argon2]>=0.2,<1.0",
+  "PyJWT>=2.10,<3.0",
   "psycopg[binary]>=3.2,<4.0",
   "sqlalchemy>=2.0,<3.0",
   "uvicorn[standard]>=0.32,<1.0",
@@ -37,4 +40,4 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-
+ignore = ["B008"]

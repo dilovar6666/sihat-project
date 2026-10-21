@@ -19,3 +19,16 @@ def test_openapi_documents_health_endpoint() -> None:
     assert response.status_code == 200
     assert "/health" in response.json()["paths"]
 
+
+def test_cors_permits_browser_authentication_posts() -> None:
+    with TestClient(app) as client:
+        response = client.options(
+            "/auth/login",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+
+    assert response.status_code == 200
+    assert "POST" in response.headers["access-control-allow-methods"]
