@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
-import { apiRequest, downloadPdfBlob, getRefreshToken, setApiToken, setRefreshToken } from './api'
+import { apiRequest, downloadPdfBlob, getRefreshToken, restoreSessionTokens, setApiToken, setRefreshToken } from './api'
 
 type Any = any
 type Page = 'home'|'catalog'|'history'|'learn'|'support'|'profile'|'admin'
@@ -16,6 +16,7 @@ export default function App() {
  const [ai,setAi]=useState(false),[messages,setMessages]=useState<Any[]>([]),[prompt,setPrompt]=useState(''),[admin,setAdmin]=useState<Any>({})
  const fail=(e:any)=>setNotice(e instanceof Error?e.message:'Request failed')
  useEffect(()=>{document.documentElement.dataset.theme=theme},[theme])
+ useEffect(()=>{const restored=restoreSessionTokens();if(!restored.refreshToken)return;void api<any>('/auth/refresh',{method:'POST',body:JSON.stringify({refresh_token:restored.refreshToken})}).then(r=>{setApiToken(r.access_token);setRefreshToken(r.refresh_token);setToken(r.access_token);setUser(r.user)}).catch(()=>{setApiToken('');setRefreshToken('')})},[])
  useEffect(()=>{void Promise.all([api<Any[]>('/categories').then(setCategories),api<Any[]>('/tests').then(setTests),api<Any[]>('/knowledge').then(setArticles),api<Any[]>('/faq').then(setFaqs)]).catch(fail)},[])
  useEffect(()=>{if(page==='history'&&token) void api<Any[]>('/results/history').then(setHistory).catch(fail)},[page,token])
  const visible=useMemo(()=>tests.filter(t=>(!q||JSON.stringify(t).toLowerCase().includes(q.toLowerCase()))&&(!cat||t.category_id===cat)),[tests,q,cat])

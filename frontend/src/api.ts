@@ -5,6 +5,8 @@ let refreshToken: string = ''
 
 export function setApiToken(token: string) {
   authToken = token
+  if (token) sessionStorage.setItem('sihat_access_token', token)
+  else sessionStorage.removeItem('sihat_access_token')
 }
 
 export function getApiToken(): string {
@@ -13,10 +15,18 @@ export function getApiToken(): string {
 
 export function setRefreshToken(token: string) {
   refreshToken = token
+  if (token) sessionStorage.setItem('sihat_refresh_token', token)
+  else sessionStorage.removeItem('sihat_refresh_token')
 }
 
 export function getRefreshToken(): string {
   return refreshToken
+}
+
+export function restoreSessionTokens() {
+  authToken = sessionStorage.getItem('sihat_access_token') ?? ''
+  refreshToken = sessionStorage.getItem('sihat_refresh_token') ?? ''
+  return { accessToken: authToken, refreshToken }
 }
 
 export async function apiRequest<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
