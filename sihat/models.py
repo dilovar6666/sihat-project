@@ -131,3 +131,18 @@ class MethodologyPassport(Base):
     limitations: Mapped[str] = mapped_column(Text)
     warnings: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Questionnaire(Base):
+    __tablename__ = "questionnaires"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    test_id: Mapped[str] = mapped_column(
+        ForeignKey("tests.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    definition_version: Mapped[str] = mapped_column(String(80))
+    questions: Mapped[list] = mapped_column(JSON, default=list)
+    branching_rules: Mapped[list] = mapped_column(JSON, default=list)
+    scoring_config: Mapped[dict] = mapped_column(JSON, default=dict)
+    is_published: Mapped[bool] = mapped_column(default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

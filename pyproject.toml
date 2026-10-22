@@ -46,3 +46,4 @@ ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "alembic/versions/*.py" = ["E501"]
+"sihat/catalog_seed.py" = ["E501"]

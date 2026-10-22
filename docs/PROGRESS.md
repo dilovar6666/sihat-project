@@ -73,10 +73,13 @@
 - Admin-only CRUD creates draft content and permits publication only after a passport;
   pending-review modules cannot be published, and validated modules require source and
   license information.
+- A repeatable seed routine created the ten agreed categories and 30 draft cards with
+  `pending_review` passports in the local database.
+- Versioned questionnaire definitions now store localized question data, branching
+  rules, and declarative scoring configuration without executing arbitrary formulas.
 
 ## Stage 3 remaining work
 
-- Add the ten categories and all 30 approved cards with reviewed RU/TJ/EN content.
-- Add the questionnaire authoring model and versioned question/branching rules.
 - Record methodology passports and evidence decisions for every module before public
   publication.
+- Review each draft's RU/TJ/EN copy and replace the seed labels with approved content.

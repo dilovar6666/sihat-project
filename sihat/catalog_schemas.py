@@ -32,3 +32,10 @@ class PassportInput(BaseModel):
     interpretation_summary: str | None = None
     limitations: str = Field(min_length=1)
     warnings: list[str] = Field(default_factory=list)
+
+
+class QuestionnaireInput(BaseModel):
+    definition_version: str = Field(min_length=1, max_length=80)
+    questions: list[dict] = Field(min_length=1)
+    branching_rules: list[dict] = Field(default_factory=list)
+    scoring_config: dict = Field(default_factory=dict)

@@ -3,9 +3,9 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from sihat.auth import get_current_user
-from sihat.catalog_schemas import CategoryInput, PassportInput, TestInput
+from sihat.catalog_schemas import CategoryInput, PassportInput, QuestionnaireInput, TestInput
 from sihat.db import get_db_session
-from sihat.models import Category, MethodologyPassport, TestDefinition, User
+from sihat.models import Category, MethodologyPassport, Questionnaire, TestDefinition, User
 
 router = APIRouter(tags=["catalog"])
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
@@ -159,6 +159,33 @@ def upsert_methodology(
         db.add(passport)
     db.commit()
     return {"test_id": test_id, "evidence_status": passport.evidence_status}
+
+
+@admin_router.put("/tests/{test_id}/questionnaire")
+def upsert_questionnaire(
+    test_id: str,
+    payload: QuestionnaireInput,
+    db: Session = Depends(get_db_session),
+    _: User = Depends(require_admin),
+) -> dict:
+    if not db.get(TestDefinition, test_id):
+        raise HTTPException(status_code=404, detail="Test was not found")
+    if any(
+        "id" not in question or "localizations" not in question for question in payload.questions
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Each questionnaire question requires an id and localizations",
+        )
+    questionnaire = db.scalar(select(Questionnaire).where(Questionnaire.test_id == test_id))
+    if questionnaire:
+        for key, value in payload.model_dump().items():
+            setattr(questionnaire, key, value)
+    else:
+        questionnaire = Questionnaire(test_id=test_id, **payload.model_dump())
+        db.add(questionnaire)
+    db.commit()
+    return {"test_id": test_id, "version": questionnaire.definition_version}
 
 
 @admin_router.post("/tests/{test_id}/publish")
