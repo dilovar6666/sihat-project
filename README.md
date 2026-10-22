@@ -87,4 +87,36 @@ Administrative endpoints are strictly protected under role `admin`:
 - Content drafting assistant — `POST /admin/content/draft` prepares non-diagnostic educational
   drafts for mandatory administrative review before any publication.
 
+## Frontend application
+
+The React 18 + TypeScript + Vite single-page application resides in `frontend/`:
+
+- **Catalog & Passports**: 10 categories, age filtering, live search, and interactive
+  Methodology Passport viewer detailing evidence level, sources, and limitations.
+- **Test Runner & Consent**: Pre-test condition verification, 15 educational exercises
+  measuring only activity metrics (time, accuracy, count), and mandatory post-completion
+  `Save` / `Do not save` consent gate.
+- **Private History**: Owner-only saved results, side-by-side compatible comparison
+  (strictly same test version and conditions, no fictitious health score), single/all
+  deletion, and customizable PDF export.
+- **FAQ, Knowledge Base & Support**: Multilingual guidance, article reading, and rate-limited
+  inquiry submission.
+- **Admin Suite**: Aggregate metrics dashboard, user management, support triage, and test
+  lifecycle controls.
+
+To run the frontend locally:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Build and test commands:
+
+```powershell
+npm run build
+npm run test:e2e
+```
+
 

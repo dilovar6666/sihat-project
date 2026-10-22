@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from sihat.auth import get_current_user
+from sihat.auth import get_current_user, get_current_user_optional
 from sihat.catalog_schemas import CategoryInput, PassportInput, QuestionnaireInput, TestInput
 from sihat.db import get_db_session
 from sihat.models import Category, MethodologyPassport, Questionnaire, TestDefinition, User
@@ -67,15 +67,16 @@ def list_categories(db: Session = Depends(get_db_session)) -> list[dict]:
 
 
 @router.get("/tests")
-def list_guest_tests(
+def list_tests(
     category: str | None = None,
     query: str | None = Query(default=None, min_length=2, max_length=100),
     age: int | None = Query(default=None, ge=0, le=120),
     db: Session = Depends(get_db_session),
+    user: User | None = Depends(get_current_user_optional),
 ) -> list[dict]:
-    statement = select(TestDefinition).where(
-        TestDefinition.availability_status == "published", TestDefinition.guest_allowed.is_(True)
-    )
+    statement = select(TestDefinition).where(TestDefinition.availability_status == "published")
+    if user is None:
+        statement = statement.where(TestDefinition.guest_allowed.is_(True))
     if category:
         statement = statement.join(Category).where(Category.slug == category)
     if age is not None:
@@ -91,14 +92,18 @@ def list_guest_tests(
 
 
 @router.get("/tests/{slug}")
-def get_guest_test(slug: str, db: Session = Depends(get_db_session)) -> dict:
-    test = db.scalar(
-        select(TestDefinition).where(
-            TestDefinition.slug == slug,
-            TestDefinition.availability_status == "published",
-            TestDefinition.guest_allowed.is_(True),
-        )
+def get_test(
+    slug: str,
+    db: Session = Depends(get_db_session),
+    user: User | None = Depends(get_current_user_optional),
+) -> dict:
+    statement = select(TestDefinition).where(
+        TestDefinition.slug == slug,
+        TestDefinition.availability_status == "published",
     )
+    if user is None:
+        statement = statement.where(TestDefinition.guest_allowed.is_(True))
+    test = db.scalar(statement)
     if not test:
         raise HTTPException(status_code=404, detail="Test is unavailable")
     passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))

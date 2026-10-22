@@ -2,7 +2,44 @@
 
 ## Current stage
 
-**Stage 7 — Admin and content: technically complete**
+**Stage 8 — Functional frontend: complete**
+
+## Stage 8 implementation
+
+- Complete React + TypeScript + Vite frontend application integrating all core user and
+  administrative journeys in `frontend/src/`.
+- Modular UI architecture:
+  - `CatalogView`: browse all 10 categories with search, category filtering, age group
+    filtering (`all`, `18_plus`, `16_17`), evidence badges, and interactive Methodology
+    Passport modal (evidence, clinical basis, device constraints, limitations, and warnings).
+  - `HistoryView`: private saved results history (`GET /results/history`), result detail view,
+    side-by-side compatible comparison (`GET /results/{id}/compare`), PDF export with user
+    selectable answers/warnings flags, single result deletion, and full history deletion.
+  - `RunnerView`: multi-step test runner with pre-check conditions acknowledgement,
+    age/device validation, educational exercises (15 interactive modules with canvas/reaction
+    metrics), and post-attempt explicit consent choice (**Save** to immutable record or **Do not save**
+    to delete immediately).
+  - `AdminView`: administrative suite featuring system-wide aggregate metrics, user activation
+    controls, support inquiry triage, test lifecycle management (unpublish, block, passport updates),
+    and AI content drafting assistant.
+  - `AuthModal`: authentication dialog supporting email/password sign-in, account registration
+    with required age group selection, and password recovery request.
+  - `AssistantDrawer`: floating AI guide drawer with ephemeral dialogs, voice input support,
+    and typed action buttons with user confirmation gates.
+  - Top-level unified navigation with tabs (`catalog`, `exercises`, `history`, `faq`, `knowledge`,
+    `support`, and role-gated `admin`).
+- API client layer in `frontend/src/api.ts` with typed endpoints, authorization header
+  injection, error normalization, and PDF blob download utilities.
+
+## Stage 8 verification
+
+- Ruff linting and formatting check pass (`All checks passed!`).
+- Pytest passes 33 backend tests (`.venv\Scripts\python.exe -m pytest`).
+- Frontend production build (`npm.cmd --prefix frontend run build`) compiles with zero TypeScript errors.
+- Playwright E2E suite passes 7 out of 7 tests across all spec files (`npm.cmd --prefix frontend run test:e2e`),
+  including new functional catalog browsing, methodology passport inspection, and private history comparison tests.
+- Backend catalog endpoints updated to allow optional authentication (`get_current_user_optional`),
+  correctly serving guest-accessible tests to unauthenticated visitors and full catalog to logged-in users.
 
 ## Stage 7 implementation
 
