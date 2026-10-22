@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import './App.css'
 
@@ -10,6 +10,24 @@ type AssistantAction = { name: string; arguments: Record<string, string>; requir
 type AssistantReply = { message: string; actions: AssistantAction[]; provider_available: boolean }
 type ActivityKind = 'visual' | 'audio' | 'memory' | 'attention' | 'reflection' | 'reaction' | 'pointer' | 'processing'
 type Activity = { slug: string; title: string; description: string; kind: ActivityKind }
+
+type FaqItem = { id: string; slug: string; category: string; question: Record<string, string>; answer: Record<string, string> }
+type KnowledgeArticle = { id: string; slug: string; category: string; localizations: Record<string, { title: string; summary?: string; content?: string }> }
+type SupportTicket = { id: string; contact_email: string; subject: string; message: string; status: string; admin_notes?: string }
+type AdminDashboard = {
+  total_users: number
+  users_by_age_group: Record<string, number>
+  active_users: number
+  inactive_users: number
+  total_categories: number
+  tests_by_status: Record<string, number>
+  tests_by_type: Record<string, number>
+  total_completed_attempts: number
+  total_saved_results: number
+  tickets_by_status: Record<string, number>
+}
+type AdminUser = { id: string; email: string; full_name: string; role: string; age_group: string; is_active: boolean }
+type AdminTest = { id: string; slug: string; type: string; status: string; guest_allowed: boolean; min_age: number }
 
 const api = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 const activities: Activity[] = [
@@ -92,6 +110,8 @@ function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [token, setToken] = useState('')
+  const [userRole, setUserRole] = useState<'user' | 'admin'>('user')
+  const [currentTab, setCurrentTab] = useState<'exercises' | 'faq' | 'knowledge' | 'support' | 'admin'>('exercises')
   const [attempt, setAttempt] = useState<Attempt | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
   const [ready, setReady] = useState(false)
@@ -101,21 +121,44 @@ function App() {
   const [assistantText, setAssistantText] = useState('')
   const [dialog, setDialog] = useState<DialogMessage[]>([])
   const [assistantActions, setAssistantActions] = useState<AssistantAction[]>([])
+
+  // FAQ, Knowledge, Support & Admin state
+  const [faqs, setFaqs] = useState<FaqItem[]>([])
+  const [articles, setArticles] = useState<KnowledgeArticle[]>([])
+  const [supportEmail, setSupportEmail] = useState('')
+  const [supportSubject, setSupportSubject] = useState('')
+  const [supportMessage, setSupportMessage] = useState('')
+  const [myTickets, setMyTickets] = useState<SupportTicket[]>([])
+
+  const [dashboard, setDashboard] = useState<AdminDashboard | null>(null)
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([])
+  const [adminTickets, setAdminTickets] = useState<SupportTicket[]>([])
+  const [adminTests, setAdminTests] = useState<AdminTest[]>([])
+
   const request = async (path: string, init: RequestInit = {}) => {
     const response = await fetch(api + path, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}), ...init.headers } })
     const body = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Request failed')
     return body
   }
+
   const login = async (event: FormEvent) => {
     event.preventDefault()
-    try { const body = await request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }); setToken(body.access_token); setMessage('') }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to sign in') }
+    try {
+      const body = await request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+      setToken(body.access_token)
+      setMessage('')
+      request('/me/profile', { headers: { Authorization: 'Bearer ' + body.access_token } })
+        .then((profile) => setUserRole(profile.role === 'admin' ? 'admin' : 'user'))
+        .catch(() => setUserRole('user'))
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to sign in') }
   }
+
   const start = async (activity: Activity) => {
     try { const next = await request('/attempts/start', { method: 'POST', body: JSON.stringify({ test_slug: activity.slug }) }) as Attempt; setAttempt(next); setSelectedActivity(activity); setReady(false); setMessage('') }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to start the exercise') }
   }
+
   const respond = async (answer: 'completed' | 'skipped') => {
     if (!attempt?.current_question) return
     try {
@@ -125,10 +168,12 @@ function App() {
       setCompletion(finished); setAttempt(null); setSelectedActivity(null); setReady(false)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save this exercise') }
   }
+
   const discard = async () => {
     if (attempt) { try { await request('/attempts/' + attempt.id + '/discard', { method: 'DELETE' }) } catch { /* Local screen can still safely close. */ } }
     setAttempt(null); setSelectedActivity(null); setReady(false)
   }
+
   const decideSave = async (save: boolean) => {
     if (!completion) return
     try {
@@ -137,6 +182,7 @@ function App() {
       setMessage(save ? 'Your exercise result was saved to your private history.' : 'Your temporary exercise result was deleted.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to record your choice') }
   }
+
   const sendAssistantMessage = async (event: FormEvent) => {
     event.preventDefault()
     const text = assistantText.trim()
@@ -151,6 +197,7 @@ function App() {
       setAssistantActions(reply.actions)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to reach the assistant') }
   }
+
   const startVoiceInput = () => {
     type Recognition = { lang: string; start: () => void; onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void }
     const SpeechRecognition = (window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Recognition }).webkitSpeechRecognition
@@ -161,6 +208,7 @@ function App() {
     recognition.onerror = () => setMessage('Voice input could not be transcribed.')
     recognition.start()
   }
+
   const runAssistantAction = (action: AssistantAction) => {
     if (action.name === 'navigate_to_page' || action.name === 'scroll_to_section' || action.name === 'highlight_element') {
       window.location.hash = action.arguments.target
@@ -168,14 +216,223 @@ function App() {
     }
     if (action.name === 'open_test' || action.name === 'prepare_test_start') {
       const activity = activities.find((item) => item.slug === action.arguments.slug)
-      if (activity) void start(activity)
+      if (activity) {
+        setCurrentTab('exercises')
+        void start(activity)
+      }
       return
     }
     setMessage('This assistant action is available when the corresponding screen is added.')
   }
+
+  // Load FAQ & Knowledge when tabs opened
+  useEffect(() => {
+    if (currentTab === 'faq') {
+      request('/faq').then(setFaqs).catch(() => {})
+    } else if (currentTab === 'knowledge') {
+      request('/knowledge').then(setArticles).catch(() => {})
+    } else if (currentTab === 'support' && token) {
+      request('/support/my-tickets').then(setMyTickets).catch(() => {})
+    } else if (currentTab === 'admin' && userRole === 'admin') {
+      request('/admin/dashboard').then(setDashboard).catch(() => {})
+      request('/admin/users').then(setAdminUsers).catch(() => {})
+      request('/admin/support/tickets').then(setAdminTickets).catch(() => {})
+      request('/admin/tests').then(setAdminTests).catch(() => {})
+    }
+  }, [currentTab, token, userRole])
+
+  const submitSupportTicket = async (event: FormEvent) => {
+    event.preventDefault()
+    try {
+      await request('/support/tickets', {
+        method: 'POST',
+        body: JSON.stringify({ contact_email: supportEmail, subject: supportSubject, message: supportMessage }),
+      })
+      setSupportSubject('')
+      setSupportMessage('')
+      setMessage('Your support request was submitted. A support specialist will review it.')
+      if (token) request('/support/my-tickets').then(setMyTickets).catch(() => {})
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to submit support ticket')
+    }
+  }
+
+  const toggleUserActive = async (targetUser: AdminUser) => {
+    try {
+      const updated = await request('/admin/users/' + targetUser.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: !targetUser.is_active }),
+      }) as AdminUser
+      setAdminUsers(adminUsers.map((u) => (u.id === updated.id ? updated : u)))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to update user')
+    }
+  }
+
+  const updateTicketStatus = async (ticketId: string, status: string) => {
+    try {
+      const updated = await request('/admin/support/tickets/' + ticketId, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }) as SupportTicket
+      setAdminTickets(adminTickets.map((t) => (t.id === updated.id ? updated : t)))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to update ticket')
+    }
+  }
+
   return <main className="app-shell">
-    <header className="app-header"><p className="eyebrow">SIHAT educational exercises</p><h1>Practice small skills, without health labels.</h1><p className="lede">These activities are for learning and personal reflection. They do not screen for, diagnose, or measure a health condition.</p></header>
-    {!token ? <form className="login-card" onSubmit={login}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label><button type="submit">Sign in to choose an exercise</button></form> : completion ? <section className="completion-card" aria-live="polite"><h2>Exercise complete</h2><p>{completion.result?.message ?? 'Your exercise response was recorded.'}</p><p>It is not a diagnosis or health result. Choose whether to save this result to your private history.</p><div className="runner-actions"><button onClick={() => decideSave(true)}>Save</button><button className="secondary-button" onClick={() => decideSave(false)}>Do not save</button></div></section> : attempt && selectedActivity ? <section className="runner-card"><div className="runner-heading"><div><p className="eyebrow">{selectedActivity.slug}</p><h2>{selectedActivity.title}</h2><p>{selectedActivity.description}</p></div><button className="quiet-button" onClick={discard}>Leave exercise</button></div><ExercisePanel key={selectedActivity.slug} activity={selectedActivity} onReady={setReady} /><div className="runner-actions"><button className="secondary-button" onClick={() => respond('skipped')}>Skip exercise</button><button disabled={!ready} onClick={() => respond('completed')}>Complete exercise</button></div></section> : <section className="activity-list" aria-label="Educational exercises"><div className="section-heading"><h2>Choose an activity</h2><button className="quiet-button" onClick={() => { setToken(''); setCompletion(null) }}>Sign out</button></div><div className="activity-grid">{activities.map((activity) => <article key={activity.slug}><p className="eyebrow">{activity.kind}</p><h3>{activity.title}</h3><p>{activity.description}</p><button onClick={() => start(activity)}>Start exercise</button></article>)}</div></section>}
+    <header className="app-header">
+      <p className="eyebrow">SIHAT HealthTech Platform</p>
+      <h1>Understand Your Health</h1>
+      <p className="lede">Non-diagnostic questionnaires, educational exercises, and verifiable methodology passport standards.</p>
+    </header>
+
+    <nav className="nav-tabs" aria-label="Main Navigation">
+      <button className={'nav-tab' + (currentTab === 'exercises' ? ' active' : '')} onClick={() => setCurrentTab('exercises')}>Exercises</button>
+      <button className={'nav-tab' + (currentTab === 'faq' ? ' active' : '')} onClick={() => setCurrentTab('faq')}>FAQ</button>
+      <button className={'nav-tab' + (currentTab === 'knowledge' ? ' active' : '')} onClick={() => setCurrentTab('knowledge')}>Knowledge Base</button>
+      <button className={'nav-tab' + (currentTab === 'support' ? ' active' : '')} onClick={() => setCurrentTab('support')}>Support</button>
+      {token && userRole === 'admin' && (
+        <button className={'nav-tab' + (currentTab === 'admin' ? ' active' : '')} onClick={() => setCurrentTab('admin')}>Admin Panel</button>
+      )}
+    </nav>
+
+    {currentTab === 'exercises' && (
+      !token ? <form className="login-card" onSubmit={login}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label><button type="submit">Sign in to choose an exercise</button></form> : completion ? <section className="completion-card" aria-live="polite"><h2>Exercise complete</h2><p>{completion.result?.message ?? 'Your exercise response was recorded.'}</p><p>It is not a diagnosis or health result. Choose whether to save this result to your private history.</p><div className="runner-actions"><button onClick={() => decideSave(true)}>Save</button><button className="secondary-button" onClick={() => decideSave(false)}>Do not save</button></div></section> : attempt && selectedActivity ? <section className="runner-card"><div className="runner-heading"><div><p className="eyebrow">{selectedActivity.slug}</p><h2>{selectedActivity.title}</h2><p>{selectedActivity.description}</p></div><button className="quiet-button" onClick={discard}>Leave exercise</button></div><ExercisePanel key={selectedActivity.slug} activity={selectedActivity} onReady={setReady} /><div className="runner-actions"><button className="secondary-button" onClick={() => respond('skipped')}>Skip exercise</button><button disabled={!ready} onClick={() => respond('completed')}>Complete exercise</button></div></section> : <section className="activity-list" aria-label="Educational exercises"><div className="section-heading"><h2>Choose an activity</h2><button className="quiet-button" onClick={() => { setToken(''); setCompletion(null); setUserRole('user') }}>Sign out</button></div><div className="activity-grid">{activities.map((activity) => <article key={activity.slug}><p className="eyebrow">{activity.kind}</p><h3>{activity.title}</h3><p>{activity.description}</p><button onClick={() => start(activity)}>Start exercise</button></article>)}</div></section>
+    )}
+
+    {currentTab === 'faq' && (
+      <section className="content-card" aria-label="Frequently Asked Questions">
+        <div className="section-heading"><h2>Frequently Asked Questions</h2></div>
+        <div className="faq-list">
+          {faqs.map((faq) => (
+            <article key={faq.id} className="faq-card">
+              <h3>{faq.question.en ?? faq.question.ru}</h3>
+              <p>{faq.answer.en ?? faq.answer.ru}</p>
+            </article>
+          ))}
+          {faqs.length === 0 && <p>Loading frequently asked questions...</p>}
+        </div>
+      </section>
+    )}
+
+    {currentTab === 'knowledge' && (
+      <section className="content-card" aria-label="Knowledge Base">
+        <div className="section-heading"><h2>Knowledge Base & Standards</h2></div>
+        <div className="article-list">
+          {articles.map((art) => (
+            <article key={art.id} className="article-card">
+              <p className="eyebrow">{art.category}</p>
+              <h3>{art.localizations.en?.title ?? art.localizations.ru?.title}</h3>
+              <p>{art.localizations.en?.content ?? art.localizations.ru?.content}</p>
+            </article>
+          ))}
+          {articles.length === 0 && <p>Loading articles and standards...</p>}
+        </div>
+      </section>
+    )}
+
+    {currentTab === 'support' && (
+      <section className="content-card" aria-label="Support">
+        <div className="section-heading"><h2>Contact Support</h2></div>
+        <form onSubmit={submitSupportTicket} style={{ display: 'grid', gap: '14px', maxWidth: '480px', margin: '0 auto' }}>
+          <label>Contact Email<input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} required /></label>
+          <label>Subject<input type="text" value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)} required minLength={3} maxLength={240} /></label>
+          <label>Message<textarea rows={4} value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)} required minLength={10} maxLength={4000} /></label>
+          <button type="submit">Submit support ticket</button>
+        </form>
+        {myTickets.length > 0 && (
+          <div className="admin-section">
+            <h3>Your Recent Tickets</h3>
+            <div className="table-wrap">
+              <table className="admin-table">
+                <thead><tr><th>Subject</th><th>Status</th><th>Notes</th></tr></thead>
+                <tbody>
+                  {myTickets.map((t) => (
+                    <tr key={t.id}><td>{t.subject}</td><td><strong>{t.status}</strong></td><td>{t.admin_notes ?? 'In queue'}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+    )}
+
+    {currentTab === 'admin' && userRole === 'admin' && (
+      <section className="content-card" aria-label="Administration">
+        <div className="section-heading"><h2>Administrative Dashboard</h2></div>
+        {dashboard && (
+          <div className="stat-grid">
+            <div className="stat-box"><p className="stat-value">{dashboard.total_users}</p><p className="stat-label">Total Users</p></div>
+            <div className="stat-box"><p className="stat-value">{dashboard.active_users}</p><p className="stat-label">Active Users</p></div>
+            <div className="stat-box"><p className="stat-value">{dashboard.total_categories}</p><p className="stat-label">Categories</p></div>
+            <div className="stat-box"><p className="stat-value">{dashboard.total_completed_attempts}</p><p className="stat-label">Completed Attempts</p></div>
+            <div className="stat-box"><p className="stat-value">{dashboard.total_saved_results}</p><p className="stat-label">Saved Results</p></div>
+          </div>
+        )}
+
+        <div className="admin-section">
+          <h3>User Management</h3>
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead><tr><th>Email</th><th>Role</th><th>Age</th><th>Active</th><th>Action</th></tr></thead>
+              <tbody>
+                {adminUsers.map((u) => (
+                  <tr key={u.id}>
+                    <td>{u.email}</td><td>{u.role}</td><td>{u.age_group}</td><td>{u.is_active ? 'Yes' : 'No'}</td>
+                    <td><button className="quiet-button" onClick={() => toggleUserActive(u)}>{u.is_active ? 'Deactivate' : 'Activate'}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="admin-section">
+          <h3>Support Inquiries</h3>
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead><tr><th>Contact</th><th>Subject</th><th>Status</th><th>Change</th></tr></thead>
+              <tbody>
+                {adminTickets.map((t) => (
+                  <tr key={t.id}>
+                    <td>{t.contact_email}</td><td>{t.subject}</td><td><strong>{t.status}</strong></td>
+                    <td>
+                      <select value={t.status} onChange={(e) => updateTicketStatus(t.id, e.target.value)}>
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="admin-section">
+          <h3>Catalog Tests</h3>
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead><tr><th>Slug</th><th>Type</th><th>Status</th><th>Min Age</th></tr></thead>
+              <tbody>
+                {adminTests.map((t) => (
+                  <tr key={t.id}>
+                    <td>{t.slug}</td><td>{t.type}</td><td><strong>{t.status}</strong></td><td>{t.min_age}+</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    )}
+
     {message && <p className="message" role="alert">{message}</p>}
     {token && <><button className="assistant-toggle" aria-expanded={assistantOpen} onClick={() => { setAssistantOpen(!assistantOpen); window.location.hash = '#assistant' }}>Ask SIHAT</button>{assistantOpen && <aside className="assistant-panel" aria-label="SIHAT assistant"><div className="section-heading"><h2>SIHAT assistant</h2><button className="quiet-button" onClick={() => setAssistantOpen(false)}>Close</button></div><p className="exercise-instruction">This assistant explains the platform and navigation. It does not diagnose or prescribe treatment. Your dialog is kept only in this browser session.</p><div className="assistant-dialog" aria-live="polite">{dialog.map((item, index) => <p key={index} className={'assistant-' + item.role}>{item.text}</p>)}</div>{assistantActions.map((action, index) => <button key={action.name + index} className="secondary-button" onClick={() => runAssistantAction(action)}>{action.requires_confirmation ? 'Confirm: ' : ''}{action.name.replaceAll('_', ' ')}</button>)}<form onSubmit={sendAssistantMessage}><label>Message SIHAT assistant<textarea value={assistantText} onChange={(event) => setAssistantText(event.target.value)} maxLength={2000} /></label><div className="runner-actions"><button type="submit">Send</button><button type="button" className="secondary-button" onClick={startVoiceInput}>Use voice input</button></div></form></aside>}</>}
   </main>

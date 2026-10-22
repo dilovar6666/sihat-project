@@ -328,6 +328,23 @@ def get_current_user(
     return user
 
 
+def get_current_user_optional(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> User | None:
+    if credentials is None:
+        return None
+    try:
+        user_id = decode_access_token(credentials.credentials, settings)
+    except HTTPException:
+        return None
+    user = db.get(User, user_id)
+    if not user or not user.is_active:
+        return None
+    return user
+
+
 @router.post("/google/link", status_code=status.HTTP_204_NO_CONTENT)
 def link_google(
     payload: GoogleTokenInput,

@@ -70,3 +70,21 @@ The platform integrates a bounded server-side Gemini assistant:
 - Destructive and initiation actions require explicit user confirmation gates.
 - Graceful non-diagnostic fallback is active whenever Gemini is unconfigured or unreachable.
 
+## Administration and content
+
+Administrative endpoints are strictly protected under role `admin`:
+
+- `GET /admin/dashboard` — returns aggregate-only metrics (users, tests, categories,
+  completed and saved counts, support inquiries) with strictly zero individual answers or medical questionnaires.
+- `GET /admin/users` and `PATCH /admin/users/{user_id}` — manage accounts (active status,
+  roles) with self-lockout protection against deactivating or demoting one's own account.
+- Catalog lifecycle — unpublish tests to draft (`POST /admin/tests/{test_id}/unpublish`),
+  block tests (`POST /admin/tests/{test_id}/block`), and patch age or guest conditions.
+- FAQ and Knowledge Base — public endpoints (`GET /faq`, `GET /knowledge`, `GET /knowledge/{slug}`)
+  and administrative CRUD endpoints (`/admin/faq`, `/admin/knowledge`).
+- Support Tickets — guest and user ticket submission (`POST /support/tickets`, rate-limited)
+  with user ticket tracking (`GET /support/my-tickets`) and administrative status management (`/admin/support/tickets`).
+- Content drafting assistant — `POST /admin/content/draft` prepares non-diagnostic educational
+  drafts for mandatory administrative review before any publication.
+
+

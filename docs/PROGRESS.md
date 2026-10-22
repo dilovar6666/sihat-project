@@ -2,7 +2,41 @@
 
 ## Current stage
 
-**Stage 6 — Gemini assistant: technically complete**
+**Stage 7 — Admin and content: technically complete**
+
+## Stage 7 implementation
+
+- Administrative dashboard (`GET /admin/dashboard`) returning exclusively aggregated
+  system metrics (user demographics, active accounts, catalog distribution, completed attempts,
+  saved results count, support inquiries) with strictly zero access to individual medical answers.
+- User management API (`GET /admin/users`, `PATCH /admin/users/{user_id}`) allowing administrators
+  to view accounts, toggle active status, and manage roles with built-in self-lockout protection
+  preventing admins from deactivating or demoting their own accounts.
+- Test catalog lifecycle controls enabling administrators to unpublish tests to draft
+  (`POST /admin/tests/{test_id}/unpublish`), block tests (`POST /admin/tests/{test_id}/block`),
+  and adjust age and guest conditions (`PATCH /admin/tests/{test_id}`).
+- FAQ and Knowledge Base modules: public read APIs (`GET /faq`, `GET /knowledge`,
+  `GET /knowledge/{slug}`) and administrative authoring CRUD endpoints (`/admin/faq`, `/admin/knowledge`).
+- Support ticket system allowing guest and user ticket submission (`POST /support/tickets`,
+  rate-limited with sliding-window protection), authenticated user history (`GET /support/my-tickets`),
+  and administrative status updates (`PATCH /admin/support/tickets/{ticket_id}`).
+- AI content drafting assistant (`POST /admin/content/draft`) generating safe, non-diagnostic
+  educational drafts requiring mandatory manual review before publication.
+- Seed data migration (`alembic upgrade head` applying revision `0009_admin_and_content`)
+  and initial non-diagnostic content in `sihat/content_seed.py`.
+- Frontend integration adding top-level navigation tabs (Exercises, FAQ, Knowledge Base, Support,
+  and role-gated Admin Panel with Dashboard statistics, user tables, and ticket management).
+
+## Stage 7 verification
+
+- Ruff check and formatting check pass (`All checks passed!`, 51 files formatted).
+- Pytest passes 33 tests across all modules, including RBAC enforcement, aggregate-only
+  dashboard metrics, self-lockout protections, FAQ/Knowledge lifecycle, and support ticket rate limiting.
+- Local PostgreSQL upgraded through Alembic revision `0009_admin_and_content`.
+- Frontend production build (`npm.cmd --prefix frontend run build`) passes.
+- Playwright E2E tests (`npm.cmd --prefix frontend run test:e2e`) pass with 5/5 tests
+  covering educational exercises, assistant dialogs, FAQ viewing, support ticket submission,
+  and administrative dashboard access.
 
 ## Stage 6 implementation
 

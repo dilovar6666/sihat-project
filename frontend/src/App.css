@@ -2,14 +2,15 @@
 .app-header { max-width: 760px; margin: 0 auto 42px; text-align: center; }
 .eyebrow { color: #10735a; font-size: .78rem; font-weight: 700; letter-spacing: .11em; margin: 0 0 8px; text-transform: uppercase; }
 .lede { color: #51615d; font-size: 1.08rem; line-height: 1.65; }
-.login-card, .runner-card, .completion-card { background: #fff; border: 1px solid #d9e5df; border-radius: 20px; box-shadow: 0 16px 45px rgba(23, 54, 45, .08); margin: 0 auto; max-width: 700px; padding: 30px; }
+.login-card, .runner-card, .completion-card, .content-card { background: #fff; border: 1px solid #d9e5df; border-radius: 20px; box-shadow: 0 16px 45px rgba(23, 54, 45, .08); margin: 0 auto; max-width: 700px; padding: 30px; }
+.content-card { max-width: 900px; }
 .login-card { display: grid; gap: 18px; max-width: 420px; }
 label { color: #27342f; display: grid; font-weight: 650; gap: 7px; text-align: left; }
-input, textarea { background: #fbfdfc; border: 1px solid #b9cbc3; border-radius: 9px; box-sizing: border-box; color: #1f302a; font: inherit; padding: 10px 12px; width: 100%; }
+input, textarea, select { background: #fbfdfc; border: 1px solid #b9cbc3; border-radius: 9px; box-sizing: border-box; color: #1f302a; font: inherit; padding: 10px 12px; width: 100%; }
 textarea { resize: vertical; }
 button { background: #10735a; border: 1px solid #10735a; border-radius: 9px; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 10px 14px; }
 button:hover:not(:disabled) { background: #07523e; border-color: #07523e; }
-button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #f0ad4e; outline-offset: 2px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #f0ad4e; outline-offset: 2px; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 .quiet-button, .secondary-button { background: transparent; border-color: #7e978c; color: #174638; }
 .quiet-button:hover:not(:disabled), .secondary-button:hover:not(:disabled) { background: #edf7f2; border-color: #174638; color: #174638; }
@@ -49,4 +50,37 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .assistant-assistant { background: #f1f5f9; }
 .exercise-notice { color: #245a48; margin: 18px auto 0; max-width: 540px; }
 .sr-only { height: 1px; margin: -1px; overflow: hidden; position: absolute; width: 1px; clip: rect(0, 0, 0, 0); }
-@media (max-width: 600px) { .app-shell { padding: 28px 16px 48px; } .app-header { margin-bottom: 28px; } .runner-heading, .runner-actions, .section-heading { align-items: stretch; flex-direction: column; } .runner-heading .quiet-button, .section-heading .quiet-button { width: 100%; } .login-card, .runner-card, .completion-card { padding: 20px; } }
+
+/* Navigation and Tabs */
+.nav-tabs { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 28px; }
+.nav-tab { background: #fff; border: 1px solid #c9d8d1; border-radius: 20px; color: #2a4c40; font-weight: 600; padding: 8px 16px; }
+.nav-tab:hover { background: #edf7f2; }
+.nav-tab.active { background: #10735a; border-color: #10735a; color: #fff; }
+
+/* FAQ & Knowledge Articles */
+.faq-list, .article-list { display: grid; gap: 16px; margin-top: 20px; }
+.faq-card, .article-card { background: #f7fbf9; border: 1px solid #d9e5df; border-radius: 12px; padding: 18px; text-align: left; }
+.faq-card h3, .article-card h3 { color: #17352b; margin: 0 0 8px; }
+.faq-card p, .article-card p { color: #495e54; margin: 0; }
+
+/* Dashboard & Admin Panels */
+.stat-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin: 20px 0; }
+.stat-box { background: #f2f8f5; border: 1px solid #d4e3dc; border-radius: 12px; padding: 14px; text-align: center; }
+.stat-value { color: #10735a; font-size: 1.8rem; font-weight: 800; margin: 0; }
+.stat-label { color: #51635a; font-size: .85rem; font-weight: 600; margin: 4px 0 0; text-transform: uppercase; }
+
+/* Tables */
+.table-wrap { margin-top: 18px; overflow-x: auto; }
+.admin-table { border-collapse: collapse; text-align: left; width: 100%; }
+.admin-table th, .admin-table td { border-bottom: 1px solid #dce8e2; padding: 10px 12px; }
+.admin-table th { background: #edf5f1; color: #1c3d31; font-size: .9rem; }
+.admin-table tr:hover td { background: #f7fbf9; }
+.admin-section { margin-top: 32px; }
+
+@media (max-width: 600px) {
+  .app-shell { padding: 28px 16px 48px; }
+  .app-header { margin-bottom: 28px; }
+  .runner-heading, .runner-actions, .section-heading { align-items: stretch; flex-direction: column; }
+  .runner-heading .quiet-button, .section-heading .quiet-button { width: 100%; }
+  .login-card, .runner-card, .completion-card, .content-card { padding: 20px; }
+}
