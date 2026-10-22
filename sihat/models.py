@@ -171,3 +171,26 @@ class TestAttempt(Base):
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     save_consent: Mapped[bool | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SavedResult(Base):
+    """An owner-only, immutable record created after explicit save consent."""
+
+    __tablename__ = "saved_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    test_id: Mapped[str] = mapped_column(ForeignKey("tests.id", ondelete="RESTRICT"), index=True)
+    test_slug: Mapped[str] = mapped_column(String(120), index=True)
+    test_type: Mapped[str] = mapped_column(String(32))
+    test_title: Mapped[str] = mapped_column(String(240))
+    methodology_name: Mapped[str] = mapped_column(String(240))
+    methodology_version: Mapped[str] = mapped_column(String(80))
+    definition_version: Mapped[str] = mapped_column(String(80))
+    compatibility_conditions: Mapped[dict] = mapped_column(JSON, default=dict)
+    result: Mapped[dict] = mapped_column(JSON)
+    answers: Mapped[dict] = mapped_column(JSON, default=dict)
+    limitations: Mapped[str] = mapped_column(Text)
+    warnings: Mapped[list] = mapped_column(JSON, default=list)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

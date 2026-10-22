@@ -2,7 +2,34 @@
 
 ## Current stage
 
-**Stage 4 — Test engine and educational exercises: technically complete**
+**Stage 5 — Results and privacy: technically complete**
+
+## Stage 5 implementation
+
+- Completed attempts require an explicit `Save` or `Do not save` choice in the
+  API and technical React runner. Until that choice, result and answers remain
+  only in the temporary attempt.
+- Saving creates an immutable `saved_results` record owned by the authenticated
+  user and removes the temporary attempt. Declining deletes the temporary result
+  and answers immediately. Attempts still expire after the configured retention
+  period and are deleted when accessed.
+- Owner-only history, single-result deletion, full-history deletion, compatible
+  comparison, and PDF export endpoints are available. Unknown or another user's
+  result identifiers return 404, preventing IDOR disclosure.
+- Comparison requires the same test, methodology version, definition version, and
+  recorded device conditions. It never produces an aggregate health score.
+- The PDF foundation supports user-selected result, methodology, limitations,
+  warnings, and optional answer fields. Every export carries a non-diagnostic
+  statement and does not invent a health percentage.
+
+## Stage 5 verification
+
+- Ruff check and formatting check pass.
+- Pytest passes 21 tests, including consent, temporary deletion, ownership,
+  immutable-result surface, history deletion, compatibility, and PDF coverage.
+- Local PostgreSQL was upgraded through Alembic revision `0008_saved_results`.
+- Vite production build and Playwright exercise flow pass, including explicit save
+  consent.
 
 ## Stage 4 verification
 

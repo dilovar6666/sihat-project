@@ -16,7 +16,7 @@ from sihat.attempt_schemas import (
 from sihat.auth import get_current_user
 from sihat.config import Settings, get_settings
 from sihat.db import get_db_session
-from sihat.models import Questionnaire, TestAttempt, TestDefinition, User
+from sihat.models import MethodologyPassport, Questionnaire, TestAttempt, TestDefinition, User
 from sihat.security import is_expired
 
 router = APIRouter(prefix="/attempts", tags=["attempts"])
@@ -129,17 +129,15 @@ def _state_output(attempt: TestAttempt) -> AttemptStateOutput:
 def _completion_output(attempt: TestAttempt) -> AttemptCompletionOutput:
     if attempt.completed_at is None:
         raise RuntimeError("Completed attempt is missing its completion time")
-    score = sum(
-        attempt.definition_snapshot.get("scoring", {}).get(question_id, {}).get(str(answer), 0)
-        for question_id, answer in attempt.answers.items()
-    )
+    if attempt.result is None:
+        raise RuntimeError("Completed attempt is missing its result")
     return AttemptCompletionOutput(
         id=attempt.id,
         status=attempt.status,
         definition_version=attempt.definition_version,
         completed_at=attempt.completed_at.isoformat(),
         expires_at=attempt.expires_at.isoformat(),
-        result={"score": score, "message": "Exercise result only; it is not a diagnosis."},
+        result=attempt.result,
     )
 
 
@@ -196,7 +194,8 @@ def start_attempt(
     if not test or not _age_group_allows(test, user.age_group):
         raise HTTPException(status_code=404, detail="Test is unavailable")
     questionnaire = db.scalar(select(Questionnaire).where(Questionnaire.test_id == test.id))
-    if not questionnaire:
+    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))
+    if not questionnaire or not passport:
         raise HTTPException(status_code=409, detail="Test has no questionnaire definition")
     try:
         definition_snapshot = _definition_snapshot(questionnaire)
@@ -205,6 +204,16 @@ def start_attempt(
             status_code=409, detail=f"Questionnaire definition is invalid: {exc}"
         ) from exc
 
+    definition_snapshot["result_context"] = {
+        "test_slug": test.slug,
+        "test_type": test.test_type,
+        "test_title": str(test.localizations.get("en", {}).get("title", test.slug)),
+        "methodology_name": passport.methodology_name,
+        "methodology_version": passport.methodology_version,
+        "compatibility_conditions": {"device_conditions": list(passport.device_conditions)},
+        "limitations": passport.limitations,
+        "warnings": list(passport.warnings),
+    }
     attempt = TestAttempt(
         user_id=user.id,
         test_id=test.id,
@@ -284,6 +293,11 @@ def complete_attempt(
         raise HTTPException(status_code=409, detail="Attempt has unanswered questions")
     attempt.status = "completed"
     attempt.completed_at = datetime.now(UTC)
+    score = sum(
+        attempt.definition_snapshot.get("scoring", {}).get(question_id, {}).get(str(answer), 0)
+        for question_id, answer in attempt.answers.items()
+    )
+    attempt.result = {"score": score, "message": "Exercise result only; it is not a diagnosis."}
     db.commit()
     db.refresh(attempt)
     return _completion_output(attempt)

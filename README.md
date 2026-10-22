@@ -38,3 +38,23 @@ password endpoints. Google sign-in receives an Identity Services ID token at
 `POST /auth/google`; only `GOOGLE_OAUTH_CLIENT_ID` is required. Password-reset email
 delivery uses the configured SMTP provider and never logs or returns the reset token.
 Registration, login, Google sign-in, and password-reset requests are rate limited.
+
+## Results and privacy
+
+A completed attempt remains temporary until the signed-in owner chooses **Save** or
+**Do not save**. `Save` creates an immutable owner-only record and removes the
+temporary attempt. `Do not save` deletes the completed attempt and its answers.
+Expired temporary attempts are deleted when accessed.
+
+The owner can use these authenticated API endpoints:
+
+- `GET /results/history` — list saved results without raw answers.
+- `GET /results/{result_id}/compare` — compare only records with the same test,
+  methodology version, definition version, and recorded device conditions.
+- `DELETE /results/{result_id}` and `DELETE /results/history` — delete one result
+  or the complete history.
+- `POST /results/{result_id}/pdf` — download a field-selectable PDF record. It
+  always states that the result is not a diagnosis and contains no health percentage.
+
+The API reference at `/docs` contains the request and response schemas, including
+`POST /attempts/{attempt_id}/save` and `POST /attempts/{attempt_id}/do-not-save`.

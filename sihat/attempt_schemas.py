@@ -28,3 +28,34 @@ class AttemptCompletionOutput(BaseModel):
     expires_at: str
     result: dict[str, Any]
     save_consent_required: bool = True
+
+
+class SavedResultOutput(BaseModel):
+    id: str
+    test_slug: str
+    test_type: str
+    test_title: str
+    methodology_name: str
+    methodology_version: str
+    definition_version: str
+    compatibility_conditions: dict[str, Any]
+    result: dict[str, Any]
+    limitations: str
+    warnings: list[str]
+    completed_at: str
+
+
+class ComparisonOutput(BaseModel):
+    test_slug: str
+    methodology_version: str
+    definition_version: str
+    compatibility_conditions: dict[str, Any]
+    results: list[SavedResultOutput]
+
+
+class PdfExportInput(BaseModel):
+    include_result: bool = True
+    include_methodology: bool = True
+    include_limitations: bool = True
+    include_warnings: bool = True
+    include_answers: bool = False
