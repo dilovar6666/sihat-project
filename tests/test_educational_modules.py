@@ -5,7 +5,8 @@ from sqlalchemy.pool import StaticPool
 from sihat.catalog_seed import seed_catalog
 from sihat.db import Base
 from sihat.educational_modules import EDUCATIONAL_SLUGS, install_educational_modules
-from sihat.models import MethodologyPassport, Questionnaire, TestDefinition
+from sihat.models import MethodologyPassport, Questionnaire
+from sihat.models import TestDefinition as CatalogTest
 
 
 def test_all_educational_modules_have_a_safe_published_definition() -> None:
@@ -15,7 +16,7 @@ def test_all_educational_modules_have_a_safe_published_definition() -> None:
         seed_catalog(session)
         assert install_educational_modules(session) == len(EDUCATIONAL_SLUGS)
         for slug in EDUCATIONAL_SLUGS:
-            test = session.scalar(select(TestDefinition).where(TestDefinition.slug == slug))
+            test = session.scalar(select(CatalogTest).where(CatalogTest.slug == slug))
             assert test is not None
             assert test.availability_status == "published"
             assert test.test_type == "educational_exercise"
