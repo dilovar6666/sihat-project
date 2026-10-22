@@ -9,6 +9,7 @@ from sihat.catalog import admin_router
 from sihat.catalog import router as catalog_router
 from sihat.config import get_settings
 from sihat.models import User
+from sihat.symptom_triage import router as symptom_triage_router
 
 settings = get_settings()
 
@@ -27,6 +28,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(attempts_router)
 app.include_router(catalog_router)
+app.include_router(symptom_triage_router)
 app.include_router(admin_router)
 
 
