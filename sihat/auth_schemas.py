@@ -13,6 +13,11 @@ class LoginInput(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class GoogleTokenInput(BaseModel):
+    id_token: str = Field(min_length=20, max_length=8192)
+    age_group: str | None = Field(default=None, pattern="^(16_17|18_plus)$")
+
+
 class RefreshInput(BaseModel):
     refresh_token: str = Field(min_length=32, max_length=256)
 

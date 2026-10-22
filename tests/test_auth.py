@@ -2,14 +2,17 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from sihat import auth
+from sihat.config import Settings
 from sihat.db import Base, get_db_session
 from sihat.main import app
-from sihat.models import PasswordResetToken, User
+from sihat.models import GoogleIdentity, PasswordResetToken, User
 from sihat.security import hash_token
 
 
@@ -152,3 +155,130 @@ def test_password_reset_invalidates_existing_sessions(client: TestClient) -> Non
         ).status_code
         == 200
     )
+
+
+def test_google_login_creates_and_reuses_a_verified_identity(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    claims = {
+        "subject": "google-subject-123",
+        "email": "google.user@example.com",
+        "full_name": "Google User",
+    }
+    monkeypatch.setattr(auth, "verify_google_id_token", lambda *_: claims)
+
+    created = client.post(
+        "/auth/google",
+        json={"id_token": "a" * 32, "age_group": "18_plus"},
+    )
+    assert created.status_code == 200
+    assert created.json()["user"]["email"] == claims["email"]
+
+    reused = client.post("/auth/google", json={"id_token": "b" * 32})
+    assert reused.status_code == 200
+    assert reused.json()["user"]["id"] == created.json()["user"]["id"]
+
+
+def test_google_login_requires_a_configured_client_id(client: TestClient) -> None:
+    response = client.post(
+        "/auth/google",
+        json={"id_token": "a" * 32, "age_group": "18_plus"},
+    )
+    assert response.status_code == 503
+
+
+def test_google_id_token_verification_requires_valid_google_claims(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from google.oauth2 import id_token as google_id_token
+
+    settings = Settings(google_oauth_client_id="test-client-id")
+    monkeypatch.setattr(
+        google_id_token,
+        "verify_oauth2_token",
+        lambda *_: {
+            "sub": "google-subject-001",
+            "email": "verified@example.com",
+            "email_verified": True,
+            "iss": "https://accounts.google.com",
+            "name": "Verified User",
+        },
+    )
+    claims = auth.verify_google_id_token("a.b.c", settings)
+    assert claims["email"] == "verified@example.com"
+
+    monkeypatch.setattr(
+        google_id_token,
+        "verify_oauth2_token",
+        lambda *_: {
+            "sub": "google-subject-001",
+            "email": "verified@example.com",
+            "email_verified": True,
+            "iss": "https://invalid.example.com",
+        },
+    )
+    with pytest.raises(HTTPException) as error:
+        auth.verify_google_id_token("a.b.c", settings)
+    assert error.value.status_code == 401
+
+
+def test_google_identity_must_not_take_over_existing_email(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    register(client)
+    monkeypatch.setattr(
+        auth,
+        "verify_google_id_token",
+        lambda *_: {
+            "subject": "google-subject-456",
+            "email": "test@example.com",
+            "full_name": "Test User",
+        },
+    )
+
+    response = client.post(
+        "/auth/google",
+        json={"id_token": "a" * 32, "age_group": "18_plus"},
+    )
+    assert response.status_code == 409
+
+
+def test_authenticated_user_can_link_matching_google_email(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registered = register(client)
+    tokens = client.post(
+        "/auth/login",
+        json={"email": "test@example.com", "password": "a-secure-password"},
+    ).json()
+    monkeypatch.setattr(
+        auth,
+        "verify_google_id_token",
+        lambda *_: {
+            "subject": "google-subject-789",
+            "email": "test@example.com",
+            "full_name": "Test User",
+        },
+    )
+
+    response = client.post(
+        "/auth/google/link",
+        json={"id_token": "a" * 32},
+        headers={"Authorization": f"Bearer {tokens['access_token']}"},
+    )
+    assert response.status_code == 204
+
+    db_dependency = app.dependency_overrides[get_db_session]
+    session_generator = db_dependency()
+    session = next(session_generator)
+    try:
+        identity = session.scalar(
+            select(GoogleIdentity).where(GoogleIdentity.subject == "google-subject-789")
+        )
+        assert identity is not None
+        assert identity.user_id == registered["id"]
+    finally:
+        next(session_generator, None)

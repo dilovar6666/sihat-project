@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sihat.auth_schemas import (
     AuthTokensOutput,
     ForgotPasswordInput,
+    GoogleTokenInput,
     LoginInput,
     RefreshInput,
     RegistrationInput,
@@ -16,7 +17,7 @@ from sihat.auth_schemas import (
 )
 from sihat.config import Settings, get_settings
 from sihat.db import get_db_session
-from sihat.models import AuthSession, PasswordResetToken, User
+from sihat.models import AuthSession, GoogleIdentity, PasswordResetToken, User
 from sihat.security import (
     create_access_token,
     decode_access_token,
@@ -30,6 +31,51 @@ from sihat.security import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def verify_google_id_token(id_token: str, settings: Settings) -> dict[str, str]:
+    if not settings.google_oauth_client_id:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google OAuth is not configured",
+        )
+    if id_token.count(".") != 2:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google ID token format",
+        )
+
+    try:
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token as google_id_token
+
+        claims = google_id_token.verify_oauth2_token(
+            id_token,
+            google_requests.Request(),
+            settings.google_oauth_client_id,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google ID token could not be verified",
+        ) from exc
+
+    if claims.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google ID token issuer",
+        )
+    if not claims.get("sub") or not claims.get("email") or claims.get("email_verified") is not True:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A verified Google email is required",
+        )
+
+    return {
+        "subject": str(claims["sub"]),
+        "email": normalize_email(str(claims["email"])),
+        "full_name": str(claims.get("name") or str(claims["email"]).split("@", 1)[0]),
+    }
 
 
 def user_output(user: User) -> UserOutput:
@@ -182,17 +228,53 @@ def reset_password(payload: ResetPasswordInput, db: Session = Depends(get_db_ses
     db.commit()
 
 
-@router.get("/google/start")
-def google_start(settings: Settings = Depends(get_settings)) -> dict[str, str]:
-    if not settings.google_oauth_is_configured:
+@router.post("/google", response_model=AuthTokensOutput)
+def google_login(
+    payload: GoogleTokenInput,
+    db: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> AuthTokensOutput:
+    claims = verify_google_id_token(payload.id_token, settings)
+    identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
+    if identity:
+        user = db.get(User, identity.user_id)
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is unavailable",
+            )
+        return create_tokens(db, user, settings)
+
+    existing_user = db.scalar(select(User).where(User.email == claims["email"]))
+    if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Google OAuth is not configured",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email is already registered; sign in with your password before linking Google",
         )
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Google OAuth callback implementation is pending credential validation",
+    if not payload.age_group:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="age_group is required when creating an account with Google",
+        )
+
+    user = User(
+        email=claims["email"],
+        full_name=claims["full_name"][:120],
+        password_hash=None,
+        age_group=payload.age_group,
+        role="user",
     )
+    db.add(user)
+    db.flush()
+    db.add(
+        GoogleIdentity(
+            user_id=user.id,
+            subject=claims["subject"],
+            email=claims["email"],
+        )
+    )
+    db.commit()
+    return create_tokens(db, user, settings)
 
 
 def get_current_user(
@@ -213,3 +295,33 @@ def get_current_user(
             detail="User account is unavailable",
         )
     return user
+
+
+@router.post("/google/link", status_code=status.HTTP_204_NO_CONTENT)
+def link_google(
+    payload: GoogleTokenInput,
+    db: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(get_current_user),
+) -> None:
+    claims = verify_google_id_token(payload.id_token, settings)
+    identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
+    if identity and identity.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Google account is already linked to another user",
+        )
+    if claims["email"] != user.email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Google email must match the current account email",
+        )
+    if not identity:
+        db.add(
+            GoogleIdentity(
+                user_id=user.id,
+                subject=claims["subject"],
+                email=claims["email"],
+            )
+        )
+        db.commit()

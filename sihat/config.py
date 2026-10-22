@@ -14,8 +14,6 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     google_oauth_client_id: str | None = None
-    google_oauth_client_secret: SecretStr | None = None
-    google_oauth_redirect_uri: str | None = None
     allowed_origins: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -26,11 +24,7 @@ class Settings(BaseSettings):
 
     @property
     def google_oauth_is_configured(self) -> bool:
-        return bool(
-            self.google_oauth_client_id
-            and self.google_oauth_client_secret
-            and self.google_oauth_redirect_uri
-        )
+        return bool(self.google_oauth_client_id)
 
     @model_validator(mode="after")
     def reject_placeholder_secret_outside_development(self) -> "Settings":

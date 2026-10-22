@@ -47,13 +47,14 @@
   and authenticated profile access.
 - Password-reset token persistence, expiry, single-use semantics, and session
   invalidation after a successful reset.
-- Google OAuth configuration detection without embedded credentials or a simulated
-  login flow.
+- Google Identity Services ID-token verification and subject-to-user links without a
+  redirect URI or a browser-visible server secret.
 
 ## Stage 2 verification and blockers
 
 - Ruff passes; pytest passes 4 tests covering successful and negative auth flows.
 - PostgreSQL migration `0002_identity_and_access` is applied locally.
-- Google OAuth and password-reset delivery are intentionally incomplete until Google
-  OAuth and outbound-email credentials are supplied. The API reports this state rather
-  than pretending either integration works.
+- Live Google sign-in requires only `GOOGLE_OAUTH_CLIENT_ID`; the server validates the
+  provider-issued ID token before creating or linking an account. A real Google token
+  has not been supplied for live verification. Password-reset delivery still requires
+  outbound-email credentials.

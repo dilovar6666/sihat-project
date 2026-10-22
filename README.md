@@ -26,13 +26,14 @@ pytest
 alembic upgrade head
 ```
 
-PostgreSQL, OAuth credentials, mail delivery, Gemini credentials, and a GitHub remote
-are intentionally not bundled. Configure them through environment variables when the
+PostgreSQL, the Google OAuth client ID, mail delivery, and Gemini credentials are
+intentionally not bundled. Configure them through environment variables when the
 corresponding stages are implemented.
 
 ## Authentication currently available
 
 Email/password registration and login issue a short-lived bearer access token plus a
 rotating refresh token. The API exposes refresh, logout, current-profile, and reset
-password endpoints. Password-reset email delivery and the Google OAuth callback remain
-unavailable until their provider credentials are configured.
+password endpoints. Google sign-in receives an Identity Services ID token at
+`POST /auth/google`; only `GOOGLE_OAUTH_CLIENT_ID` is required. Password-reset email
+delivery remains unavailable until mail credentials are configured.
