@@ -14,7 +14,7 @@ from sihat.db import Base, get_db_session
 from sihat.main import app
 from sihat.models import GoogleIdentity, PasswordResetToken, User
 from sihat.rate_limit import clear_auth_rate_limits
-from sihat.security import hash_token
+from sihat.security import hash_password, hash_token
 
 
 @pytest.fixture
@@ -278,6 +278,86 @@ def test_google_id_token_verification_requires_valid_google_claims(
     with pytest.raises(HTTPException) as error:
         auth.verify_google_id_token("a.b.c", settings)
     assert error.value.status_code == 401
+
+
+def test_catalog_publication_requires_admin_and_methodology_passport(client: TestClient) -> None:
+    register(client)
+    user_tokens = client.post(
+        "/auth/login",
+        json={"email": "test@example.com", "password": "a-secure-password"},
+    ).json()
+    localizations = {
+        "ru": {"title": "Память", "description": "Образовательное упражнение"},
+        "tg": {"title": "Хотира", "description": "Машқи омӯзишӣ"},
+        "en": {"title": "Memory", "description": "Educational exercise"},
+    }
+    denied = client.post(
+        "/admin/categories",
+        json={"slug": "memory", "localizations": localizations},
+        headers={"Authorization": f"Bearer {user_tokens['access_token']}"},
+    )
+    assert denied.status_code == 403
+
+    db_dependency = app.dependency_overrides[get_db_session]
+    session_generator = db_dependency()
+    session = next(session_generator)
+    try:
+        session.add(
+            User(
+                email="admin@example.com",
+                full_name="Admin User",
+                password_hash=hash_password("a-secure-password"),
+                age_group="18_plus",
+                role="admin",
+            )
+        )
+        session.commit()
+    finally:
+        next(session_generator, None)
+    admin_tokens = client.post(
+        "/auth/login",
+        json={"email": "admin@example.com", "password": "a-secure-password"},
+    ).json()
+    headers = {"Authorization": f"Bearer {admin_tokens['access_token']}"}
+
+    category = client.post(
+        "/admin/categories",
+        json={"slug": "memory", "localizations": localizations},
+        headers=headers,
+    )
+    assert category.status_code == 201
+    test = client.post(
+        "/admin/tests",
+        json={
+            "category_id": category.json()["id"],
+            "slug": "short-term-memory",
+            "test_type": "educational_exercise",
+            "guest_allowed": True,
+            "localizations": localizations,
+        },
+        headers=headers,
+    )
+    assert test.status_code == 201
+    unpublished = client.post(f"/admin/tests/{test.json()['id']}/publish", headers=headers)
+    assert unpublished.status_code == 409
+
+    passport = client.put(
+        f"/admin/tests/{test.json()['id']}/methodology",
+        json={
+            "methodology_name": "Short-term memory exercise",
+            "methodology_version": "1.0",
+            "evidence_status": "educational",
+            "limitations": "This exercise does not diagnose a condition.",
+        },
+        headers=headers,
+    )
+    assert passport.status_code == 200
+    published = client.post(f"/admin/tests/{test.json()['id']}/publish", headers=headers)
+    assert published.status_code == 200
+    public_catalog = client.get("/tests?age=18")
+    assert public_catalog.status_code == 200
+    assert public_catalog.json()[0]["slug"] == "short-term-memory"
+    assert public_catalog.json()[0]["methodology"]["evidence_status"] == "educational"
 
 
 def test_google_identity_must_not_take_over_existing_email(

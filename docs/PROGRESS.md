@@ -2,7 +2,7 @@
 
 ## Current stage
 
-**Stage 2 — Identity and access: complete**
+**Stage 3 — Catalog and authoring: in progress**
 
 ## Evidence
 
@@ -63,3 +63,20 @@
 - Google credentials are configured. A browser E2E sign-in requires the Stage 8 React
   client to obtain an actual Google ID token; backend signature/claim behavior is
   covered with controlled provider responses.
+
+## Stage 3 implementation
+
+- Categories, test definitions, and methodology passports with explicit evidence,
+  language, device, scoring, limitation, and warning fields.
+- Public catalog endpoints expose only published tests allowed for guests and matching
+  their requested age filter.
+- Admin-only CRUD creates draft content and permits publication only after a passport;
+  pending-review modules cannot be published, and validated modules require source and
+  license information.
+
+## Stage 3 remaining work
+
+- Add the ten categories and all 30 approved cards with reviewed RU/TJ/EN content.
+- Add the questionnaire authoring model and versioned question/branching rules.
+- Record methodology passports and evidence decisions for every module before public
+  publication.

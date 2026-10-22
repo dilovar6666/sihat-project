@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sihat.auth import get_current_user
 from sihat.auth import router as auth_router
 from sihat.auth_schemas import UserOutput
+from sihat.catalog import admin_router
+from sihat.catalog import router as catalog_router
 from sihat.config import get_settings
 from sihat.models import User
 
@@ -22,6 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth_router)
+app.include_router(catalog_router)
+app.include_router(admin_router)
 
 
 @app.get("/health", tags=["system"])
