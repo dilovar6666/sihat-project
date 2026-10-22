@@ -2,7 +2,37 @@
 
 ## Current stage
 
-**Stage 5 — Results and privacy: technically complete**
+**Stage 6 — Gemini assistant: technically complete**
+
+## Stage 6 implementation
+
+- Bounded server adapter for Google Gemini via `generateContent` API. Gemini API
+  key and credentials remain strictly on the backend and are never sent to the browser
+  or committed to Git.
+- Strict system instructions ensuring the assistant acts exclusively as a navigation
+  and educational guide: no clinical diagnosis, no prescribing treatment, and no
+  direct manipulation of user results or test scores.
+- Typed action allowlist: `navigate_to_page`, `open_test`, `search_tests`,
+  `filter_category`, `scroll_to_section`, `highlight_element`, `open_test_description`,
+  `open_profile`, `show_test_results`, and `prepare_test_start`.
+- Confirmation gates required for state-changing actions (`prepare_test_start`,
+  `show_test_results`). All unknown or arbitrary actions are discarded.
+- Ephemeral context: the assistant does not maintain a persistent database archive
+  of dialogs. Results are only shared if the user explicitly supplies `shared_result_ids`,
+  which are validated against user ownership (IDOR protected).
+- Rate limiting on `/assistant/message` prevents abuse.
+- Frontend assistant drawer panel with conversational history kept in local session
+  memory, voice input via Web Speech API fallback, and execution of confirmed typed actions.
+- Automatic non-diagnostic fallback response when Gemini is unconfigured or unreachable.
+
+## Stage 6 verification
+
+- Ruff check and formatting check pass.
+- Pytest passes 23 tests, including assistant rate limiting, typed action validation,
+  IDOR protection on shared results, and fallback behavior.
+- Frontend production build (`npm.cmd --prefix frontend run build`) passes.
+- Playwright E2E tests (`npm.cmd --prefix frontend run test:e2e`) pass with 3/3 tests
+  covering educational exercise flows and assistant dialog with typed action triggers.
 
 ## Stage 5 implementation
 

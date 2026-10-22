@@ -5,6 +5,9 @@ import './App.css'
 type Question = { id: string }
 type Attempt = { id: string; current_question: Question | null }
 type Completion = { id: string; result?: { message?: string } }
+type DialogMessage = { role: 'user' | 'assistant'; text: string }
+type AssistantAction = { name: string; arguments: Record<string, string>; requires_confirmation?: boolean }
+type AssistantReply = { message: string; actions: AssistantAction[]; provider_available: boolean }
 type ActivityKind = 'visual' | 'audio' | 'memory' | 'attention' | 'reflection' | 'reaction' | 'pointer' | 'processing'
 type Activity = { slug: string; title: string; description: string; kind: ActivityKind }
 
@@ -94,6 +97,10 @@ function App() {
   const [ready, setReady] = useState(false)
   const [message, setMessage] = useState('')
   const [completion, setCompletion] = useState<Completion | null>(null)
+  const [assistantOpen, setAssistantOpen] = useState(window.location.hash === '#assistant')
+  const [assistantText, setAssistantText] = useState('')
+  const [dialog, setDialog] = useState<DialogMessage[]>([])
+  const [assistantActions, setAssistantActions] = useState<AssistantAction[]>([])
   const request = async (path: string, init: RequestInit = {}) => {
     const response = await fetch(api + path, { ...init, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}), ...init.headers } })
     const body = await response.json().catch(() => ({}))
@@ -130,10 +137,47 @@ function App() {
       setMessage(save ? 'Your exercise result was saved to your private history.' : 'Your temporary exercise result was deleted.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to record your choice') }
   }
+  const sendAssistantMessage = async (event: FormEvent) => {
+    event.preventDefault()
+    const text = assistantText.trim()
+    if (!text) return
+    const currentDialog = dialog.slice(-12)
+    setDialog([...currentDialog, { role: 'user', text }])
+    setAssistantText('')
+    setAssistantActions([])
+    try {
+      const reply = await request('/assistant/message', { method: 'POST', body: JSON.stringify({ text, conversation: currentDialog }) }) as AssistantReply
+      setDialog([...currentDialog, { role: 'user', text }, { role: 'assistant', text: reply.message }])
+      setAssistantActions(reply.actions)
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to reach the assistant') }
+  }
+  const startVoiceInput = () => {
+    type Recognition = { lang: string; start: () => void; onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void }
+    const SpeechRecognition = (window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Recognition }).webkitSpeechRecognition
+    if (!SpeechRecognition) { setMessage('Voice input is not available in this browser.'); return }
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'en-US'
+    recognition.onresult = (event) => setAssistantText(event.results[0][0].transcript)
+    recognition.onerror = () => setMessage('Voice input could not be transcribed.')
+    recognition.start()
+  }
+  const runAssistantAction = (action: AssistantAction) => {
+    if (action.name === 'navigate_to_page' || action.name === 'scroll_to_section' || action.name === 'highlight_element') {
+      window.location.hash = action.arguments.target
+      return
+    }
+    if (action.name === 'open_test' || action.name === 'prepare_test_start') {
+      const activity = activities.find((item) => item.slug === action.arguments.slug)
+      if (activity) void start(activity)
+      return
+    }
+    setMessage('This assistant action is available when the corresponding screen is added.')
+  }
   return <main className="app-shell">
     <header className="app-header"><p className="eyebrow">SIHAT educational exercises</p><h1>Practice small skills, without health labels.</h1><p className="lede">These activities are for learning and personal reflection. They do not screen for, diagnose, or measure a health condition.</p></header>
     {!token ? <form className="login-card" onSubmit={login}><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label><button type="submit">Sign in to choose an exercise</button></form> : completion ? <section className="completion-card" aria-live="polite"><h2>Exercise complete</h2><p>{completion.result?.message ?? 'Your exercise response was recorded.'}</p><p>It is not a diagnosis or health result. Choose whether to save this result to your private history.</p><div className="runner-actions"><button onClick={() => decideSave(true)}>Save</button><button className="secondary-button" onClick={() => decideSave(false)}>Do not save</button></div></section> : attempt && selectedActivity ? <section className="runner-card"><div className="runner-heading"><div><p className="eyebrow">{selectedActivity.slug}</p><h2>{selectedActivity.title}</h2><p>{selectedActivity.description}</p></div><button className="quiet-button" onClick={discard}>Leave exercise</button></div><ExercisePanel key={selectedActivity.slug} activity={selectedActivity} onReady={setReady} /><div className="runner-actions"><button className="secondary-button" onClick={() => respond('skipped')}>Skip exercise</button><button disabled={!ready} onClick={() => respond('completed')}>Complete exercise</button></div></section> : <section className="activity-list" aria-label="Educational exercises"><div className="section-heading"><h2>Choose an activity</h2><button className="quiet-button" onClick={() => { setToken(''); setCompletion(null) }}>Sign out</button></div><div className="activity-grid">{activities.map((activity) => <article key={activity.slug}><p className="eyebrow">{activity.kind}</p><h3>{activity.title}</h3><p>{activity.description}</p><button onClick={() => start(activity)}>Start exercise</button></article>)}</div></section>}
     {message && <p className="message" role="alert">{message}</p>}
+    {token && <><button className="assistant-toggle" aria-expanded={assistantOpen} onClick={() => { setAssistantOpen(!assistantOpen); window.location.hash = '#assistant' }}>Ask SIHAT</button>{assistantOpen && <aside className="assistant-panel" aria-label="SIHAT assistant"><div className="section-heading"><h2>SIHAT assistant</h2><button className="quiet-button" onClick={() => setAssistantOpen(false)}>Close</button></div><p className="exercise-instruction">This assistant explains the platform and navigation. It does not diagnose or prescribe treatment. Your dialog is kept only in this browser session.</p><div className="assistant-dialog" aria-live="polite">{dialog.map((item, index) => <p key={index} className={'assistant-' + item.role}>{item.text}</p>)}</div>{assistantActions.map((action, index) => <button key={action.name + index} className="secondary-button" onClick={() => runAssistantAction(action)}>{action.requires_confirmation ? 'Confirm: ' : ''}{action.name.replaceAll('_', ' ')}</button>)}<form onSubmit={sendAssistantMessage}><label>Message SIHAT assistant<textarea value={assistantText} onChange={(event) => setAssistantText(event.target.value)} maxLength={2000} /></label><div className="runner-actions"><button type="submit">Send</button><button type="button" className="secondary-button" onClick={startVoiceInput}>Use voice input</button></div></form></aside>}</>}
   </main>
 }
 

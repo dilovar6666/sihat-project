@@ -59,3 +59,27 @@ test('opens each of the fifteen educational activity panels', async ({ page }) =
   }
   expect(started).toHaveLength(15)
 })
+
+test('sends an explicit assistant message and renders only typed actions', async ({ page }) => {
+  let requestBody: unknown
+  await page.route('http://127.0.0.1:8000/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/auth/login') return route.fulfill({ json: { access_token: 'test-token' } })
+    if (path === '/assistant/message') {
+      requestBody = JSON.parse(route.request().postData() ?? '{}')
+      return route.fulfill({ json: { message: 'I can help you navigate SIHAT.', provider_available: true, actions: [{ name: 'open_profile', arguments: {}, requires_confirmation: false }] } })
+    }
+    return route.fulfill({ status: 404, json: { detail: 'Unexpected request' } })
+  })
+  await page.goto('/')
+  await page.getByLabel('Email').fill('learner@example.com')
+  await page.getByLabel('Password').fill('password')
+  await page.getByRole('button', { name: 'Sign in to choose an exercise' }).click()
+  await page.getByRole('button', { name: 'Ask SIHAT' }).click()
+  await page.getByLabel('Message SIHAT assistant').fill('Where is my profile?')
+  await page.getByRole('button', { name: 'Send' }).click()
+  await expect(page.getByText('I can help you navigate SIHAT.')).toBeVisible()
+  expect(requestBody).toMatchObject({ text: 'Where is my profile?', conversation: [] })
+  await page.getByRole('button', { name: 'open profile' }).click()
+  await expect(page.getByRole('alert')).toContainText('corresponding screen')
+})

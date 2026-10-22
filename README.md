@@ -58,3 +58,15 @@ The owner can use these authenticated API endpoints:
 
 The API reference at `/docs` contains the request and response schemas, including
 `POST /attempts/{attempt_id}/save` and `POST /attempts/{attempt_id}/do-not-save`.
+
+## Assistant
+
+The platform integrates a bounded server-side Gemini assistant:
+
+- `POST /assistant/message` — accepts the current user dialog (ephemeral, not persisted
+  in any database) and optional explicit `shared_result_ids`.
+- Action execution is restricted to a typed allowlist: navigation, opening tests,
+  searching tests, filtering categories, and scrolling.
+- Destructive and initiation actions require explicit user confirmation gates.
+- Graceful non-diagnostic fallback is active whenever Gemini is unconfigured or unreachable.
+

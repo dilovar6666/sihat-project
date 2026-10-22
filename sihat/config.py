@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     attempt_temporary_hours: int = 24
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-2.5-flash"
     google_oauth_client_id: str | None = None
     smtp_host: str | None = None
     smtp_port: int = 587
@@ -39,6 +41,10 @@ class Settings(BaseSettings):
         return bool(
             self.smtp_host and self.smtp_username and self.smtp_password and self.smtp_from_email
         )
+
+    @property
+    def gemini_is_configured(self) -> bool:
+        return bool(self.gemini_api_key and self.gemini_api_key.get_secret_value())
 
     @model_validator(mode="after")
     def reject_placeholder_secret_outside_development(self) -> "Settings":
