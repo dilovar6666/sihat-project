@@ -23,26 +23,74 @@ export interface Translations {
   hero: {
     badge: string;
     title: string;
+    titleHighlight: string;
     subtitle: string;
     searchPlaceholder: string;
+    quickJump: string;
     browseCatalog: string;
     tryExercises: string;
     aiGuide: string;
+    chipVision: string;
+    chipHearing: string;
+    chipMemory: string;
+    chipAttention: string;
+    chipStress: string;
   };
-  pillars: {
+  bento: {
+    protocolTitle: string;
+    protocolVersion: string;
+    statusActive: string;
+    objectiveBadge: string;
+    objectiveDesc: string;
+    metric1Val: string;
+    metric1Label: string;
+    metric2Val: string;
+    metric2Label: string;
+    metric3Val: string;
+    metric3Label: string;
+  };
+  disciplines: {
+    badge: string;
     title: string;
     subtitle: string;
-    p1Title: string;
-    p1Desc: string;
-    p2Title: string;
-    p2Desc: string;
-    p3Title: string;
-    p3Desc: string;
-    p4Title: string;
-    p4Desc: string;
+    startBtn: string;
+  };
+  journey: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    step1Title: string;
+    step1Desc: string;
+    step1Tag: string;
+    step2Title: string;
+    step2Desc: string;
+    step2Tag: string;
+    step3Title: string;
+    step3Desc: string;
+    step3Tag: string;
+  };
+  aiShowcase: {
+    badge: string;
+    title: string;
+    subtitle: string;
+    check1: string;
+    check2: string;
+    prohibitedNote: string;
+    architectureTitle: string;
+    architectureDesc: string;
+    chatTitle: string;
+    chatStatus: string;
+    chatBadge: string;
+    userQuery: string;
+    aiReplyText: string;
+    aiItem1: string;
+    aiItem2: string;
+    aiSafetyNotice: string;
+    launchBtn: string;
   };
   disclaimer: {
     badge: string;
+    headline: string;
     text: string;
   };
   catalog: {
@@ -138,6 +186,9 @@ export interface Translations {
     rights: string;
     strictNonDiagnostic: string;
     designedWithCare: string;
+    protocols: string;
+    science: string;
+    languages: string;
   };
 }
 
@@ -164,28 +215,76 @@ export const translations: Record<Language, Translations> = {
     },
     hero: {
       badge: 'НАУЧНО ОБОСНОВАННЫЕ СКРИНИНГИ',
-      title: 'Понимайте состояние своего здоровья',
-      subtitle: 'Валидированные опросники, объективные интерактивные упражнения и строгая конфиденциальность. Без постановки диагнозов и вымышленных «процентов здоровья».',
-      searchPlaceholder: 'Поиск тестов, тем и методик...',
-      browseCatalog: 'Открыть каталог тестов',
+      title: 'Понимай своё здоровье. Начни с простого.',
+      titleHighlight: 'своё здоровье',
+      subtitle: 'Валидированные опросники, объективные интерактивные упражнения и защищенная аналитика без постановки диагнозов и вымышленных процентов здоровья.',
+      searchPlaceholder: 'Поиск по тестам, симптомам или дисциплинам (например, Стенд Снеллена, Реакция)...',
+      quickJump: 'Быстрый переход:',
+      browseCatalog: 'Исследовать тесты',
       tryExercises: 'Интерактивные упражнения',
-      aiGuide: 'Открыть ИИ-гида',
+      aiGuide: 'Спросить ИИ-гида',
+      chipVision: 'Зрение',
+      chipHearing: 'Слух',
+      chipMemory: 'Память',
+      chipAttention: 'Внимание',
+      chipStress: 'Стресс',
     },
-    pillars: {
-      title: 'Почему пользователям важен SIHAT',
-      subtitle: 'Принципы прозрачной и этичной медицинской информатики',
-      p1Title: 'Методологические паспорта',
-      p1Desc: 'Каждый тест имеет открытый паспорт с указанием научной первоосновы, уровня доказательности и ограничений применимости.',
-      p2Title: 'Приватность и явное согласие',
-      p2Desc: 'Результаты тестов не сохраняются без вашего явного подтверждения. Выбор между сохранением и мгновенным удалением всегда за вами.',
-      p3Title: 'Объективные цифровые метрики',
-      p3Desc: 'Упражнения измеряют строго время реакции, точность моторных действий и число повторений, не заменяя клиническое обследование.',
-      p4Title: 'Контекстный ИИ-помощник',
-      p4Desc: 'Серверный ИИ помогает ориентироваться по каталогу и объясняет ограничения методик, не вмешиваясь в клинические решения.',
+    bento: {
+      protocolTitle: 'SIHAT Clarity Protocol',
+      protocolVersion: 'Verified Bio-Telemetry v2.4',
+      statusActive: 'Active Engine',
+      objectiveBadge: 'Zero Black Box',
+      objectiveDesc: 'Все расчеты производятся без мистификаций на базе открытых научных шкал и нормативов.',
+      metric1Val: '100%',
+      metric1Label: 'Client-side Privacy',
+      metric2Val: 'ISO/WHO',
+      metric2Label: 'Open Methodology',
+      metric3Val: '0%',
+      metric3Label: 'Fake Health Scores',
+    },
+    disciplines: {
+      badge: 'Базовый каталог скринингов',
+      title: '10 Объективных Дисциплин',
+      subtitle: 'Комплексные научно обоснованные скрининги сенсорных, когнитивных и физиологических маркеров.',
+      startBtn: 'Пройти скрининг',
+    },
+    journey: {
+      badge: 'Прозрачность каждого шага',
+      title: 'Как работает SIHAT',
+      subtitle: '3 ступени к кристальной ясности вашего текущего физиологического состояния.',
+      step1Title: 'Выбери проверку',
+      step1Desc: 'Открытые паспорта методологий. Прозрачные критерии, никакой черной магии. Перед стартом вы точно знаете, что и как измеряется.',
+      step1Tag: 'Открытый протокол исследования',
+      step2Title: 'Пройди тест',
+      step2Desc: 'Локальная конфиденциальная сессия. Ваши сенсорные данные и микрореакции обрабатываются строго на устройстве в браузере.',
+      step2Tag: 'On-device вычисления',
+      step3Title: 'Получи объяснение',
+      step3Desc: 'Объективные числовые маркеры и ясные объяснения. Право в один клик сохранить результат или стереть навсегда.',
+      step3Tag: 'Полный контроль над своими данными',
+    },
+    aiShowcase: {
+      badge: 'Встроенный ИИ-навигатор',
+      title: 'ИИ-навигатор SIHAT: строгие границы и нулевое диагностирование',
+      subtitle: 'Наш гид помогает ориентироваться в мире физиологических тестов, разъясняет научную терминологию и подбирает релевантную дисциплину.',
+      check1: 'Помогает сопоставить симптомы усталости с объективными тестами.',
+      check2: 'Разъясняет термины: «оптотипы», «латентность реакции», «спан Корси».',
+      prohibitedNote: 'Категорически запрещено ставить клинические диагнозы и выписывать лечение.',
+      architectureTitle: 'Принцип архитектуры',
+      architectureDesc: 'Строгий системный промпт исключает медицинские спекуляции и перенаправляет к врачам при острых жалобах.',
+      chatTitle: 'SIHAT Gemini Navigator',
+      chatStatus: 'Безопасный режим активен',
+      chatBadge: 'Bounded Guide v1.2',
+      userQuery: '«Чувствую зрительное утомление к концу рабочего дня и рассеянность. С чего начать?»',
+      aiReplyText: 'Для зрительного утомления и снижения концентрации рекомендуется пройти два неинвазивных скрининга:',
+      aiItem1: '1) Тест контрастной чувствительности (Дисциплина «Зрение») — 3 мин',
+      aiItem2: '2) Таблицы Шульте (Дисциплина «Внимание») — 2 мин',
+      aiSafetyNotice: 'Напоминаем: это скрининг утомляемости, не заменяющий осмотр врача-офтальмолога.',
+      launchBtn: 'Открыть чат с ИИ-гидом',
     },
     disclaimer: {
-      badge: 'МЕДИЦИНСКОЕ ПРЕДУПРЕЖДЕНИЕ',
-      text: 'Платформа SIHAT не является медицинским изделием, не ставит медицинские диагнозы и не назначает лечение. При любых тревожных, острых или ухудшающихся симптомах немедленно обратитесь к профильному врачу или в службу неотложной помощи.',
+      badge: 'ЭТИЧЕСКИЙ СТАНДАРТ И БЕЗОПАСНОСТЬ',
+      headline: 'SIHAT не является медицинским изделием и не заменяет врача.',
+      text: 'Все материалы, скрининги и интерактивные упражнения платформы носят исключительно информационно-просветительский характер. Мы не ставим диагнозов, не выписываем лечебных назначений и не рассчитываем псевдонаучные «проценты общего здоровья». При наличии тревожных симптомов всегда обращайтесь к квалифицированному врачу или в службу неотложной помощи.',
     },
     catalog: {
       title: 'Каталог скринингов и упражнений',
@@ -280,6 +379,9 @@ export const translations: Record<Language, Translations> = {
       rights: 'Все права защищены.',
       strictNonDiagnostic: 'SIHAT — платформа информационной самопомощи и образовательных скринингов. Не заменяет консультацию врача.',
       designedWithCare: 'Разработано по стандарту SIHAT Signature с акцентом на приватность и безопасность.',
+      protocols: 'Протоколы',
+      science: 'Наука и система',
+      languages: 'Языки платформы',
     },
   },
   tj: {
@@ -304,27 +406,75 @@ export const translations: Record<Language, Translations> = {
     },
     hero: {
       badge: 'СКРИНИНГҲОИ ИЛМАН АСОСНОК',
-      title: 'Саломатии худро беҳтар фаҳмед',
-      subtitle: 'Пурсишномаҳои тасдиқшуда, машқҳои интерактивии воқеӣ ва махфияти комил. Бе ташхиси бардурӯғ ва «фоизҳои саломатӣ».',
-      searchPlaceholder: 'Ҷустуҷӯи тестҳо ва машқҳо...',
-      browseCatalog: 'Кушодани феҳристи тестҳо',
+      title: 'Саломатии худро фаҳмед. Аз чизи оддӣ оғоз намоед.',
+      titleHighlight: 'саломатии худро',
+      subtitle: 'Пурсишномаҳои тасдиқшуда, машқҳои интерактивии воқеӣ ва махфияти комил. Бе ташхиси бардурӯғ ва фоизҳои сохтаи саломатӣ.',
+      searchPlaceholder: 'Ҷустуҷӯи тестҳо, нишонаҳо ё фанҳо...',
+      quickJump: 'Гузариши фаврӣ:',
+      browseCatalog: 'Омӯхтани тестҳо',
       tryExercises: 'Машқҳои интерактивӣ',
-      aiGuide: 'Роҳнамои AI',
+      aiGuide: 'Аз роҳнамои AI пурсед',
+      chipVision: 'Биноӣ',
+      chipHearing: 'Шунавоӣ',
+      chipMemory: 'Хотира',
+      chipAttention: 'Диққат',
+      chipStress: 'Стресс',
     },
-    pillars: {
-      title: 'Чаро корбарон SIHAT-ро интихоб мекунанд',
-      subtitle: 'Принсипҳои шаффоф ва ахлоқии информатикаи тиббӣ',
-      p1Title: 'Шиносномаҳои методӣ',
-      p1Desc: 'Ҳар як тест дорои шиносномаи кушод бо нишон додани сарчашмаи илмӣ, сатҳи асоснокӣ ва маҳдудиятҳо мебошад.',
-      p2Title: 'Махфият ва ризоияти озод',
-      p2Desc: 'Натиҷаҳо бе ризоияти сареҳи шумо нигоҳ дошта намешаванд. Интихоби захира ё нест кардан ҳамеша дар ихтиёри шумост.',
-      p3Title: 'Нишондиҳандаҳои воқеӣ',
-      p3Desc: 'Машқҳо суръати вокуниш ва дақиқии амалҳоро чен мекунанд, на ташхиси тиббиро.',
-      p4Title: 'Роҳнамои AI бе ташхис',
-      p4Desc: 'Ёрдамчии AI ба шумо дар ёфтани тестҳо кӯмак мерасонад, вале ба хулосаҳои тиббӣ дахолат намекунад.',
+    bento: {
+      protocolTitle: 'SIHAT Clarity Protocol',
+      protocolVersion: 'Verified Bio-Telemetry v2.4',
+      statusActive: 'Active Engine',
+      objectiveBadge: 'Zero Black Box',
+      objectiveDesc: 'Ҳамаи ҳисобҳо дар асоси шкалаҳо ва меъёрҳои кушоди илмӣ сурат мегиранд.',
+      metric1Val: '100%',
+      metric1Label: 'Client-side Privacy',
+      metric2Val: 'ISO/WHO',
+      metric2Label: 'Open Methodology',
+      metric3Val: '0%',
+      metric3Label: 'Fake Health Scores',
+    },
+    disciplines: {
+      badge: 'Феҳристи асосии скринингҳо',
+      title: '10 Самти Воқеӣ',
+      subtitle: 'Скринингҳои илман асосноки нишондиҳандаҳои сенсорӣ, когнитивӣ ва физиологӣ.',
+      startBtn: 'Гузаштани скрининг',
+    },
+    journey: {
+      badge: 'Шаффофияти ҳар як қадам',
+      title: 'SIHAT чӣ гуна кор мекунад',
+      subtitle: '3 қадам ба сӯи рӯшании комили ҳолати физиологии шумо.',
+      step1Title: 'Санҷишро интихоб кунед',
+      step1Desc: 'Шиносномаҳои кушодаи методологӣ. Меъёрҳои шаффоф бе ягон сеҳру ҷоду.',
+      step1Tag: 'Протоколи кушодаи таҳқиқот',
+      step2Title: 'Тестро гузаред',
+      step2Desc: 'Ҷаласаи маҳаллии махфӣ. Маълумоти шумо танҳо дар дастгоҳи худатон ҳисоб карда мешавад.',
+      step2Tag: 'Ҳисобкунии On-device',
+      step3Title: 'Шарҳро гиред',
+      step3Desc: 'Нишондиҳандаҳои воқеии ададӣ ва ихтиёри комил барои захира кардан ё пок намудан.',
+      step3Tag: 'Назорати пурраи маълумоти худ',
+    },
+    aiShowcase: {
+      badge: 'Роҳнамои дарунсохти AI',
+      title: 'Роҳнамои AI-и SIHAT: ҳудуди қатъӣ ва сифри ташхис',
+      subtitle: 'Роҳнамои мо барои ёфтани самти мувофиқ кӯмак мекунад, вале ҳаргиз ташхиси тиббӣ намегузорад.',
+      check1: 'Ба сохтани мувофиқати нишонаҳо бо тестҳои объективӣ кумак мекунад.',
+      check2: 'Мафҳумҳои илмиро ба забони содда мефаҳмонад.',
+      prohibitedNote: 'Гузоштани ташхиси клиникӣ ва таъини дору қатъиян манъ аст.',
+      architectureTitle: 'Принсипи сохтор',
+      architectureDesc: 'Маҳдудиятҳои системавӣ пешгирии хулосаҳои бардурӯғро таъмин мекунанд.',
+      chatTitle: 'SIHAT Gemini Navigator',
+      chatStatus: 'Ҳолати бехатар фаъол аст',
+      chatBadge: 'Bounded Guide v1.2',
+      userQuery: '«Охири рӯзи корӣ чашмонам хаста мешаванд. Аз чӣ бояд сар кунам?»',
+      aiReplyText: 'Барои хастагии чашм ва паст шудани диққат ду санҷиш тавсия дода мешавад:',
+      aiItem1: '1) Санҷиши ҳассосияти контрастӣ (Самти «Биноӣ») — 3 дақиқа',
+      aiItem2: '2) Ҷадвалҳои Шулте (Самти «Диққат») — 2 дақиқа',
+      aiSafetyNotice: 'Ёдрас мекунем: ин скрининги хастагӣ буда, муоинаи духтури чашмро иваз намекунад.',
+      launchBtn: 'Кушодани роҳнамои AI',
     },
     disclaimer: {
-      badge: 'ОГОҲИИ ТИББӢ',
+      badge: 'ОГОҲИИ ТИББӢ ВА БЕХАТАРӢ',
+      headline: 'SIHAT ташхис намегузорад ва табобат таъин намекунад.',
       text: 'Платформаи SIHAT ташхис намегузорад ва табобат таъин намекунад. Ҳангоми эҳсоси бад шудани вазъи саломатӣ фавран ба духтури мутахассис муроҷиат намоед.',
     },
     catalog: {
@@ -359,7 +509,7 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Танҳо барои шумо дастрас аст. Танҳо бо ризоияти сареҳи шумо нигоҳ дошта мешавад.',
       authRequiredMsg: 'Барои дидани таърих ба ҳисоби худ ворид шавед.',
       clearAllBtn: 'Пок кардани ҳамаи таърих',
-      emptyMsg: 'Шумо ҳанӯз натиҷаи захирашуда надоред. Як тест гузаред ва «Захира кардан»-ро пахш кунед.',
+      emptyMsg: 'Шумо ҳанӯз натиҷаи захирашуда надоред.',
       testCol: 'Тест',
       dateCol: 'Сана ва вақт',
       scoreCol: 'Хулоса',
@@ -420,6 +570,9 @@ export const translations: Record<Language, Translations> = {
       rights: 'Ҳамаи ҳуқуқҳо ҳифз шудаанд.',
       strictNonDiagnostic: 'SIHAT — платформаи иттилоотии машқҳо ва скринингҳо. Машварати духтурро иваз намекунад.',
       designedWithCare: 'Бо тарҳи SIHAT Signature ва таваҷҷӯҳ ба махфият сохта шудааст.',
+      protocols: 'Протоколҳо',
+      science: 'Илм ва сохтор',
+      languages: 'Забонҳои платформа',
     },
   },
   en: {
@@ -444,27 +597,75 @@ export const translations: Record<Language, Translations> = {
     },
     hero: {
       badge: 'SCIENTIFICALLY GROUNDED SCREENINGS',
-      title: 'Understand Your Health',
+      title: 'Understand your health. Start with what is simple.',
+      titleHighlight: 'your health',
       subtitle: 'Validated questionnaires, objective interactive exercises, and rigorous privacy. No medical diagnoses or fictitious health percentages.',
-      searchPlaceholder: 'Search tests, topics, and methodologies...',
-      browseCatalog: 'Explore Catalog',
+      searchPlaceholder: 'Search tests, symptoms, or disciplines (e.g. Snellen chart, Reaction latency)...',
+      quickJump: 'Quick jump:',
+      browseCatalog: 'Explore tests',
       tryExercises: 'Interactive Exercises',
-      aiGuide: 'Open AI Guide',
+      aiGuide: 'Ask AI Guide',
+      chipVision: 'Vision',
+      chipHearing: 'Hearing',
+      chipMemory: 'Memory',
+      chipAttention: 'Attention',
+      chipStress: 'Stress',
     },
-    pillars: {
-      title: 'Why Users Choose SIHAT',
-      subtitle: 'Principles of transparent, ethical, and evidence-based health informatics',
-      p1Title: 'Methodology Passports',
-      p1Desc: 'Every test features an open passport disclosing its scientific foundation, evidence grade, and applicability boundaries.',
-      p2Title: 'Privacy & Explicit Consent',
-      p2Desc: 'No results are retained without your explicit confirmation. The choice between permanent saving and instant deletion is always yours.',
-      p3Title: 'Objective Digital Metrics',
-      p3Desc: 'Exercises measure strictly reaction latency, motor precision, and execution counts without substituting for clinical consultations.',
-      p4Title: 'Contextual AI Navigator',
-      p4Desc: 'A bounded server-side assistant helps you browse the catalog and understand methodologies without interfering with medical decisions.',
+    bento: {
+      protocolTitle: 'SIHAT Clarity Protocol',
+      protocolVersion: 'Verified Bio-Telemetry v2.4',
+      statusActive: 'Active Engine',
+      objectiveBadge: 'Zero Black Box',
+      objectiveDesc: 'All calculations are computed transparently based on open scientific scales and physiological standards.',
+      metric1Val: '100%',
+      metric1Label: 'Client-side Privacy',
+      metric2Val: 'ISO/WHO',
+      metric2Label: 'Open Methodology',
+      metric3Val: '0%',
+      metric3Label: 'Fake Health Scores',
+    },
+    disciplines: {
+      badge: 'Screenings Catalog',
+      title: '10 Objective Disciplines',
+      subtitle: 'Comprehensive, evidence-based screenings of sensory, cognitive, and physiological markers.',
+      startBtn: 'Begin screening',
+    },
+    journey: {
+      badge: 'Transparency at Every Step',
+      title: 'How SIHAT Works',
+      subtitle: '3 steps toward crystal clarity on your current physiological status.',
+      step1Title: 'Select a check',
+      step1Desc: 'Open methodology passports. Transparent criteria without black-box formulas. Know exactly what is measured.',
+      step1Tag: 'Open Research Protocol',
+      step2Title: 'Take the check',
+      step2Desc: 'Private, localized session. Your sensor responses and micro-reactions are processed securely on-device.',
+      step2Tag: 'On-device Compute',
+      step3Title: 'Receive clarity',
+      step3Desc: 'Objective metric values and plain explanations. The sovereign right to save or instantly wipe records.',
+      step3Tag: 'Complete Data Ownership',
+    },
+    aiShowcase: {
+      badge: 'Embedded AI Navigator',
+      title: 'SIHAT AI Navigator: Strict boundaries and zero diagnosing',
+      subtitle: 'Our guide helps you explore tests, explains scientific terminology, and pinpoints relevant disciplines without clinical overstepping.',
+      check1: 'Correlates fatigue markers with objective screening modules.',
+      check2: 'Explains scientific terms in plain language.',
+      prohibitedNote: 'Strictly prohibited from rendering clinical diagnoses or prescribing medication.',
+      architectureTitle: 'Architectural Principle',
+      architectureDesc: 'Strict system boundaries prevent medical speculation and route users to physicians for acute complaints.',
+      chatTitle: 'SIHAT Gemini Navigator',
+      chatStatus: 'Safe mode active',
+      chatBadge: 'Bounded Guide v1.2',
+      userQuery: '“I feel eye strain toward the end of the day and scattered focus. Where should I start?”',
+      aiReplyText: 'For eye fatigue and reduced attention, we recommend starting with two non-invasive screenings:',
+      aiItem1: '1) Contrast Sensitivity Check (Vision discipline) — 3 min',
+      aiItem2: '2) Schulte Attention Table (Attention discipline) — 2 min',
+      aiSafetyNotice: 'Reminder: this is an educational screening and does not replace an ophthalmologist examination.',
+      launchBtn: 'Open AI Guide Drawer',
     },
     disclaimer: {
-      badge: 'MEDICAL DISCLAIMER',
+      badge: 'ETHICAL STANDARD & SAFETY',
+      headline: 'SIHAT is not a medical device and does not substitute for a physician.',
       text: 'The SIHAT platform is not a medical device, does not diagnose conditions, and does not prescribe treatments. In case of acute or deteriorating symptoms, seek immediate professional medical attention.',
     },
     catalog: {
@@ -560,6 +761,9 @@ export const translations: Record<Language, Translations> = {
       rights: 'All rights reserved.',
       strictNonDiagnostic: 'SIHAT is an informational screening and educational platform. It does not replace professional medical advice.',
       designedWithCare: 'Crafted according to the SIHAT Signature design standard with focus on privacy and security.',
+      protocols: 'Protocols',
+      science: 'Science & System',
+      languages: 'Supported Languages',
     },
   },
 };

@@ -22,14 +22,15 @@
   - Comprehensive language dictionary in `frontend/src/i18n.ts` covering all interface labels,
     navigation tabs, hero headlines, methodology passports, runner controls, and disclaimers.
   - Language switcher toolbar (`RU` | `TJ` (Тоҷикӣ) | `EN`) with active pill states and `localStorage` persistence.
-- Premium landing page experience (`LandingHero.tsx`):
-  - Hero banner with headline, subheadline, interactive search bar jumping directly to catalog,
-    and primary/secondary CTA buttons.
-  - Prominent Medical Safety Disclaimer callout emphasizing that SIHAT does not diagnose conditions
-    or prescribe treatment.
-  - Feature pillars highlighting methodology passports, explicit consent privacy, objective metrics,
-    and non-diagnostic AI navigation.
-  - Clean footer with copyright, rights, and ethical medical disclaimers.
+- Premium landing page experience (`LandingHero.tsx` & Stitch Living Clarity transformation):
+  - Google Stitch MCP Project `4034928555005711952` ("SIHAT — Living Clarity (Premium HealthTech)") with tokens and layout.
+  - Hero display headline: «Понимай своё здоровье. Начни с простого.» with gradient highlight, search bar with quick category chips, and dual primary/secondary action triggers.
+  - Floating Bento showcase card with central glowing SIHAT mark and verified telemetry badges (`100% Client-side Privacy`, `ISO/WHO Open Methodology`, `0% Fake Health Scores`).
+  - 10 Objective Disciplines interactive grid with scientific standard badges (`ISO 8596`, `ISO 8253`, `Corsi Span`, `Schulte Grid`, `PHQ-9/GAD-7`, `Latency ms`, `Fitts Law`, `DSST / Stroop`, `Ergonomics`, `PSQI / Vitality`).
+  - 3-step Clarity Journey cards («Выбери проверку», «Пройди тест», «Получи объяснение»).
+  - Interactive Gemini AI Showcase mockup illustrating safe bounded assistant routing without clinical speculation.
+  - Prominent Medical Safety Disclaimer guarantee shield callout emphasizing non-diagnostic ethics.
+  - Dynamic category wiring between hero discipline chips and `CatalogView` category filtering.
 - Stage 9 E2E test suite in `frontend/e2e/premium-frontend.spec.ts` validating brand slogan rendering,
   seamless language switching across English, Tajik, and Russian, and dark/light theme toggling.
 

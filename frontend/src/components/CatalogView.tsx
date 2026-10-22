@@ -9,21 +9,29 @@ export function CatalogView({
   t,
   lang = 'ru',
   initialQuery = '',
+  initialCategory = 'all',
 }: {
   token: string
   onStartTest: (test: TestItem) => void
   t?: Translations
   lang?: Language
   initialQuery?: string
+  initialCategory?: string
 }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [tests, setTests] = useState<TestItem[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory)
   const [searchQuery, setSearchQuery] = useState(initialQuery)
   const [ageFilter, setAgeFilter] = useState<number | ''>('')
   const [selectedTestModal, setSelectedTestModal] = useState<TestItem | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (initialCategory) {
+      setSelectedCategory(initialCategory)
+    }
+  }, [initialCategory])
 
   useEffect(() => {
     if (initialQuery && initialQuery !== searchQuery) {

@@ -56,6 +56,7 @@ export function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [currentTab, setCurrentTab] = useState<'home' | 'exercises' | 'catalog' | 'history' | 'faq' | 'knowledge' | 'support' | 'admin'>('exercises')
   const [catalogSearch, setCatalogSearch] = useState('')
+  const [catalogCategory, setCatalogCategory] = useState('all')
   const [authModalOpen, setAuthModalOpen] = useState(false)
 
   // Runner state for exercise tests
@@ -413,6 +414,12 @@ export function App() {
           onOpenAssistant={() => setAssistantOpen(true)}
           onSearch={(q) => {
             setCatalogSearch(q)
+            setCatalogCategory('all')
+            setCurrentTab('catalog')
+          }}
+          onSelectCategory={(slug) => {
+            setCatalogCategory(slug)
+            setCatalogSearch('')
             setCurrentTab('catalog')
           }}
         />
@@ -498,6 +505,7 @@ export function App() {
           t={t}
           lang={lang}
           initialQuery={catalogSearch}
+          initialCategory={catalogCategory}
         />
       )}
 
