@@ -2,7 +2,7 @@
 
 ## Current stage
 
-**Stage 3 — Catalog and authoring: in progress**
+**Stage 3 — Catalog and authoring: technically complete**
 
 ## Evidence
 
@@ -78,8 +78,13 @@
 - Versioned questionnaire definitions now store localized question data, branching
   rules, and declarative scoring configuration without executing arbitrary formulas.
 
-## Stage 3 remaining work
+## Content publication blockers
 
 - Record methodology passports and evidence decisions for every module before public
   publication.
 - Review each draft's RU/TJ/EN copy and replace the seed labels with approved content.
+
+The catalog, filters, age/guest rules, admin authoring API, questionnaire storage, and
+publication gate are complete. The 30 seeded modules remain drafts until their
+methodology, licensing, translations, and medical review are recorded; Stage 3 does
+not represent those modules as medically validated or publicly available.

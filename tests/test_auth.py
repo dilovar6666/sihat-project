@@ -352,6 +352,25 @@ def test_catalog_publication_requires_admin_and_methodology_passport(client: Tes
         headers=headers,
     )
     assert passport.status_code == 200
+    questionnaire = client.put(
+        f"/admin/tests/{test.json()['id']}/questionnaire",
+        json={
+            "definition_version": "draft-1",
+            "questions": [
+                {
+                    "id": "q1",
+                    "localizations": {
+                        "ru": {"text": "Выберите ответ"},
+                        "tg": {"text": "Ҷавобро интихоб кунед"},
+                        "en": {"text": "Choose an answer"},
+                    },
+                }
+            ],
+        },
+        headers=headers,
+    )
+    assert questionnaire.status_code == 200
+    assert questionnaire.json()["version"] == "draft-1"
     published = client.post(f"/admin/tests/{test.json()['id']}/publish", headers=headers)
     assert published.status_code == 200
     public_catalog = client.get("/tests?age=18")
