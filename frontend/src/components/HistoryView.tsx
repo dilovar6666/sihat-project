@@ -9,7 +9,13 @@ export function HistoryView({ t, lang = 'en' }: { t: Translations; lang?: string
   const [message, setMessage] = useState('')
   const [comparing, setComparing] = useState<ComparisonOutput | null>(null)
   const [selectedResult, setSelectedResult] = useState<SavedResult | null>(null)
-  const [pdfOptions, setPdfOptions] = useState({ include_answers: true, include_warnings: true })
+  const [pdfOptions, setPdfOptions] = useState({
+    include_result: true,
+    include_methodology: true,
+    include_limitations: true,
+    include_answers: true,
+    include_warnings: true,
+  })
 
   const loadHistory = async () => {
     setLoading(true)
@@ -34,7 +40,7 @@ export function HistoryView({ t, lang = 'en' }: { t: Translations; lang?: string
       await apiRequest(`/results/${resultId}`, { method: 'DELETE' })
       setHistory(history.filter((item) => item.id !== resultId))
       if (selectedResult?.id === resultId) setSelectedResult(null)
-      if (comparing?.base_result.id === resultId) setComparing(null)
+      if (comparing?.results.some((item) => item.id === resultId)) setComparing(null)
       setMessage('Запись удалена из вашей приватной истории.')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Не удалось удалить запись')
@@ -260,7 +266,7 @@ export function HistoryView({ t, lang = 'en' }: { t: Translations; lang?: string
             </div>
 
             <p className="comparison-rule-note">
-              <strong>{t.comparison.ruleLabel}</strong> {comparing.compatibility_rule}. {t.comparison.compatibleNote}
+              <strong>{t.comparison.ruleLabel}</strong> {comparing.methodology_version} / {comparing.definition_version}. {t.comparison.compatibleNote}
             </p>
 
             <div className="comparison-columns-grid">

@@ -131,15 +131,17 @@ export function AdminView({
     if (!editingTest) return
     try {
       const payload = {
-        name: methodologyForm.methodology_name,
-        version: methodologyForm.methodology_version,
+        methodology_name: methodologyForm.methodology_name,
+        methodology_version: methodologyForm.methodology_version,
         evidence_status: methodologyForm.evidence_status,
-        source: methodologyForm.evidence_source || undefined,
+        evidence_source: methodologyForm.evidence_source || undefined,
         license_info: methodologyForm.license_info || undefined,
+        allowed_languages: ['ru', 'tg', 'en'],
+        device_conditions: [],
         limitations: methodologyForm.limitations,
         warnings: methodologyForm.warnings ? methodologyForm.warnings.split('\n').filter(Boolean) : [],
       }
-      await apiRequest(`/admin/tests/${editingTest.id}/passport`, {
+      await apiRequest(`/admin/tests/${editingTest.id}/methodology`, {
         method: 'PUT',
         body: JSON.stringify(payload),
       })

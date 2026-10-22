@@ -27,6 +27,17 @@ export function CatalogView({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const openPassport = async (item: TestItem) => {
+    setError('')
+    try {
+      // Fetch the canonical record: list cards are intentionally lightweight and
+      // may be stale after an administrator changes a methodology passport.
+      setSelectedTestModal(await apiRequest<TestItem>(`/tests/${item.slug}`))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load this test')
+    }
+  }
+
   useEffect(() => {
     if (initialCategory) {
       setSelectedCategory(initialCategory)
@@ -157,7 +168,7 @@ export function CatalogView({
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => setSelectedTestModal(test)}
+                onClick={() => void openPassport(test)}
               >
                 {lang === 'en' ? 'Methodology Passport' : t.catalog.passportBtn}
               </button>

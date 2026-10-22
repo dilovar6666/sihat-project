@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
-import { apiRequest, setApiToken } from './api'
+import { apiRequest, getRefreshToken, setApiToken, setRefreshToken } from './api'
 import { AdminView } from './components/AdminView'
 import { AuthModal } from './components/AuthModal'
 import { CatalogView } from './components/CatalogView'
@@ -58,7 +58,8 @@ export function App() {
   const [currentTab, setCurrentTab] = useState<'home' | 'exercises' | 'catalog' | 'history' | 'faq' | 'knowledge' | 'support' | 'admin'>('exercises')
   const [catalogSearch, setCatalogSearch] = useState('')
   const [catalogCategory, setCatalogCategory] = useState('all')
-  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const resetTokenFromUrl = new URLSearchParams(window.location.search).get('token') ?? ''
+  const [authModalOpen, setAuthModalOpen] = useState(Boolean(resetTokenFromUrl))
 
   // Runner state for exercise tests
   const [attempt, setAttempt] = useState<Attempt | null>(null)
@@ -85,12 +86,13 @@ export function App() {
   const login = async (event: FormEvent) => {
     event.preventDefault()
     try {
-      const body = await apiRequest<{ access_token: string }>('/auth/login', {
+      const body = await apiRequest<{ access_token: string; refresh_token: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
       setToken(body.access_token)
       setApiToken(body.access_token)
+      setRefreshToken(body.refresh_token)
       setMessage('')
       try {
         const p = await apiRequest<UserProfile>('/me/profile', {
@@ -106,8 +108,11 @@ export function App() {
   }
 
   const signOut = () => {
+    const refreshToken = getRefreshToken()
+    if (refreshToken) void apiRequest('/auth/logout', { method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }) }).catch(() => {})
     setToken('')
     setApiToken('')
+    setRefreshToken('')
     setProfile(null)
     setCompletion(null)
     setAttempt(null)
@@ -889,6 +894,7 @@ export function App() {
         onNotify={setMessage}
         t={t}
         lang={lang}
+        resetToken={resetTokenFromUrl}
       />
 
       {/* Footer */}

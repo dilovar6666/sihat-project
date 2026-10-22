@@ -1,6 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
 
 let authToken: string = ''
+let refreshToken: string = ''
 
 export function setApiToken(token: string) {
   authToken = token
@@ -8,6 +9,14 @@ export function setApiToken(token: string) {
 
 export function getApiToken(): string {
   return authToken
+}
+
+export function setRefreshToken(token: string) {
+  refreshToken = token
+}
+
+export function getRefreshToken(): string {
+  return refreshToken
 }
 
 export async function apiRequest<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
@@ -40,7 +49,16 @@ export async function apiRequest<T = unknown>(path: string, init: RequestInit = 
   return body as T
 }
 
-export async function downloadPdfBlob(resultId: string, options: { include_answers: boolean; include_warnings: boolean }) {
+export async function downloadPdfBlob(
+  resultId: string,
+  options: {
+    include_result: boolean
+    include_methodology: boolean
+    include_limitations: boolean
+    include_answers: boolean
+    include_warnings: boolean
+  },
+) {
   const blob = await apiRequest<Blob>(`/results/${resultId}/pdf`, {
     method: 'POST',
     body: JSON.stringify(options),

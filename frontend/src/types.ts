@@ -82,9 +82,11 @@ export type SavedResult = {
 }
 
 export type ComparisonOutput = {
-  base_result: SavedResult
+  test_slug: string
+  methodology_version: string
+  definition_version: string
+  compatibility_conditions: Record<string, unknown>
   results: SavedResult[]
-  compatibility_rule: string
 }
 
 export type FaqItem = {

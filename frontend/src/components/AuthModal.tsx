@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { apiRequest, setApiToken } from '../api'
+import { apiRequest, setApiToken, setRefreshToken } from '../api'
 import type { UserProfile } from '../types'
 import type { Translations, Language } from '../i18n'
 
@@ -10,6 +10,7 @@ export function AuthModal({
   onLoginSuccess,
   onNotify,
   t,
+  resetToken: resetTokenFromLink = '',
 }: {
   isOpen: boolean
   onClose: () => void
@@ -17,13 +18,22 @@ export function AuthModal({
   onNotify: (msg: string) => void
   t: Translations
   lang?: Language
+  resetToken?: string
 }) {
-  const [tab, setTab] = useState<'login' | 'register' | 'forgot'>('login')
+  const [tab, setTab] = useState<'login' | 'register' | 'forgot' | 'reset'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [ageGroup, setAgeGroup] = useState<'18_plus' | '16_17'>('18_plus')
   const [loading, setLoading] = useState(false)
+  const [resetToken, setResetToken] = useState('')
+
+  useEffect(() => {
+    if (resetTokenFromLink) {
+      setResetToken(resetTokenFromLink)
+      setTab('reset')
+    }
+  }, [resetTokenFromLink])
 
   if (!isOpen) return null
 
@@ -31,11 +41,12 @@ export function AuthModal({
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await apiRequest<{ access_token: string }>('/auth/login', {
+      const res = await apiRequest<{ access_token: string; refresh_token: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
       setApiToken(res.access_token)
+      setRefreshToken(res.refresh_token)
       const profile = await apiRequest<UserProfile>('/me/profile', {
         headers: { Authorization: `Bearer ${res.access_token}` },
       })
@@ -57,11 +68,12 @@ export function AuthModal({
         method: 'POST',
         body: JSON.stringify({ email, password, full_name: fullName, age_group: ageGroup }),
       })
-      const res = await apiRequest<{ access_token: string }>('/auth/login', {
+      const res = await apiRequest<{ access_token: string; refresh_token: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       })
       setApiToken(res.access_token)
+      setRefreshToken(res.refresh_token)
       const profile = await apiRequest<UserProfile>('/me/profile', {
         headers: { Authorization: `Bearer ${res.access_token}` },
       })
@@ -79,7 +91,7 @@ export function AuthModal({
     e.preventDefault()
     setLoading(true)
     try {
-      await apiRequest('/auth/reset/request', {
+      await apiRequest('/auth/forgot-password', {
         method: 'POST',
         body: JSON.stringify({ email }),
       })
@@ -92,8 +104,26 @@ export function AuthModal({
     }
   }
 
-  const handleGoogleMockClick = () => {
-    onNotify('Интеграция Google OAuth активна. Для авторизации требуется настроенный CLIENT_ID в окружении.')
+  const handleReset = async (e: FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await apiRequest('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token: resetToken, new_password: password }),
+      })
+      onNotify('Password updated. Please sign in with your new password.')
+      setResetToken('')
+      setTab('login')
+    } catch (err) {
+      onNotify(err instanceof Error ? err.message : 'Unable to reset password')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleUnavailable = () => {
+    onNotify('Google sign-in is unavailable until a browser OAuth client is configured.')
   }
 
   return (
@@ -101,7 +131,7 @@ export function AuthModal({
       <div className="modal-content auth-modal-box">
         <div className="section-heading">
           <h2 id="auth-modal-title">
-            {tab === 'login' ? t.auth.loginTitle : tab === 'register' ? t.auth.registerTitle : t.auth.forgotTitle}
+            {tab === 'login' ? t.auth.loginTitle : tab === 'register' ? t.auth.registerTitle : tab === 'forgot' ? t.auth.forgotTitle : 'Set a new password'}
           </h2>
           <button className="quiet-button" onClick={onClose} aria-label={t.auth.closeBtn}>
             ✕
@@ -135,7 +165,7 @@ export function AuthModal({
           <button
             type="button"
             className="google-oauth-btn"
-            onClick={handleGoogleMockClick}
+            onClick={handleGoogleUnavailable}
           >
             <svg className="google-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -291,6 +321,21 @@ export function AuthModal({
             >
               {t.auth.backToLogin}
             </button>
+          </form>
+        )}
+
+        {tab === 'reset' && (
+          <form onSubmit={handleReset} className="auth-form-body">
+            <p className="forgot-text">Set a new password using the protected token from your email.</p>
+            <div className="form-group">
+              <label htmlFor="reset-token">Reset token</label>
+              <input id="reset-token" value={resetToken} onChange={(e) => setResetToken(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="reset-password">New password</label>
+              <input id="reset-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required autoComplete="new-password" />
+            </div>
+            <button type="submit" className="btn-primary-emerald" disabled={loading}>{loading ? 'Saving…' : 'Set new password'}</button>
           </form>
         )}
       </div>

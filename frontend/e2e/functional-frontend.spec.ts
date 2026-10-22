@@ -12,10 +12,8 @@ test('browses catalog, filters by category, and inspects methodology passport', 
         ],
       })
     }
-    if (path === '/tests') {
-      return route.fulfill({
-        json: [
-          {
+    if (path === '/tests' || path === '/tests/contrast-sensitivity') {
+      const item = {
             id: 't1',
             category_id: 'c1',
             slug: 'contrast-sensitivity',
@@ -33,9 +31,8 @@ test('browses catalog, filters by category, and inspects methodology passport', 
               limitations: 'Subject to monitor brightness and ambient lighting.',
               warnings: ['Not a diagnostic examination for cataract or optical disease.'],
             },
-          },
-        ],
-      })
+      }
+      return route.fulfill({ json: path === '/tests' ? [item] : item })
     }
     return route.fulfill({ status: 404, json: { detail: 'Not found' } })
   })
