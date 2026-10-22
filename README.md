@@ -36,4 +36,5 @@ Email/password registration and login issue a short-lived bearer access token pl
 rotating refresh token. The API exposes refresh, logout, current-profile, and reset
 password endpoints. Google sign-in receives an Identity Services ID token at
 `POST /auth/google`; only `GOOGLE_OAUTH_CLIENT_ID` is required. Password-reset email
-delivery remains unavailable until mail credentials are configured.
+delivery uses the configured SMTP provider and never logs or returns the reset token.
+Registration, login, Google sign-in, and password-reset requests are rate limited.

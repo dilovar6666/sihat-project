@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -17,7 +17,9 @@ from sihat.auth_schemas import (
 )
 from sihat.config import Settings, get_settings
 from sihat.db import get_db_session
+from sihat.mailer import MailDeliveryError, send_password_reset_email
 from sihat.models import AuthSession, GoogleIdentity, PasswordResetToken, User
+from sihat.rate_limit import enforce_auth_rate_limit
 from sihat.security import (
     create_access_token,
     decode_access_token,
@@ -106,8 +108,13 @@ def create_tokens(db: Session, user: User, settings: Settings) -> AuthTokensOutp
 
 
 @router.post("/register", response_model=UserOutput, status_code=status.HTTP_201_CREATED)
-def register(payload: RegistrationInput, db: Session = Depends(get_db_session)) -> UserOutput:
+def register(
+    payload: RegistrationInput,
+    request: Request,
+    db: Session = Depends(get_db_session),
+) -> UserOutput:
     email = normalize_email(str(payload.email))
+    enforce_auth_rate_limit(request, "register", email)
     if db.scalar(select(User.id).where(User.email == email)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -130,9 +137,11 @@ def register(payload: RegistrationInput, db: Session = Depends(get_db_session)) 
 @router.post("/login", response_model=AuthTokensOutput)
 def login(
     payload: LoginInput,
+    request: Request,
     db: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> AuthTokensOutput:
+    enforce_auth_rate_limit(request, "login", str(payload.email))
     user = db.scalar(select(User).where(User.email == normalize_email(str(payload.email))))
     if not user or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
@@ -183,8 +192,21 @@ def logout(payload: RefreshInput, db: Session = Depends(get_db_session)) -> None
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
-def forgot_password(payload: ForgotPasswordInput, db: Session = Depends(get_db_session)) -> None:
-    user = db.scalar(select(User).where(User.email == normalize_email(str(payload.email))))
+def forgot_password(
+    payload: ForgotPasswordInput,
+    request: Request,
+    db: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    email = normalize_email(str(payload.email))
+    enforce_auth_rate_limit(request, "forgot-password", email)
+    if not settings.smtp_is_configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password reset email delivery is not configured",
+        )
+
+    user = db.scalar(select(User).where(User.email == email))
     if user and user.is_active:
         token = new_refresh_token()
         db.add(
@@ -194,9 +216,16 @@ def forgot_password(payload: ForgotPasswordInput, db: Session = Depends(get_db_s
                 expires_at=datetime.now(UTC) + timedelta(hours=1),
             )
         )
-        db.commit()
-    # The same response prevents email enumeration. Mail delivery is configured later;
-    # reset tokens are never returned or logged here.
+        try:
+            send_password_reset_email(user.email, token, settings)
+            db.commit()
+        except MailDeliveryError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Password reset email could not be delivered",
+            ) from exc
+    # This response stays identical for unknown addresses to prevent email enumeration.
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
@@ -231,9 +260,11 @@ def reset_password(payload: ResetPasswordInput, db: Session = Depends(get_db_ses
 @router.post("/google", response_model=AuthTokensOutput)
 def google_login(
     payload: GoogleTokenInput,
+    request: Request,
     db: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> AuthTokensOutput:
+    enforce_auth_rate_limit(request, "google", "login")
     claims = verify_google_id_token(payload.id_token, settings)
     identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
     if identity:
@@ -300,10 +331,12 @@ def get_current_user(
 @router.post("/google/link", status_code=status.HTTP_204_NO_CONTENT)
 def link_google(
     payload: GoogleTokenInput,
+    request: Request,
     db: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
     user: User = Depends(get_current_user),
 ) -> None:
+    enforce_auth_rate_limit(request, "google-link", user.id)
     claims = verify_google_id_token(payload.id_token, settings)
     identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
     if identity and identity.user_id != user.id:

@@ -2,7 +2,7 @@
 
 ## Current stage
 
-**Stage 2 — Identity and access: in progress**
+**Stage 2 — Identity and access: complete**
 
 ## Evidence
 
@@ -49,12 +49,17 @@
   invalidation after a successful reset.
 - Google Identity Services ID-token verification and subject-to-user links without a
   redirect URI or a browser-visible server secret.
+- SMTP password-reset delivery with a one-hour, single-use token; tokens are neither
+  returned by the API nor written to logs.
+- In-memory rate limiting for registration, login, Google sign-in/linking, and reset
+  requests.
 
-## Stage 2 verification and blockers
+## Stage 2 verification
 
-- Ruff passes; pytest passes 4 tests covering successful and negative auth flows.
-- PostgreSQL migration `0002_identity_and_access` is applied locally.
-- Live Google sign-in requires only `GOOGLE_OAUTH_CLIENT_ID`; the server validates the
-  provider-issued ID token before creating or linking an account. A real Google token
-  has not been supplied for live verification. Password-reset delivery still requires
-  outbound-email credentials.
+- Ruff and formatting pass; pytest passes 12 auth, health, CORS, Google identity,
+  reset-delivery, and rate-limit scenarios.
+- PostgreSQL migration `0003_google_identities` is applied locally.
+- SMTP TLS/authentication succeeded without sending a message.
+- Google credentials are configured. A browser E2E sign-in requires the Stage 8 React
+  client to obtain an actual Google ID token; backend signature/claim behavior is
+  covered with controlled provider responses.

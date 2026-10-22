@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from sihat import auth
-from sihat.config import Settings
+from sihat.config import Settings, get_settings
 from sihat.db import Base, get_db_session
 from sihat.main import app
 from sihat.models import GoogleIdentity, PasswordResetToken, User
+from sihat.rate_limit import clear_auth_rate_limits
 from sihat.security import hash_token
 
 
@@ -30,10 +31,21 @@ def client() -> Generator[TestClient, None, None]:
         with testing_session() as session:
             yield session
 
+    test_settings = Settings(
+        jwt_secret="test-only-jwt-secret-with-more-than-thirty-two-characters",
+        smtp_host="smtp.test",
+        smtp_username="test-user",
+        smtp_password="test-password",
+        smtp_from_email="noreply@test.invalid",
+        google_oauth_client_id=None,
+    )
     app.dependency_overrides[get_db_session] = override_db_session
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    clear_auth_rate_limits()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+    clear_auth_rate_limits()
     Base.metadata.drop_all(engine)
     engine.dispose()
 
@@ -155,6 +167,51 @@ def test_password_reset_invalidates_existing_sessions(client: TestClient) -> Non
         ).status_code
         == 200
     )
+
+
+def test_forgot_password_delivers_a_usable_token(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    register(client)
+    delivered_tokens: list[str] = []
+    monkeypatch.setattr(
+        auth,
+        "send_password_reset_email",
+        lambda _recipient, token, _settings: delivered_tokens.append(token),
+    )
+
+    response = client.post("/auth/forgot-password", json={"email": "test@example.com"})
+    assert response.status_code == 202
+    assert len(delivered_tokens) == 1
+
+    reset = client.post(
+        "/auth/reset-password",
+        json={"token": delivered_tokens[0], "new_password": "new-secure-password"},
+    )
+    assert reset.status_code == 204
+    assert (
+        client.post(
+            "/auth/login",
+            json={"email": "test@example.com", "password": "new-secure-password"},
+        ).status_code
+        == 200
+    )
+
+
+def test_login_rate_limit_blocks_the_eleventh_attempt(client: TestClient) -> None:
+    for _ in range(10):
+        response = client.post(
+            "/auth/login",
+            json={"email": "missing@example.com", "password": "not-the-right-password"},
+        )
+        assert response.status_code == 401
+
+    blocked = client.post(
+        "/auth/login",
+        json={"email": "missing@example.com", "password": "not-the-right-password"},
+    )
+    assert blocked.status_code == 429
 
 
 def test_google_login_creates_and_reuses_a_verified_identity(

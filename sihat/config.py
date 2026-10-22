@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     google_oauth_client_id: str | None = None
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_from_email: str | None = None
+    smtp_use_tls: bool = True
+    password_reset_url: str = "http://localhost:5173/reset-password"
     allowed_origins: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -25,6 +32,12 @@ class Settings(BaseSettings):
     @property
     def google_oauth_is_configured(self) -> bool:
         return bool(self.google_oauth_client_id)
+
+    @property
+    def smtp_is_configured(self) -> bool:
+        return bool(
+            self.smtp_host and self.smtp_username and self.smtp_password and self.smtp_from_email
+        )
 
     @model_validator(mode="after")
     def reject_placeholder_secret_outside_development(self) -> "Settings":
