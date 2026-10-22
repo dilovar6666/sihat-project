@@ -9,7 +9,7 @@ class RegistrationInput(BaseModel):
 
 
 class LoginInput(BaseModel):
-    email: EmailStr
+    email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=1, max_length=128)
 
 
@@ -33,7 +33,7 @@ class ResetPasswordInput(BaseModel):
 
 class UserOutput(BaseModel):
     id: str
-    email: EmailStr
+    email: str = Field(min_length=3, max_length=320)
     full_name: str
     role: str
     age_group: str

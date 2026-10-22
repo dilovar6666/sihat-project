@@ -24,7 +24,11 @@ class Settings(BaseSettings):
     smtp_from_email: str | None = None
     smtp_use_tls: bool = True
     password_reset_url: str = "http://localhost:5173/reset-password"
-    allowed_origins: str = "http://localhost:5173"
+    allowed_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:4173,http://127.0.0.1:4173"
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
