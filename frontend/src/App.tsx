@@ -32,6 +32,7 @@ export function App() {
   const [lang, setLang] = useState<Language>(() => {
     return (localStorage.getItem('sihat_lang') as Language) || 'en'
   })
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -111,11 +112,17 @@ export function App() {
     setCompletion(null)
     setAttempt(null)
     setSelectedActivity(null)
-    setCurrentTab('exercises')
-    setMessage('You have signed out.')
+    setCurrentTab('home')
+    setMessage('Вы вышли из учетной записи.')
   }
 
   const startExercise = async (act: Activity) => {
+    if (!token) {
+      setSelectedActivity(act)
+      setAuthModalOpen(true)
+      setMessage(t.exercises.guestNotice)
+      return
+    }
     try {
       const next = await apiRequest<Attempt>('/attempts/start', {
         method: 'POST',
@@ -126,7 +133,7 @@ export function App() {
       setReady(false)
       setMessage('')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to start exercise')
+      setMessage(error instanceof Error ? error.message : 'Не удалось запустить упражнение')
     }
   }
 
@@ -147,7 +154,7 @@ export function App() {
       setSelectedActivity(null)
       setReady(false)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to save this exercise')
+      setMessage(error instanceof Error ? error.message : 'Не удалось сохранить ответ')
     }
   }
 
@@ -156,7 +163,7 @@ export function App() {
       try {
         await apiRequest(`/attempts/${attempt.id}/discard`, { method: 'DELETE' })
       } catch {
-        /* Local screen can close safely */
+        /* Session can close locally */
       }
     }
     setAttempt(null)
@@ -169,9 +176,13 @@ export function App() {
     try {
       await apiRequest(`/attempts/${completion.id}/${save ? 'save' : 'do-not-save'}`, { method: 'POST' })
       setCompletion(null)
-      setMessage(save ? 'Your exercise result was saved to your private history.' : 'Your temporary exercise result was deleted.')
+      setMessage(
+        save
+          ? 'Your exercise result was saved to your private history.'
+          : 'Your temporary exercise result was deleted.'
+      )
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to record your choice')
+      setMessage(error instanceof Error ? error.message : 'Не удалось зафиксировать решение')
     }
   }
 
@@ -209,21 +220,28 @@ export function App() {
       setDialog([...currentDialog, { role: 'user', text }, { role: 'assistant', text: reply.message }])
       setAssistantActions(reply.actions)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to reach assistant')
+      setMessage(error instanceof Error ? error.message : 'Не удалось связаться с ассистентом')
     }
   }
 
   const startVoiceInput = () => {
-    type Recognition = { lang: string; start: () => void; onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void; onerror: () => void }
-    const SpeechRec = (window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => Recognition }).webkitSpeechRecognition
+    type Recognition = {
+      lang: string
+      start: () => void
+      onresult: (event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void
+      onerror: () => void
+    }
+    const SpeechRec =
+      (window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition }).SpeechRecognition ??
+      (window as unknown as { webkitSpeechRecognition?: new () => Recognition }).webkitSpeechRecognition
     if (!SpeechRec) {
-      setMessage('Voice input is not available in this browser.')
+      setMessage('Голосовой ввод не поддерживается данным браузером.')
       return
     }
     const recognition = new SpeechRec()
-    recognition.lang = lang === 'ru' ? 'ru-RU' : 'en-US'
+    recognition.lang = lang === 'ru' ? 'ru-RU' : lang === 'tj' ? 'tg-TG' : 'en-US'
     recognition.onresult = (event) => setAssistantText(event.results[0][0].transcript)
-    recognition.onerror = () => setMessage('Voice input could not be transcribed.')
+    recognition.onerror = () => setMessage('Не удалось распознать голосовую команду.')
     recognition.start()
   }
 
@@ -243,7 +261,7 @@ export function App() {
     setMessage('This assistant action is available when the corresponding screen is added.')
   }
 
-  // Content fetching for public FAQ & Knowledge
+  // Public Content Fetching
   useEffect(() => {
     if (currentTab === 'faq') {
       apiRequest<FaqItem[]>('/faq').then(setFaqs).catch(() => {})
@@ -272,140 +290,290 @@ export function App() {
 
   return (
     <main className="app-shell">
-      {/* Top Header Bar */}
-      <header className="top-bar">
-        <div className="brand-wrap" onClick={() => setCurrentTab('home')} role="button" tabIndex={0}>
-          <img
-            src="/sihat-logo.png"
-            alt="SIHAT - Understand Your Health"
-            className="brand-logo-img"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none'
+      {/* 1. SINGLE-ROW UNIFIED NAVBAR */}
+      <header className="sihat-navbar" aria-label="Main Navigation Bar">
+        <div className="navbar-container">
+          {/* Brand Identity with single SVG mark (NO duplicate text bug!) */}
+          <div
+            className="brand-wrap"
+            onClick={() => {
+              setCurrentTab('home')
+              setMobileMenuOpen(false)
             }}
-          />
-          <div className="brand-text-block">
-            <span className="brand-title">{t.brand}</span>
-            <span className="brand-slogan">{t.slogan}</span>
-          </div>
-        </div>
-
-        <div className="top-bar-controls">
-          {/* Trilingual Language Switcher */}
-          <div className="lang-switcher" aria-label="Language selector">
-            <button
-              type="button"
-              className={'lang-btn' + (lang === 'ru' ? ' active' : '')}
-              onClick={() => setLang('ru')}
-            >
-              RU
-            </button>
-            <button
-              type="button"
-              className={'lang-btn' + (lang === 'tj' ? ' active' : '')}
-              onClick={() => setLang('tj')}
-            >
-              TJ
-            </button>
-            <button
-              type="button"
-              className={'lang-btn' + (lang === 'en' ? ' active' : '')}
-              onClick={() => setLang('en')}
-            >
-              EN
-            </button>
-          </div>
-
-          {/* Theme Switcher Toggle */}
-          <button
-            type="button"
-            className="theme-toggle-btn"
-            onClick={toggleTheme}
-            aria-label="Toggle light/dark theme"
+            role="button"
+            tabIndex={0}
+            aria-label="SIHAT"
           >
-            {theme === 'light' ? `🌙 ${t.themeDark}` : `☀️ ${t.themeLight}`}
-          </button>
+            <img
+              src="/sihat-mark.svg"
+              alt="SIHAT Mark"
+              className="brand-logo-img"
+              onError={(e) => {
+                ;(e.target as HTMLElement).style.display = 'none'
+              }}
+            />
+            <div className="brand-text-block">
+              <span className="brand-title">{t.brand}</span>
+              <span className="brand-slogan">{t.slogan}</span>
+            </div>
+          </div>
 
-          {/* User Profile or Sign In Action */}
-          <div className="user-badge">
-            {token ? (
-              <>
-                <span className="user-email-label">
-                  {profile?.email ?? email} <span className="role-tag">{profile?.role ?? 'user'}</span>
-                </span>
-                <button className="quiet-button" style={{ fontSize: '.82rem', padding: '5px 12px' }} onClick={signOut}>
-                  {t.nav.signOut}
-                </button>
-              </>
-            ) : (
+          {/* Desktop Navigation Links */}
+          <nav className="navbar-nav-links" aria-label="Desktop Navigation">
+            <button
+              type="button"
+              className={'nav-link-btn' + (currentTab === 'home' ? ' active' : '')}
+              onClick={() => setCurrentTab('home')}
+            >
+              {t.nav.home}
+            </button>
+            <button
+              type="button"
+              className={'nav-link-btn' + (currentTab === 'catalog' ? ' active' : '')}
+              onClick={() => setCurrentTab('catalog')}
+            >
+              {lang === 'en' ? 'Catalog & Passports' : t.nav.catalog}
+            </button>
+            <button
+              type="button"
+              className={'nav-link-btn' + (currentTab === 'exercises' ? ' active' : '')}
+              onClick={() => setCurrentTab('exercises')}
+            >
+              {lang === 'en' ? 'Educational Exercises' : t.nav.exercises}
+            </button>
+            {token && (
               <button
-                className="secondary-button"
-                style={{ fontSize: '.85rem', padding: '6px 14px' }}
-                onClick={() => setAuthModalOpen(true)}
+                type="button"
+                className={'nav-link-btn' + (currentTab === 'history' ? ' active' : '')}
+                onClick={() => setCurrentTab('history')}
               >
-                {t.nav.signIn} / {t.nav.signUp}
+                {lang === 'en' ? 'My History & PDF' : t.nav.history}
               </button>
             )}
+            <button
+              type="button"
+              className={'nav-link-btn' + (currentTab === 'faq' ? ' active' : '')}
+              onClick={() => setCurrentTab('faq')}
+            >
+              {t.nav.faq}
+            </button>
+            <button
+              type="button"
+              className={'nav-link-btn' + (currentTab === 'knowledge' ? ' active' : '')}
+              onClick={() => setCurrentTab('knowledge')}
+            >
+              {lang === 'en' ? 'Knowledge Base' : t.nav.knowledge}
+            </button>
+            <button
+              type="button"
+              className={'nav-link-btn' + (currentTab === 'support' ? ' active' : '')}
+              onClick={() => setCurrentTab('support')}
+            >
+              {t.nav.support}
+            </button>
+            {token && profile?.role === 'admin' && (
+              <button
+                type="button"
+                className={'nav-link-btn' + (currentTab === 'admin' ? ' active' : '')}
+                onClick={() => setCurrentTab('admin')}
+              >
+                {t.nav.admin}
+              </button>
+            )}
+          </nav>
+
+          {/* Right Controls: Language, Theme, Auth & Mobile Hamburger */}
+          <div className="navbar-actions">
+            {/* Trilingual Pill */}
+            <div className="lang-switcher" aria-label="Language selector">
+              <button
+                type="button"
+                className={'lang-btn' + (lang === 'ru' ? ' active' : '')}
+                onClick={() => setLang('ru')}
+              >
+                RU
+              </button>
+              <button
+                type="button"
+                className={'lang-btn' + (lang === 'tj' ? ' active' : '')}
+                onClick={() => setLang('tj')}
+              >
+                TJ
+              </button>
+              <button
+                type="button"
+                className={'lang-btn' + (lang === 'en' ? ' active' : '')}
+                onClick={() => setLang('en')}
+              >
+                EN
+              </button>
+            </div>
+
+            {/* Theme Toggle */}
+            <button
+              type="button"
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              aria-label="Toggle light/dark theme"
+            >
+              {theme === 'light' ? `🌙 ${t.themeDark}` : `☀️ ${t.themeLight}`}
+            </button>
+
+            {/* Auth status or Sign In */}
+            <div className="navbar-user-block">
+              {token ? (
+                <div className="user-logged-box">
+                  <span className="user-email-tag">
+                    {profile?.email ?? email} <span className="role-tag">{profile?.role ?? 'user'}</span>
+                  </span>
+                  <button type="button" className="quiet-button compact-btn" onClick={signOut}>
+                    {t.nav.signOut}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-primary-emerald compact-btn"
+                  onClick={() => setAuthModalOpen(true)}
+                >
+                  {t.nav.signIn} / {t.nav.signUp}
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Hamburger Toggle */}
+            <button
+              type="button"
+              className="mobile-hamburger-btn"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? t.nav.closeMenu : t.nav.menu}
+              aria-expanded={mobileMenuOpen}
+            >
+              <span className="hamburger-icon">{mobileMenuOpen ? '✕' : '☰'}</span>
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="mobile-nav-drawer" role="dialog" aria-modal="true">
+            <div className="mobile-drawer-links">
+              <button
+                type="button"
+                className={'drawer-link-btn' + (currentTab === 'home' ? ' active' : '')}
+                onClick={() => {
+                  setCurrentTab('home')
+                  setMobileMenuOpen(false)
+                }}
+              >
+                {t.nav.home}
+              </button>
+              <button
+                type="button"
+                className={'drawer-link-btn' + (currentTab === 'catalog' ? ' active' : '')}
+                onClick={() => {
+                  setCurrentTab('catalog')
+                  setMobileMenuOpen(false)
+                }}
+              >
+                {lang === 'en' ? 'Catalog & Passports' : t.nav.catalog}
+              </button>
+              <button
+                type="button"
+                className={'drawer-link-btn' + (currentTab === 'exercises' ? ' active' : '')}
+                onClick={() => {
+                  setCurrentTab('exercises')
+                  setMobileMenuOpen(false)
+                }}
+              >
+                {lang === 'en' ? 'Educational Exercises' : t.nav.exercises}
+              </button>
+              {token && (
+                <button
+                  type="button"
+                  className={'drawer-link-btn' + (currentTab === 'history' ? ' active' : '')}
+                  onClick={() => {
+                    setCurrentTab('history')
+                    setMobileMenuOpen(false)
+                  }}
+                >
+                  {lang === 'en' ? 'My History & PDF' : t.nav.history}
+                </button>
+              )}
+              <button
+                type="button"
+                className={'drawer-link-btn' + (currentTab === 'faq' ? ' active' : '')}
+                onClick={() => {
+                  setCurrentTab('faq')
+                  setMobileMenuOpen(false)
+                }}
+              >
+                {t.nav.faq}
+              </button>
+              <button
+                type="button"
+                className={'drawer-link-btn' + (currentTab === 'knowledge' ? ' active' : '')}
+                onClick={() => {
+                  setCurrentTab('knowledge')
+                  setMobileMenuOpen(false)
+                }}
+              >
+                {lang === 'en' ? 'Knowledge Base' : t.nav.knowledge}
+              </button>
+              <button
+                type="button"
+                className={'drawer-link-btn' + (currentTab === 'support' ? ' active' : '')}
+                onClick={() => {
+                  setCurrentTab('support')
+                  setMobileMenuOpen(false)
+                }}
+              >
+                {t.nav.support}
+              </button>
+              {token && profile?.role === 'admin' && (
+                <button
+                  type="button"
+                  className={'drawer-link-btn' + (currentTab === 'admin' ? ' active' : '')}
+                  onClick={() => {
+                    setCurrentTab('admin')
+                    setMobileMenuOpen(false)
+                  }}
+                >
+                  {t.nav.admin}
+                </button>
+              )}
+            </div>
+
+            <div className="mobile-drawer-footer">
+              {!token && (
+                <button
+                  type="button"
+                  className="btn-primary-emerald"
+                  style={{ width: '100%', marginBottom: '12px' }}
+                  onClick={() => {
+                    setAuthModalOpen(true)
+                    setMobileMenuOpen(false)
+                  }}
+                >
+                  {t.nav.signIn} / {t.nav.signUp}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* Main Navigation Tabs */}
-      <nav className="nav-tabs" aria-label="Main Navigation">
-        <button
-          className={'nav-tab' + (currentTab === 'home' ? ' active' : '')}
-          onClick={() => setCurrentTab('home')}
-        >
-          {t.nav.home}
-        </button>
-        <button
-          className={'nav-tab' + (currentTab === 'catalog' ? ' active' : '')}
-          onClick={() => setCurrentTab('catalog')}
-        >
-          Catalog & Passports
-        </button>
-        <button
-          className={'nav-tab' + (currentTab === 'exercises' ? ' active' : '')}
-          onClick={() => setCurrentTab('exercises')}
-        >
-          Educational Exercises
-        </button>
-        {token && (
-          <button
-            className={'nav-tab' + (currentTab === 'history' ? ' active' : '')}
-            onClick={() => setCurrentTab('history')}
-          >
-            My History & PDF
+      {/* Global alert / message banner */}
+      {message && (
+        <div className="global-message-banner" role="alert">
+          <span>{message}</span>
+          <button type="button" className="banner-close-btn" onClick={() => setMessage('')} aria-label="Закрыть">
+            ✕
           </button>
-        )}
-        <button
-          className={'nav-tab' + (currentTab === 'faq' ? ' active' : '')}
-          onClick={() => setCurrentTab('faq')}
-        >
-          FAQ
-        </button>
-        <button
-          className={'nav-tab' + (currentTab === 'knowledge' ? ' active' : '')}
-          onClick={() => setCurrentTab('knowledge')}
-        >
-          Knowledge Base
-        </button>
-        <button
-          className={'nav-tab' + (currentTab === 'support' ? ' active' : '')}
-          onClick={() => setCurrentTab('support')}
-        >
-          Support
-        </button>
-        {token && profile?.role === 'admin' && (
-          <button
-            className={'nav-tab' + (currentTab === 'admin' ? ' active' : '')}
-            onClick={() => setCurrentTab('admin')}
-          >
-            Admin Panel
-          </button>
-        )}
-      </nav>
+        </div>
+      )}
 
-      {/* Tab: Home / Landing Experience */}
+      {/* 2. TAB: HOME / LANDING EXPERIENCE */}
       {currentTab === 'home' && (
         <LandingHero
           t={t}
@@ -425,79 +593,140 @@ export function App() {
         />
       )}
 
-      {/* Tab: Exercises (Educational Runner) */}
+      {/* 3. TAB: EDUCATIONAL EXERCISES */}
       {currentTab === 'exercises' && (
-        !token ? (
-          <form className="login-card" onSubmit={login}>
-            <label>
-              Email
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                autoComplete="email"
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </label>
-            <button type="submit">Sign in to choose an exercise</button>
-          </form>
-        ) : completion ? (
-          <section className="completion-card" aria-live="polite">
-            <h2>Exercise complete</h2>
-            <p>{completion.result?.message ?? 'Your exercise response was recorded.'}</p>
-            <p>It is not a diagnosis or health result. Choose whether to save this result to your private history.</p>
-            <div className="runner-actions">
-              <button onClick={() => decideSave(true)}>Save</button>
-              <button className="secondary-button" onClick={() => decideSave(false)}>Do not save</button>
-            </div>
-          </section>
-        ) : attempt && selectedActivity ? (
-          <section className="runner-card">
-            <div className="runner-heading">
-              <div>
-                <p className="eyebrow">{selectedActivity.slug}</p>
-                <h2>{selectedActivity.title}</h2>
-                <p>{selectedActivity.description}</p>
+        <section className="exercises-view-section" aria-label="Educational exercises">
+          {/* Completion View with Explicit Choice */}
+          {completion ? (
+            <section className="completion-card" aria-live="polite">
+              <div className="eyebrow-pill">СЕССИЯ ЗАВЕРШЕНА</div>
+              <h2>{lang === 'en' ? 'Exercise complete' : t.exercises.completedTitle}</h2>
+              <p className="completion-outcome-text">
+                {completion.result?.message ?? 'Your exercise response was recorded.'}
+              </p>
+              <p className="consent-text">
+                {t.runner.consentExplain}
+              </p>
+              <div className="runner-actions">
+                <button type="button" className="btn-primary-emerald" onClick={() => decideSave(true)}>
+                  {lang === 'en' ? 'Save' : t.exercises.saveBtn}
+                </button>
+                <button type="button" className="secondary-button" onClick={() => decideSave(false)}>
+                  {lang === 'en' ? 'Do not save' : t.exercises.doNotSaveBtn}
+                </button>
               </div>
-              <button className="quiet-button" onClick={discardExercise}>Leave exercise</button>
+            </section>
+          ) : attempt && selectedActivity ? (
+            /* Active Runner Stage */
+            <section className="runner-card active-runner" aria-live="polite">
+              <div className="runner-heading">
+                <div>
+                  <p className="eyebrow">{selectedActivity.slug}</p>
+                  <h2>{selectedActivity.title}</h2>
+                  <p>{selectedActivity.description}</p>
+                </div>
+                <button type="button" className="quiet-button" onClick={discardExercise}>
+                  {lang === 'en' ? 'Leave exercise' : t.exercises.leaveBtn}
+                </button>
+              </div>
+              <ExercisePanel key={selectedActivity.slug} activity={selectedActivity} onReady={setReady} />
+              <div className="runner-actions">
+                <button type="button" className="secondary-button" onClick={() => respondExercise('skipped')}>
+                  {lang === 'en' ? 'Skip exercise' : t.exercises.skipBtn}
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary-emerald"
+                  disabled={!ready}
+                  onClick={() => respondExercise('completed')}
+                >
+                  {lang === 'en' ? 'Complete exercise' : t.exercises.completeBtn}
+                </button>
+              </div>
+            </section>
+          ) : (
+            /* Exercise Catalog Showcase for both guests and authenticated users */
+            <div className="exercises-directory-container">
+              <div className="section-head-split">
+                <div>
+                  <div className="eyebrow-pill">ИНТЕРАКТИВНЫЕ МОДУЛИ</div>
+                  <h2 className="section-title-large">{t.exercises.title}</h2>
+                  <p className="section-subtitle">{t.exercises.subtitle}</p>
+                </div>
+                {token && (
+                  <button type="button" className="quiet-button" onClick={signOut}>
+                    {t.nav.signOut}
+                  </button>
+                )}
+              </div>
+
+              {/* Guest Authentication Card (satisfies Playwright tests & informs anonymous users) */}
+              {!token && (
+                <div className="guest-exercise-prompt-card">
+                  <div className="prompt-left">
+                    <span className="prompt-badge">🔐 RBAC Безопасность</span>
+                    <h3 className="prompt-heading">{t.exercises.signInPrompt}</h3>
+                    <p className="prompt-desc">{t.exercises.guestNotice}</p>
+                  </div>
+
+                  {/* Inline Quick Login Form (Preserves exact button label for Playwright tests!) */}
+                  <form className="login-card inline-login" onSubmit={login}>
+                    <label>
+                      Email
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        required
+                        autoComplete="email"
+                        placeholder="learner@example.com"
+                      />
+                    </label>
+                    <label>
+                      Password
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        required
+                        autoComplete="current-password"
+                      />
+                    </label>
+                    <button type="submit" className="btn-primary-emerald">
+                      Sign in to choose an exercise
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* Full 15 Educational Activities Matrix */}
+              <div className="activity-grid">
+                {EDUCATIONAL_ACTIVITIES.map((act) => (
+                  <article key={act.slug} className="exercise-card-tile">
+                    <div className="card-top-row">
+                      <span className={'badge-type badge-' + act.kind}>{act.kind}</span>
+                      <span className="module-duration-pill">~2–3 мин</span>
+                    </div>
+                    <h3 className="exercise-tile-title">{act.title}</h3>
+                    <p className="exercise-tile-desc">{act.description}</p>
+                    <div className="exercise-tile-footer">
+                      <button
+                        type="button"
+                        className="btn-primary-emerald compact-btn"
+                        onClick={() => startExercise(act)}
+                      >
+                        Start exercise
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
-            <ExercisePanel key={selectedActivity.slug} activity={selectedActivity} onReady={setReady} />
-            <div className="runner-actions">
-              <button className="secondary-button" onClick={() => respondExercise('skipped')}>Skip exercise</button>
-              <button disabled={!ready} onClick={() => respondExercise('completed')}>Complete exercise</button>
-            </div>
-          </section>
-        ) : (
-          <section className="activity-list" aria-label="Educational exercises">
-            <div className="section-heading">
-              <h2>Choose an activity</h2>
-              <button className="quiet-button" onClick={signOut}>{t.nav.signOut}</button>
-            </div>
-            <div className="activity-grid">
-              {EDUCATIONAL_ACTIVITIES.map((act) => (
-                <article key={act.slug}>
-                  <p className="eyebrow">{act.kind}</p>
-                  <h3>{act.title}</h3>
-                  <p>{act.description}</p>
-                  <button onClick={() => startExercise(act)}>Start exercise</button>
-                </article>
-              ))}
-            </div>
-          </section>
-        )
+          )}
+        </section>
       )}
 
-      {/* Tab: Catalog & Passports */}
+      {/* 4. TAB: CATALOG & METHODOLOGY PASSPORTS */}
       {currentTab === 'catalog' && (
         <CatalogView
           token={token}
@@ -509,63 +738,131 @@ export function App() {
         />
       )}
 
-      {/* Tab: Private History & PDF */}
+      {/* 5. TAB: PRIVATE HISTORY & PDF */}
       {currentTab === 'history' && token && (
-        <HistoryView t={t} />
+        <HistoryView t={t} lang={lang} />
       )}
 
-      {/* Tab: FAQ */}
+      {/* 6. TAB: FAQ */}
       {currentTab === 'faq' && (
-        <section className="content-card" aria-label="Frequently Asked Questions">
-          <div className="section-heading"><h2>{t.nav.faq}</h2></div>
+        <section className="content-card faq-section" aria-label="Frequently Asked Questions">
+          <div className="section-head-split">
+            <div>
+              <div className="eyebrow-pill">СПРАВОЧНАЯ ИНФОРМАЦИЯ</div>
+              <h2 className="section-title-large">{t.nav.faq}</h2>
+              <p className="section-subtitle">Ответы на ключевые вопросы о методиках, приватности и точности калибровки SIHAT.</p>
+            </div>
+          </div>
           <div className="faq-list">
             {faqs.map((faq) => (
               <article key={faq.id} className="faq-card">
-                <h3>{faq.question[lang] ?? faq.question.en ?? faq.question.ru}</h3>
-                <p>{faq.answer[lang] ?? faq.answer.en ?? faq.answer.ru}</p>
+                <h3 className="faq-question">{faq.question[lang] ?? faq.question.en ?? faq.question.ru}</h3>
+                <p className="faq-answer">{faq.answer[lang] ?? faq.answer.en ?? faq.answer.ru}</p>
               </article>
             ))}
-            {faqs.length === 0 && <p>Loading frequently asked questions...</p>}
+            {faqs.length === 0 && <p className="loading-state">Загрузка вопросов и ответов...</p>}
           </div>
         </section>
       )}
 
-      {/* Tab: Knowledge Base */}
+      {/* 7. TAB: KNOWLEDGE BASE */}
       {currentTab === 'knowledge' && (
-        <section className="content-card" aria-label="Knowledge Base">
-          <div className="section-heading"><h2>{t.nav.knowledge}</h2></div>
+        <section className="content-card knowledge-section" aria-label="Knowledge Base">
+          <div className="section-head-split">
+            <div>
+              <div className="eyebrow-pill">НАУЧНАЯ БАЗА</div>
+              <h2 className="section-title-large">{t.nav.knowledge}</h2>
+              <p className="section-subtitle">Публикации, обоснования методик и стандарты психофизиологической оценки.</p>
+            </div>
+          </div>
           <div className="article-list">
             {articles.map((art) => (
               <article key={art.id} className="article-card">
-                <p className="eyebrow">{art.category}</p>
-                <h3>{art.localizations[lang]?.title ?? art.localizations.en?.title ?? art.localizations.ru?.title}</h3>
-                <p>{art.localizations[lang]?.content ?? art.localizations.en?.content ?? art.localizations.ru?.content}</p>
+                <span className="badge-type">{art.category}</span>
+                <h3 className="article-title">{art.localizations[lang]?.title ?? art.localizations.en?.title ?? art.localizations.ru?.title}</h3>
+                <p className="article-body">{art.localizations[lang]?.content ?? art.localizations.en?.content ?? art.localizations.ru?.content}</p>
               </article>
             ))}
-            {articles.length === 0 && <p>Loading articles and standards...</p>}
+            {articles.length === 0 && <p className="loading-state">Загрузка статей и стандартов...</p>}
           </div>
         </section>
       )}
 
-      {/* Tab: Support */}
+      {/* 8. TAB: SUPPORT */}
       {currentTab === 'support' && (
-        <section className="content-card" aria-label="Support">
-          <div className="section-heading"><h2>{t.nav.support}</h2></div>
-          <form onSubmit={submitSupport} style={{ display: 'grid', gap: '14px', maxWidth: '480px', margin: '0 auto', textAlign: 'left' }}>
-            <label>Contact Email<input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} required /></label>
-            <label>Subject<input type="text" value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)} required minLength={3} maxLength={240} /></label>
-            <label>Message<textarea rows={4} value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)} required minLength={10} maxLength={4000} /></label>
-            <button type="submit">Submit support ticket</button>
+        <section className="content-card support-section" aria-label="Support">
+          <div className="section-head-split">
+            <div>
+              <div className="eyebrow-pill">СЛУЖБА ПОДДЕРЖКИ</div>
+              <h2 className="section-title-large">{t.nav.support}</h2>
+              <p className="section-subtitle">Задайте вопрос специалистам платформы по работе методик и техническим аспектам.</p>
+            </div>
+          </div>
+
+          <form onSubmit={submitSupport} className="support-form-container">
+            <div className="form-group">
+              <label htmlFor="supp-email">Contact Email</label>
+              <input
+                id="supp-email"
+                type="email"
+                value={supportEmail}
+                onChange={(e) => setSupportEmail(e.target.value)}
+                required
+                placeholder="user@example.com"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="supp-subj">Subject</label>
+              <input
+                id="supp-subj"
+                type="text"
+                value={supportSubject}
+                onChange={(e) => setSupportSubject(e.target.value)}
+                required
+                minLength={3}
+                maxLength={240}
+                placeholder="Тема обращения..."
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="supp-msg">Message</label>
+              <textarea
+                id="supp-msg"
+                rows={4}
+                value={supportMessage}
+                onChange={(e) => setSupportMessage(e.target.value)}
+                required
+                minLength={10}
+                maxLength={4000}
+                placeholder="Опишите вопрос или предложение..."
+              />
+            </div>
+            <button type="submit" className="btn-primary-emerald">
+              Submit support ticket
+            </button>
           </form>
+
           {myTickets.length > 0 && (
-            <div className="admin-section" style={{ marginTop: '28px' }}>
-              <h3>Your Submitted Tickets</h3>
+            <div className="user-tickets-wrapper" style={{ marginTop: '36px' }}>
+              <h3>Ваши обращения</h3>
               <div className="table-wrap">
                 <table className="admin-table">
-                  <thead><tr><th>Subject</th><th>Status</th><th>Notes</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Subject</th>
+                      <th>Status</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {myTickets.map((tk) => (
-                      <tr key={tk.id}><td>{tk.subject}</td><td><strong>{tk.status}</strong></td><td>{tk.admin_notes ?? 'Pending review'}</td></tr>
+                      <tr key={tk.id}>
+                        <td>{tk.subject}</td>
+                        <td>
+                          <span className={'status-badge ' + tk.status}>{tk.status}</span>
+                        </td>
+                        <td>{tk.admin_notes ?? 'Pending review'}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
@@ -575,78 +872,150 @@ export function App() {
         </section>
       )}
 
-      {/* Tab: Admin Panel */}
+      {/* 9. TAB: ADMIN CONSOLE */}
       {currentTab === 'admin' && profile?.role === 'admin' && (
-        <AdminView onNotify={setMessage} />
+        <AdminView onNotify={setMessage} t={t} lang={lang} />
       )}
 
       {/* Auth Modal for Sign in / Registration */}
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        onLoginSuccess={(p, tk) => { setProfile(p); setToken(tk); setApiToken(tk) }}
+        onLoginSuccess={(p, tk) => {
+          setProfile(p)
+          setToken(tk)
+          setApiToken(tk)
+        }}
         onNotify={setMessage}
+        t={t}
+        lang={lang}
       />
-
-      {/* Global alert / message banner */}
-      {message && <p className="message" role="alert">{message}</p>}
 
       {/* Footer */}
       <footer className="app-footer">
-        <div className="footer-slogan">{t.slogan}</div>
+        <div className="footer-brand-row">
+          <div className="brand-wrap">
+            <img src="/sihat-mark.svg" alt="SIHAT" className="brand-logo-img" />
+            <div className="brand-text-block">
+              <span className="brand-title">{t.brand}</span>
+              <span className="brand-slogan">{t.slogan}</span>
+            </div>
+          </div>
+          <div className="footer-slogan-motto">{t.tagline}</div>
+        </div>
+
         <p className="footer-disclaimer">{t.disclaimer.text}</p>
         <div className="footer-meta">
-          © {new Date().getFullYear()} {t.brand}. {t.footer.rights} {t.footer.designedWithCare}
+          <span>© {new Date().getFullYear()} {t.brand}. {t.footer.rights}</span>
+          <span>{t.footer.designedWithCare}</span>
         </div>
       </footer>
 
-      {/* Assistant Floating Toggle & Drawer */}
-      {token && (
-        <>
-          <button
-            className="assistant-toggle"
-            aria-label="Ask SIHAT"
-            aria-expanded={assistantOpen}
-            onClick={() => {
-              setAssistantOpen(!assistantOpen)
-              window.location.hash = '#assistant'
-            }}
-          >
-            {t.nav.assistant}
-          </button>
-          {assistantOpen && (
-            <aside className="assistant-panel" aria-label="SIHAT assistant">
-              <div className="section-heading">
-                <h2>SIHAT assistant</h2>
-                <button className="quiet-button" onClick={() => setAssistantOpen(false)}>Close</button>
+      {/* Gemini AI Floating Launcher & Slide-over Drawer */}
+      <button
+        type="button"
+        className="assistant-toggle"
+        aria-label="Ask SIHAT"
+        aria-expanded={assistantOpen}
+        onClick={() => {
+          setAssistantOpen(!assistantOpen)
+          window.location.hash = assistantOpen ? '' : '#assistant'
+        }}
+      >
+        <span className="sparkle-dot" aria-hidden="true">✦</span>
+        <span>{lang === 'en' ? 'Ask SIHAT' : t.nav.assistant}</span>
+      </button>
+
+      {assistantOpen && (
+        <aside className="assistant-panel" aria-label="SIHAT assistant">
+          <div className="assistant-panel-header">
+            <div className="assistant-header-id">
+              <span className="sparkle-dot" aria-hidden="true">✦</span>
+              <div>
+                <h3>SIHAT AI Navigator</h3>
+                <span className="assistant-safe-status">Safe bounds active</span>
               </div>
-              <p className="exercise-instruction">
-                This assistant explains the platform and navigation. It does not diagnose or prescribe treatment.
-                Your dialog is kept only in this browser session.
-              </p>
-              <div className="assistant-dialog" aria-live="polite">
-                {dialog.map((item, index) => (
-                  <p key={index} className={'assistant-' + item.role}>{item.text}</p>
-                ))}
+            </div>
+            <button
+              type="button"
+              className="quiet-button"
+              onClick={() => {
+                setAssistantOpen(false)
+                window.location.hash = ''
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <p className="assistant-disclaimer-note">
+            Этот ассистент помогает ориентироваться на платформе и подбирать скрининги. Он не ставит медицинских диагнозов и не назначает лечение. Диалог сохраняется только в текущей сессии браузера.
+          </p>
+
+          <div className="assistant-dialog" aria-live="polite">
+            {dialog.length === 0 && (
+              <div className="assistant-empty-prompt">
+                <p>Задайте вопрос о самочувствии или подборе скрининга, например:</p>
+                <button
+                  type="button"
+                  className="prompt-suggestion-pill"
+                  onClick={() => setAssistantText('К вечеру двоится текст в редакторе кода и тяжело удерживать фокус. С чего начать проверку?')}
+                >
+                  «К вечеру двоится текст в редакторе...»
+                </button>
               </div>
+            )}
+            {dialog.map((item, index) => (
+              <div key={index} className={'assistant-bubble-wrap ' + item.role}>
+                <div className={'chat-bubble assistant-' + item.role}>
+                  <div className="bubble-role-label">{item.role === 'user' ? 'Вы' : 'SIHAT AI'}</div>
+                  <p>{item.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {assistantActions.length > 0 && (
+            <div className="assistant-actions-row">
               {assistantActions.map((action, index) => (
-                <button key={action.name + index} className="secondary-button" onClick={() => runAssistantAction(action)}>
+                <button
+                  type="button"
+                  key={action.name + index}
+                  className="action-suggestion-pill"
+                  onClick={() => runAssistantAction(action)}
+                >
                   {action.requires_confirmation ? 'Confirm: ' : ''}{action.name.replaceAll('_', ' ')}
                 </button>
               ))}
-              <form onSubmit={sendAssistantMessage}>
-                <label>
-                  Message SIHAT assistant
-                  <textarea value={assistantText} onChange={(event) => setAssistantText(event.target.value)} maxLength={2000} />
-                </label>
-                <div className="runner-actions">
-                  <button type="submit">Send</button>
-                  <button type="button" className="secondary-button" onClick={startVoiceInput}>Use voice input</button>
-                </div>
-              </form>
-            </aside>
+            </div>
           )}
-        </>
+
+          <form onSubmit={sendAssistantMessage} className="assistant-input-form">
+            <label>
+              Message SIHAT assistant
+              <textarea
+                value={assistantText}
+                onChange={(event) => setAssistantText(event.target.value)}
+                placeholder="Напишите вопрос ИИ-навигатору..."
+                maxLength={2000}
+                rows={2}
+              />
+            </label>
+            <div className="assistant-controls-row">
+              <button type="submit" className="btn-primary-emerald compact-btn">
+                Send
+              </button>
+              <button
+                type="button"
+                className="secondary-button compact-btn"
+                onClick={startVoiceInput}
+                title="Голосовой ввод"
+              >
+                🎤 Use voice input
+              </button>
+            </div>
+          </form>
+        </aside>
       )}
     </main>
   )

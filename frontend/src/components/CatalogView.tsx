@@ -13,7 +13,7 @@ export function CatalogView({
 }: {
   token: string
   onStartTest: (test: TestItem) => void
-  t?: Translations
+  t: Translations
   lang?: Language
   initialQuery?: string
   initialCategory?: string
@@ -63,50 +63,55 @@ export function CatalogView({
   }, [selectedCategory, searchQuery, ageFilter, token])
 
   const getTestTitle = (item: TestItem) => {
-    return item.localizations[lang]?.title ?? item.localizations.en?.title ?? item.localizations.ru?.title ?? item.slug
+    return item.localizations[lang]?.title ?? item.localizations.ru?.title ?? item.localizations.en?.title ?? item.slug
   }
 
   const getTestDesc = (item: TestItem) => {
-    return item.localizations[lang]?.description ?? item.localizations.en?.description ?? item.localizations.ru?.description ?? 'Structured health screening questionnaire.'
+    return item.localizations[lang]?.description ?? item.localizations.ru?.description ?? item.localizations.en?.description ?? t.catalog.subtitle
   }
 
   const getCategoryTitle = (cat: Category) => {
-    return cat.localizations[lang]?.title ?? cat.localizations.en?.title ?? cat.localizations.ru?.title ?? cat.slug
+    return cat.localizations[lang]?.title ?? cat.localizations.ru?.title ?? cat.localizations.en?.title ?? cat.slug
   }
 
   return (
     <section className="catalog-section" aria-label="Tests and Questionnaires Catalog">
-      <div className="section-heading">
-        <h2>{t ? t.catalog.title : 'Health Checks and Educational Catalog'}</h2>
+      {/* Editorial Header */}
+      <div className="section-head-split">
+        <div>
+          <div className="eyebrow-pill">{t.disciplines.badge}</div>
+          <h2 className="section-title-large">{t.catalog.title}</h2>
+          <p className="section-subtitle">{t.catalog.subtitle}</p>
+        </div>
       </div>
-      <p className="exercise-instruction">
-        {t ? t.catalog.subtitle : 'Browse validated self-reflection questionnaires, oriented digital checks, and educational exercises. SIHAT checks do not diagnose conditions or replace clinical evaluation.'}
-      </p>
 
       {/* Filter and Search controls */}
       <div className="catalog-filters">
         <div className="search-box">
           <input
             type="search"
-            placeholder={t ? t.catalog.searchLabel : 'Search checks by title...'}
+            placeholder={t.catalog.searchLabel}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search checks"
           />
         </div>
         <div className="age-select-box">
+          <label htmlFor="catalog-age-select" className="sr-only">{t.catalog.ageFilterLabel}</label>
           <select
+            id="catalog-age-select"
             value={ageFilter}
             onChange={(e) => setAgeFilter(e.target.value ? Number(e.target.value) : '')}
             aria-label="Filter by Age"
           >
-            <option value="">{t ? t.catalog.ageAll : 'All Age Groups'}</option>
-            <option value="16">{t ? t.catalog.age1617 : 'Age 16+'}</option>
-            <option value="18">{t ? t.catalog.age18 : 'Age 18+'}</option>
+            <option value="">{t.catalog.ageAll}</option>
+            <option value="16">{t.catalog.age1617}</option>
+            <option value="18">{t.catalog.age18}</option>
           </select>
         </div>
       </div>
 
+      {/* Category Pills Bar */}
       <div className="category-pills" role="tablist" aria-label="Filter by Category">
         <button
           className={'cat-pill' + (selectedCategory === 'all' ? ' active' : '')}
@@ -114,7 +119,7 @@ export function CatalogView({
           role="tab"
           aria-selected={selectedCategory === 'all'}
         >
-          {t ? t.catalog.allCategories : 'All Categories'}
+          {t.catalog.allCategories}
         </button>
         {categories.map((cat) => (
           <button
@@ -129,67 +134,110 @@ export function CatalogView({
         ))}
       </div>
 
-      {loading && <p>Loading checks...</p>}
-      {error && <p className="message">{error}</p>}
+      {loading && <p className="loading-state" aria-live="polite">Загрузка каталога...</p>}
+      {error && <p className="message" role="alert">{error}</p>}
 
-      <div className="activity-grid" style={{ marginTop: '24px' }}>
+      {/* Grid of Tests */}
+      <div className="activity-grid">
         {tests.map((test) => (
           <article key={test.id} className="test-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+            <div className="test-card-top">
               <span className={'badge-type badge-' + test.type}>{test.type.replace('_', ' ')}</span>
               {test.guest_allowed ? (
-                <span className="badge-guest">{t ? t.catalog.guestAllowed : 'Guest OK'}</span>
+                <span className="badge-guest">{t.catalog.guestAllowed}</span>
               ) : (
-                <span className="badge-auth">{t ? t.catalog.authRequired : 'Account required'}</span>
+                <span className="badge-auth">{t.catalog.authRequired}</span>
               )}
             </div>
-            <h3>{getTestTitle(test)}</h3>
-            <p>{getTestDesc(test)}</p>
-            <div style={{ marginTop: 'auto', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button className="secondary-button" style={{ fontSize: '.85rem', padding: '6px 10px' }} onClick={() => setSelectedTestModal(test)}>
-                Methodology Passport
+            
+            <h3 className="test-card-heading">{getTestTitle(test)}</h3>
+            <p className="test-card-description">{getTestDesc(test)}</p>
+            
+            <div className="test-card-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setSelectedTestModal(test)}
+              >
+                {lang === 'en' ? 'Methodology Passport' : t.catalog.passportBtn}
               </button>
-              <button style={{ fontSize: '.85rem', padding: '6px 12px' }} onClick={() => onStartTest(test)}>
-                {t ? t.catalog.startBtn : 'Start Check'}
+              <button
+                type="button"
+                className="btn-primary-emerald"
+                style={{ padding: '8px 16px', fontSize: '.88rem' }}
+                onClick={() => onStartTest(test)}
+              >
+                {t.catalog.startBtn}
               </button>
             </div>
           </article>
         ))}
+
         {!loading && tests.length === 0 && (
-          <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)' }}>
-            {t ? t.catalog.noTests : 'No published checks found matching your criteria.'}
-          </p>
+          <div className="empty-catalog-card" style={{ gridColumn: '1 / -1' }}>
+            <p className="empty-text">{t.catalog.noTests}</p>
+          </div>
         )}
       </div>
 
       {/* Methodology Passport Modal */}
       {selectedTestModal && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="passport-title">
-          <div className="modal-content">
+          <div className="modal-content passport-modal-content">
             <div className="section-heading">
-              <h2 id="passport-title">{getTestTitle(selectedTestModal)} — Methodology</h2>
-              <button className="quiet-button" onClick={() => setSelectedTestModal(null)}>Close</button>
+              <h2 id="passport-title">{getTestTitle(selectedTestModal)} — {t.passportModal.title}</h2>
+              <button type="button" className="quiet-button" onClick={() => setSelectedTestModal(null)} aria-label="Close">
+                ✕
+              </button>
             </div>
+
             <div className="passport-details">
-              <p><strong>Type:</strong> {selectedTestModal.type.replace('_', ' ')}</p>
-              <p><strong>Minimum Age:</strong> {selectedTestModal.min_age}+</p>
+              <div className="passport-row">
+                <strong>Формат:</strong>
+                <span className={'badge-type badge-' + selectedTestModal.type}>{selectedTestModal.type.replace('_', ' ')}</span>
+              </div>
+              <div className="passport-row">
+                <strong>Возрастные требования:</strong>
+                <span>{selectedTestModal.min_age}+ лет</span>
+              </div>
+
               {selectedTestModal.methodology ? (
                 <>
-                  <p><strong>Methodology:</strong> {selectedTestModal.methodology.name} (v{selectedTestModal.methodology.version})</p>
-                  <p><strong>Evidence Status:</strong> <span className={'badge-type badge-' + selectedTestModal.methodology.evidence_status}>{selectedTestModal.methodology.evidence_status}</span></p>
+                  <div className="passport-row">
+                    <strong>Методика:</strong>
+                    <span>{selectedTestModal.methodology.name} (v{selectedTestModal.methodology.version})</span>
+                  </div>
+                  <div className="passport-row">
+                    <strong>{t.passportModal.evidence}:</strong>
+                    <span className={'badge-type badge-' + selectedTestModal.methodology.evidence_status}>
+                      {selectedTestModal.methodology.evidence_status}
+                    </span>
+                  </div>
                   {selectedTestModal.methodology.source && (
-                    <p><strong>Scientific Source:</strong> {selectedTestModal.methodology.source}</p>
+                    <div className="passport-row">
+                      <strong>{t.passportModal.scientificSource}:</strong>
+                      <span>{selectedTestModal.methodology.source}</span>
+                    </div>
                   )}
                   {selectedTestModal.methodology.license_info && (
-                    <p><strong>License Terms:</strong> {selectedTestModal.methodology.license_info}</p>
+                    <div className="passport-row">
+                      <strong>{t.passportModal.license}:</strong>
+                      <span>{selectedTestModal.methodology.license_info}</span>
+                    </div>
                   )}
                   {selectedTestModal.methodology.device_conditions && selectedTestModal.methodology.device_conditions.length > 0 && (
-                    <p><strong>Recommended Device Conditions:</strong> {selectedTestModal.methodology.device_conditions.join(', ')}</p>
+                    <div className="passport-row">
+                      <strong>{t.passportModal.deviceRestrictions}:</strong>
+                      <span>{selectedTestModal.methodology.device_conditions.join(', ')}</span>
+                    </div>
                   )}
-                  <p><strong>Limitations:</strong> {selectedTestModal.methodology.limitations}</p>
-                  {selectedTestModal.methodology.warnings.length > 0 && (
-                    <div>
-                      <strong>Critical Disclaimers:</strong>
+                  <div className="passport-row">
+                    <strong>{t.passportModal.methodLimitations}:</strong>
+                    <span>{selectedTestModal.methodology.limitations}</span>
+                  </div>
+                  {selectedTestModal.methodology.warnings && selectedTestModal.methodology.warnings.length > 0 && (
+                    <div className="passport-warnings-box">
+                      <strong>{t.passportModal.medicalWarnings}:</strong>
                       <ul>
                         {selectedTestModal.methodology.warnings.map((w, i) => (
                           <li key={i}>{w}</li>
@@ -199,15 +247,28 @@ export function CatalogView({
                   )}
                 </>
               ) : (
-                <p>Passport metadata is being compiled by medical editors.</p>
+                <p>Паспорт методики формируется научным комитетом.</p>
               )}
             </div>
+
             <div className="runner-actions">
-              <button onClick={() => { const tst = selectedTestModal; setSelectedTestModal(null); onStartTest(tst) }}>
-                Start this check
+              <button
+                type="button"
+                className="btn-primary-emerald"
+                onClick={() => {
+                  const tst = selectedTestModal;
+                  setSelectedTestModal(null);
+                  onStartTest(tst);
+                }}
+              >
+                {t.passportModal.startCheckBtn}
               </button>
-              <button className="secondary-button" onClick={() => setSelectedTestModal(null)}>
-                Dismiss
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setSelectedTestModal(null)}
+              >
+                {lang === 'en' ? 'Dismiss' : t.passportModal.closeBtn}
               </button>
             </div>
           </div>
