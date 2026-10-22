@@ -2,7 +2,18 @@
 
 ## Current stage
 
-**Stage 3 — Catalog and authoring: technically complete**
+**Stage 4 — Test engine and educational exercises: technically complete**
+
+## Stage 4 verification
+
+- Temporary authenticated attempts support start, sanitized questions, branching, resume,
+  discard, completion, expiry, consent choice, and immutable completed attempts.
+- Fifteen educational activities are available through the technical React runner; their
+  results describe activity performance only and never diagnose a condition.
+- Symptom triage endpoints remain explicitly blocked until clinician-approved rules are
+  recorded.
+- Ruff passes, pytest passes 18 tests, Playwright passes the exercise flow, the Vite
+  production build passes, and PostgreSQL is at Alembic revision `0007_expand_attempts`.
 
 ## Evidence
 
