@@ -6,7 +6,10 @@ import { AdminView } from './components/AdminView'
 import { AuthModal } from './components/AuthModal'
 import { CatalogView } from './components/CatalogView'
 import { HistoryView } from './components/HistoryView'
+import { LandingHero } from './components/LandingHero'
 import { EDUCATIONAL_ACTIVITIES, ExercisePanel } from './components/RunnerView'
+import { translations } from './i18n'
+import type { Language } from './i18n'
 import type {
   Activity,
   AssistantAction,
@@ -22,11 +25,37 @@ import type {
 } from './types'
 
 export function App() {
+  // Theme & Language Localization
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('sihat_theme') as 'light' | 'dark') || 'light'
+  })
+  const [lang, setLang] = useState<Language>(() => {
+    return (localStorage.getItem('sihat_lang') as Language) || 'en'
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('sihat_theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('lang', lang)
+    localStorage.setItem('sihat_lang', lang)
+  }, [lang])
+
+  const t = translations[lang]
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
+  }
+
+  // Auth & Session
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [token, setToken] = useState('')
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [currentTab, setCurrentTab] = useState<'exercises' | 'catalog' | 'history' | 'faq' | 'knowledge' | 'support' | 'admin'>('exercises')
+  const [currentTab, setCurrentTab] = useState<'home' | 'exercises' | 'catalog' | 'history' | 'faq' | 'knowledge' | 'support' | 'admin'>('exercises')
+  const [catalogSearch, setCatalogSearch] = useState('')
   const [authModalOpen, setAuthModalOpen] = useState(false)
 
   // Runner state for exercise tests
@@ -35,7 +64,6 @@ export function App() {
   const [ready, setReady] = useState(false)
   const [completion, setCompletion] = useState<Completion | null>(null)
   const [message, setMessage] = useState('')
-
 
   // Assistant state
   const [assistantOpen, setAssistantOpen] = useState(window.location.hash === '#assistant')
@@ -85,7 +113,6 @@ export function App() {
     setCurrentTab('exercises')
     setMessage('You have signed out.')
   }
-
 
   const startExercise = async (act: Activity) => {
     try {
@@ -156,14 +183,13 @@ export function App() {
     }
     const syntheticActivity: Activity = {
       slug: testItem.slug,
-      title: testItem.localizations.en?.title ?? testItem.slug,
-      description: testItem.localizations.en?.description ?? 'Health screening exercise',
+      title: testItem.localizations[lang]?.title ?? testItem.localizations.en?.title ?? testItem.slug,
+      description: testItem.localizations[lang]?.description ?? testItem.localizations.en?.description ?? 'Health screening exercise',
       kind: 'reflection',
     }
     setCurrentTab('exercises')
     void startExercise(syntheticActivity)
   }
-
 
   // Assistant
   const sendAssistantMessage = async (event: FormEvent) => {
@@ -194,7 +220,7 @@ export function App() {
       return
     }
     const recognition = new SpeechRec()
-    recognition.lang = 'en-US'
+    recognition.lang = lang === 'ru' ? 'ru-RU' : 'en-US'
     recognition.onresult = (event) => setAssistantText(event.results[0][0].transcript)
     recognition.onerror = () => setMessage('Voice input could not be transcribed.')
     recognition.start()
@@ -247,70 +273,175 @@ export function App() {
     <main className="app-shell">
       {/* Top Header Bar */}
       <header className="top-bar">
-        <a href="#home" className="brand-link" onClick={() => setCurrentTab('exercises')}>
-          <span>✦</span> SIHAT <span style={{ fontSize: '.8rem', color: '#638477', fontWeight: 500 }}>Understand Your Health</span>
-        </a>
-        <div className="user-badge">
-          {token ? (
-            <>
-              <span>{profile?.email ?? email} ({profile?.role ?? 'user'})</span>
-              <button className="quiet-button" style={{ fontSize: '.82rem', padding: '4px 10px' }} onClick={signOut}>
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <button className="secondary-button" style={{ fontSize: '.85rem', padding: '6px 14px' }} onClick={() => setAuthModalOpen(true)}>
-              Sign In / Register
-            </button>
-          )}
+        <div className="brand-wrap" onClick={() => setCurrentTab('home')} role="button" tabIndex={0}>
+          <img
+            src="/sihat-logo.png"
+            alt="SIHAT - Understand Your Health"
+            className="brand-logo-img"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none'
+            }}
+          />
+          <div className="brand-text-block">
+            <span className="brand-title">{t.brand}</span>
+            <span className="brand-slogan">{t.slogan}</span>
+          </div>
         </div>
-      </header>
 
-      {/* Hero Heading */}
-      <header className="app-header">
-        <p className="eyebrow">SIHAT HealthTech Platform</p>
-        <h1>Understand Your Health</h1>
-        <p className="lede">
-          Bounded screening questionnaires, educational digital exercises, and verifiable methodology passports.
-          SIHAT never diagnoses conditions or prescribes treatment.
-        </p>
+        <div className="top-bar-controls">
+          {/* Trilingual Language Switcher */}
+          <div className="lang-switcher" aria-label="Language selector">
+            <button
+              type="button"
+              className={'lang-btn' + (lang === 'ru' ? ' active' : '')}
+              onClick={() => setLang('ru')}
+            >
+              RU
+            </button>
+            <button
+              type="button"
+              className={'lang-btn' + (lang === 'tj' ? ' active' : '')}
+              onClick={() => setLang('tj')}
+            >
+              TJ
+            </button>
+            <button
+              type="button"
+              className={'lang-btn' + (lang === 'en' ? ' active' : '')}
+              onClick={() => setLang('en')}
+            >
+              EN
+            </button>
+          </div>
+
+          {/* Theme Switcher Toggle */}
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            aria-label="Toggle light/dark theme"
+          >
+            {theme === 'light' ? `🌙 ${t.themeDark}` : `☀️ ${t.themeLight}`}
+          </button>
+
+          {/* User Profile or Sign In Action */}
+          <div className="user-badge">
+            {token ? (
+              <>
+                <span className="user-email-label">
+                  {profile?.email ?? email} <span className="role-tag">{profile?.role ?? 'user'}</span>
+                </span>
+                <button className="quiet-button" style={{ fontSize: '.82rem', padding: '5px 12px' }} onClick={signOut}>
+                  {t.nav.signOut}
+                </button>
+              </>
+            ) : (
+              <button
+                className="secondary-button"
+                style={{ fontSize: '.85rem', padding: '6px 14px' }}
+                onClick={() => setAuthModalOpen(true)}
+              >
+                {t.nav.signIn} / {t.nav.signUp}
+              </button>
+            )}
+          </div>
+        </div>
       </header>
 
       {/* Main Navigation Tabs */}
       <nav className="nav-tabs" aria-label="Main Navigation">
-        <button className={'nav-tab' + (currentTab === 'exercises' ? ' active' : '')} onClick={() => setCurrentTab('exercises')}>
-          Exercises
+        <button
+          className={'nav-tab' + (currentTab === 'home' ? ' active' : '')}
+          onClick={() => setCurrentTab('home')}
+        >
+          {t.nav.home}
         </button>
-        <button className={'nav-tab' + (currentTab === 'catalog' ? ' active' : '')} onClick={() => setCurrentTab('catalog')}>
+        <button
+          className={'nav-tab' + (currentTab === 'catalog' ? ' active' : '')}
+          onClick={() => setCurrentTab('catalog')}
+        >
           Catalog & Passports
         </button>
+        <button
+          className={'nav-tab' + (currentTab === 'exercises' ? ' active' : '')}
+          onClick={() => setCurrentTab('exercises')}
+        >
+          Educational Exercises
+        </button>
         {token && (
-          <button className={'nav-tab' + (currentTab === 'history' ? ' active' : '')} onClick={() => setCurrentTab('history')}>
+          <button
+            className={'nav-tab' + (currentTab === 'history' ? ' active' : '')}
+            onClick={() => setCurrentTab('history')}
+          >
             My History & PDF
           </button>
         )}
-        <button className={'nav-tab' + (currentTab === 'faq' ? ' active' : '')} onClick={() => setCurrentTab('faq')}>
+        <button
+          className={'nav-tab' + (currentTab === 'faq' ? ' active' : '')}
+          onClick={() => setCurrentTab('faq')}
+        >
           FAQ
         </button>
-        <button className={'nav-tab' + (currentTab === 'knowledge' ? ' active' : '')} onClick={() => setCurrentTab('knowledge')}>
+        <button
+          className={'nav-tab' + (currentTab === 'knowledge' ? ' active' : '')}
+          onClick={() => setCurrentTab('knowledge')}
+        >
           Knowledge Base
         </button>
-        <button className={'nav-tab' + (currentTab === 'support' ? ' active' : '')} onClick={() => setCurrentTab('support')}>
+        <button
+          className={'nav-tab' + (currentTab === 'support' ? ' active' : '')}
+          onClick={() => setCurrentTab('support')}
+        >
           Support
         </button>
         {token && profile?.role === 'admin' && (
-          <button className={'nav-tab' + (currentTab === 'admin' ? ' active' : '')} onClick={() => setCurrentTab('admin')}>
+          <button
+            className={'nav-tab' + (currentTab === 'admin' ? ' active' : '')}
+            onClick={() => setCurrentTab('admin')}
+          >
             Admin Panel
           </button>
         )}
       </nav>
 
-      {/* Tab: Exercises (Default Runner) */}
+      {/* Tab: Home / Landing Experience */}
+      {currentTab === 'home' && (
+        <LandingHero
+          t={t}
+          lang={lang}
+          onNavigate={(tab) => setCurrentTab(tab)}
+          onOpenAssistant={() => setAssistantOpen(true)}
+          onSearch={(q) => {
+            setCatalogSearch(q)
+            setCurrentTab('catalog')
+          }}
+        />
+      )}
+
+      {/* Tab: Exercises (Educational Runner) */}
       {currentTab === 'exercises' && (
         !token ? (
           <form className="login-card" onSubmit={login}>
-            <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /></label>
-            <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" /></label>
+            <label>
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                autoComplete="email"
+              />
+            </label>
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </label>
             <button type="submit">Sign in to choose an exercise</button>
           </form>
         ) : completion ? (
@@ -343,7 +474,7 @@ export function App() {
           <section className="activity-list" aria-label="Educational exercises">
             <div className="section-heading">
               <h2>Choose an activity</h2>
-              <button className="quiet-button" onClick={signOut}>Sign out</button>
+              <button className="quiet-button" onClick={signOut}>{t.nav.signOut}</button>
             </div>
             <div className="activity-grid">
               {EDUCATIONAL_ACTIVITIES.map((act) => (
@@ -361,23 +492,29 @@ export function App() {
 
       {/* Tab: Catalog & Passports */}
       {currentTab === 'catalog' && (
-        <CatalogView token={token} onStartTest={handleStartCatalogTest} />
+        <CatalogView
+          token={token}
+          onStartTest={handleStartCatalogTest}
+          t={t}
+          lang={lang}
+          initialQuery={catalogSearch}
+        />
       )}
 
       {/* Tab: Private History & PDF */}
       {currentTab === 'history' && token && (
-        <HistoryView />
+        <HistoryView t={t} />
       )}
 
       {/* Tab: FAQ */}
       {currentTab === 'faq' && (
         <section className="content-card" aria-label="Frequently Asked Questions">
-          <div className="section-heading"><h2>Frequently Asked Questions</h2></div>
+          <div className="section-heading"><h2>{t.nav.faq}</h2></div>
           <div className="faq-list">
             {faqs.map((faq) => (
               <article key={faq.id} className="faq-card">
-                <h3>{faq.question.en ?? faq.question.ru}</h3>
-                <p>{faq.answer.en ?? faq.answer.ru}</p>
+                <h3>{faq.question[lang] ?? faq.question.en ?? faq.question.ru}</h3>
+                <p>{faq.answer[lang] ?? faq.answer.en ?? faq.answer.ru}</p>
               </article>
             ))}
             {faqs.length === 0 && <p>Loading frequently asked questions...</p>}
@@ -388,13 +525,13 @@ export function App() {
       {/* Tab: Knowledge Base */}
       {currentTab === 'knowledge' && (
         <section className="content-card" aria-label="Knowledge Base">
-          <div className="section-heading"><h2>Knowledge Base & Standards</h2></div>
+          <div className="section-heading"><h2>{t.nav.knowledge}</h2></div>
           <div className="article-list">
             {articles.map((art) => (
               <article key={art.id} className="article-card">
                 <p className="eyebrow">{art.category}</p>
-                <h3>{art.localizations.en?.title ?? art.localizations.ru?.title}</h3>
-                <p>{art.localizations.en?.content ?? art.localizations.ru?.content}</p>
+                <h3>{art.localizations[lang]?.title ?? art.localizations.en?.title ?? art.localizations.ru?.title}</h3>
+                <p>{art.localizations[lang]?.content ?? art.localizations.en?.content ?? art.localizations.ru?.content}</p>
               </article>
             ))}
             {articles.length === 0 && <p>Loading articles and standards...</p>}
@@ -405,7 +542,7 @@ export function App() {
       {/* Tab: Support */}
       {currentTab === 'support' && (
         <section className="content-card" aria-label="Support">
-          <div className="section-heading"><h2>Contact Support</h2></div>
+          <div className="section-heading"><h2>{t.nav.support}</h2></div>
           <form onSubmit={submitSupport} style={{ display: 'grid', gap: '14px', maxWidth: '480px', margin: '0 auto', textAlign: 'left' }}>
             <label>Contact Email<input type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} required /></label>
             <label>Subject<input type="text" value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)} required minLength={3} maxLength={240} /></label>
@@ -413,14 +550,14 @@ export function App() {
             <button type="submit">Submit support ticket</button>
           </form>
           {myTickets.length > 0 && (
-            <div className="admin-section">
+            <div className="admin-section" style={{ marginTop: '28px' }}>
               <h3>Your Submitted Tickets</h3>
               <div className="table-wrap">
                 <table className="admin-table">
                   <thead><tr><th>Subject</th><th>Status</th><th>Notes</th></tr></thead>
                   <tbody>
-                    {myTickets.map((t) => (
-                      <tr key={t.id}><td>{t.subject}</td><td><strong>{t.status}</strong></td><td>{t.admin_notes ?? 'Pending review'}</td></tr>
+                    {myTickets.map((tk) => (
+                      <tr key={tk.id}><td>{tk.subject}</td><td><strong>{tk.status}</strong></td><td>{tk.admin_notes ?? 'Pending review'}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -439,18 +576,35 @@ export function App() {
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
-        onLoginSuccess={(p, t) => { setProfile(p); setToken(t); setApiToken(t) }}
+        onLoginSuccess={(p, tk) => { setProfile(p); setToken(tk); setApiToken(tk) }}
         onNotify={setMessage}
       />
 
       {/* Global alert / message banner */}
       {message && <p className="message" role="alert">{message}</p>}
 
+      {/* Footer */}
+      <footer className="app-footer">
+        <div className="footer-slogan">{t.slogan}</div>
+        <p className="footer-disclaimer">{t.disclaimer.text}</p>
+        <div className="footer-meta">
+          © {new Date().getFullYear()} {t.brand}. {t.footer.rights} {t.footer.designedWithCare}
+        </div>
+      </footer>
+
       {/* Assistant Floating Toggle & Drawer */}
       {token && (
         <>
-          <button className="assistant-toggle" aria-expanded={assistantOpen} onClick={() => { setAssistantOpen(!assistantOpen); window.location.hash = '#assistant' }}>
-            Ask SIHAT
+          <button
+            className="assistant-toggle"
+            aria-label="Ask SIHAT"
+            aria-expanded={assistantOpen}
+            onClick={() => {
+              setAssistantOpen(!assistantOpen)
+              window.location.hash = '#assistant'
+            }}
+          >
+            {t.nav.assistant}
           </button>
           {assistantOpen && (
             <aside className="assistant-panel" aria-label="SIHAT assistant">

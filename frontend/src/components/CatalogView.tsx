@@ -1,22 +1,35 @@
 import { useEffect, useState } from 'react'
 import { apiRequest } from '../api'
 import type { Category, TestItem } from '../types'
+import type { Translations, Language } from '../i18n'
 
 export function CatalogView({
   token,
   onStartTest,
+  t,
+  lang = 'ru',
+  initialQuery = '',
 }: {
   token: string
   onStartTest: (test: TestItem) => void
+  t?: Translations
+  lang?: Language
+  initialQuery?: string
 }) {
   const [categories, setCategories] = useState<Category[]>([])
   const [tests, setTests] = useState<TestItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialQuery)
   const [ageFilter, setAgeFilter] = useState<number | ''>('')
   const [selectedTestModal, setSelectedTestModal] = useState<TestItem | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (initialQuery && initialQuery !== searchQuery) {
+      setSearchQuery(initialQuery)
+    }
+  }, [initialQuery])
 
   useEffect(() => {
     apiRequest<Category[]>('/categories')
@@ -41,14 +54,25 @@ export function CatalogView({
       .finally(() => setLoading(false))
   }, [selectedCategory, searchQuery, ageFilter, token])
 
+  const getTestTitle = (item: TestItem) => {
+    return item.localizations[lang]?.title ?? item.localizations.en?.title ?? item.localizations.ru?.title ?? item.slug
+  }
+
+  const getTestDesc = (item: TestItem) => {
+    return item.localizations[lang]?.description ?? item.localizations.en?.description ?? item.localizations.ru?.description ?? 'Structured health screening questionnaire.'
+  }
+
+  const getCategoryTitle = (cat: Category) => {
+    return cat.localizations[lang]?.title ?? cat.localizations.en?.title ?? cat.localizations.ru?.title ?? cat.slug
+  }
+
   return (
     <section className="catalog-section" aria-label="Tests and Questionnaires Catalog">
       <div className="section-heading">
-        <h2>Health Checks and Educational Catalog</h2>
+        <h2>{t ? t.catalog.title : 'Health Checks and Educational Catalog'}</h2>
       </div>
       <p className="exercise-instruction">
-        Browse validated self-reflection questionnaires, oriented digital checks, and educational exercises.
-        SIHAT checks do not diagnose conditions or replace clinical evaluation.
+        {t ? t.catalog.subtitle : 'Browse validated self-reflection questionnaires, oriented digital checks, and educational exercises. SIHAT checks do not diagnose conditions or replace clinical evaluation.'}
       </p>
 
       {/* Filter and Search controls */}
@@ -56,7 +80,7 @@ export function CatalogView({
         <div className="search-box">
           <input
             type="search"
-            placeholder="Search checks by title..."
+            placeholder={t ? t.catalog.searchLabel : 'Search checks by title...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search checks"
@@ -68,9 +92,9 @@ export function CatalogView({
             onChange={(e) => setAgeFilter(e.target.value ? Number(e.target.value) : '')}
             aria-label="Filter by Age"
           >
-            <option value="">All Age Groups</option>
-            <option value="16">Age 16+</option>
-            <option value="18">Age 18+</option>
+            <option value="">{t ? t.catalog.ageAll : 'All Age Groups'}</option>
+            <option value="16">{t ? t.catalog.age1617 : 'Age 16+'}</option>
+            <option value="18">{t ? t.catalog.age18 : 'Age 18+'}</option>
           </select>
         </div>
       </div>
@@ -82,7 +106,7 @@ export function CatalogView({
           role="tab"
           aria-selected={selectedCategory === 'all'}
         >
-          All Categories
+          {t ? t.catalog.allCategories : 'All Categories'}
         </button>
         {categories.map((cat) => (
           <button
@@ -92,7 +116,7 @@ export function CatalogView({
             role="tab"
             aria-selected={selectedCategory === cat.slug}
           >
-            {cat.localizations.en?.title ?? cat.localizations.ru?.title ?? cat.slug}
+            {getCategoryTitle(cat)}
           </button>
         ))}
       </div>
@@ -105,23 +129,27 @@ export function CatalogView({
           <article key={test.id} className="test-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
               <span className={'badge-type badge-' + test.type}>{test.type.replace('_', ' ')}</span>
-              {test.guest_allowed ? <span className="badge-guest">Guest OK</span> : <span className="badge-auth">Account required</span>}
+              {test.guest_allowed ? (
+                <span className="badge-guest">{t ? t.catalog.guestAllowed : 'Guest OK'}</span>
+              ) : (
+                <span className="badge-auth">{t ? t.catalog.authRequired : 'Account required'}</span>
+              )}
             </div>
-            <h3>{test.localizations.en?.title ?? test.localizations.ru?.title ?? test.slug}</h3>
-            <p>{test.localizations.en?.description ?? test.localizations.ru?.description ?? 'Structured health screening questionnaire.'}</p>
+            <h3>{getTestTitle(test)}</h3>
+            <p>{getTestDesc(test)}</p>
             <div style={{ marginTop: 'auto', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button className="secondary-button" style={{ fontSize: '.85rem', padding: '6px 10px' }} onClick={() => setSelectedTestModal(test)}>
                 Methodology Passport
               </button>
               <button style={{ fontSize: '.85rem', padding: '6px 12px' }} onClick={() => onStartTest(test)}>
-                Start Check
+                {t ? t.catalog.startBtn : 'Start Check'}
               </button>
             </div>
           </article>
         ))}
         {!loading && tests.length === 0 && (
-          <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#51615d' }}>
-            No published checks found matching your criteria.
+          <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--text-muted)' }}>
+            {t ? t.catalog.noTests : 'No published checks found matching your criteria.'}
           </p>
         )}
       </div>
@@ -131,7 +159,7 @@ export function CatalogView({
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="passport-title">
           <div className="modal-content">
             <div className="section-heading">
-              <h2 id="passport-title">{selectedTestModal.localizations.en?.title ?? selectedTestModal.slug} — Methodology</h2>
+              <h2 id="passport-title">{getTestTitle(selectedTestModal)} — Methodology</h2>
               <button className="quiet-button" onClick={() => setSelectedTestModal(null)}>Close</button>
             </div>
             <div className="passport-details">
@@ -167,7 +195,7 @@ export function CatalogView({
               )}
             </div>
             <div className="runner-actions">
-              <button onClick={() => { const t = selectedTestModal; setSelectedTestModal(null); onStartTest(t) }}>
+              <button onClick={() => { const tst = selectedTestModal; setSelectedTestModal(null); onStartTest(tst) }}>
                 Start this check
               </button>
               <button className="secondary-button" onClick={() => setSelectedTestModal(null)}>

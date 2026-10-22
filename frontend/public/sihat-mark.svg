@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="sihatGrad" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#103D35" />
+      <stop offset="50%" stop-color="#17A884" />
+      <stop offset="100%" stop-color="#5BE2BC" />
+    </linearGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="glow" />
+      <feComposite in="SourceGraphic" in2="glow" operator="over" />
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#103D35" />
+  <path d="M 44 20 C 42 15, 36 12, 30 12 C 22 12, 17 17, 17 23 C 17 31, 27 33, 33 36 C 40 39, 45 42, 45 49 C 45 57, 37 60, 28 60 C 20 60, 14 56, 12 50 C 14 51, 18 52, 22 52 C 28 52, 36 50, 36 44 C 36 38, 28 35, 23 32 C 16 28, 11 25, 11 18 C 11 10, 20 6, 31 6 C 39 6, 45 9, 47 13 Z" fill="url(#sihatGrad)" filter="url(#softGlow)" />
+  <circle cx="34" cy="22" r="3.5" fill="#DDF5EB" />
+  <circle cx="26" cy="44" r="3.5" fill="#DDF5EB" />
+</svg>
