@@ -26,4 +26,5 @@ class AttemptCompletionOutput(BaseModel):
     definition_version: str
     completed_at: str
     expires_at: str
+    result: dict[str, Any]
     save_consent_required: bool = True

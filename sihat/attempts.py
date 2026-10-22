@@ -95,7 +95,21 @@ def _definition_snapshot(questionnaire: Questionnaire) -> dict[str, Any]:
             next_question_id is not None and next_question_id not in question_ids
         ):
             raise ValueError("Branch rule references an unknown question")
-    return {"questions": questions, "branching_rules": questionnaire.branching_rules}
+    scoring: dict[str, dict[str, float]] = {}
+    for question in questionnaire.questions:
+        if isinstance(question, dict) and isinstance(question.get("id"), str):
+            points = question.get("points", {})
+            if isinstance(points, dict):
+                scoring[question["id"]] = {
+                    str(answer): float(value)
+                    for answer, value in points.items()
+                    if isinstance(value, int | float)
+                }
+    return {
+        "questions": questions,
+        "branching_rules": questionnaire.branching_rules,
+        "scoring": scoring,
+    }
 
 
 def _state_output(attempt: TestAttempt) -> AttemptStateOutput:
@@ -115,12 +129,17 @@ def _state_output(attempt: TestAttempt) -> AttemptStateOutput:
 def _completion_output(attempt: TestAttempt) -> AttemptCompletionOutput:
     if attempt.completed_at is None:
         raise RuntimeError("Completed attempt is missing its completion time")
+    score = sum(
+        attempt.definition_snapshot.get("scoring", {}).get(question_id, {}).get(str(answer), 0)
+        for question_id, answer in attempt.answers.items()
+    )
     return AttemptCompletionOutput(
         id=attempt.id,
         status=attempt.status,
         definition_version=attempt.definition_version,
         completed_at=attempt.completed_at.isoformat(),
         expires_at=attempt.expires_at.isoformat(),
+        result={"score": score, "message": "Exercise result only; it is not a diagnosis."},
     )
 
 
