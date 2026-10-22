@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from sihat.attempts import router as attempts_router
 from sihat.auth import get_current_user
 from sihat.auth import router as auth_router
 from sihat.auth_schemas import UserOutput
@@ -24,6 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth_router)
+app.include_router(attempts_router)
 app.include_router(catalog_router)
 app.include_router(admin_router)
 

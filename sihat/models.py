@@ -146,3 +146,28 @@ class Questionnaire(Base):
     scoring_config: Mapped[dict] = mapped_column(JSON, default=dict)
     is_published: Mapped[bool] = mapped_column(default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TestAttempt(Base):
+    __tablename__ = "test_attempts"
+    __table_args__ = (
+        CheckConstraint("status IN ('in_progress', 'completed')", name="ck_test_attempts_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    test_id: Mapped[str] = mapped_column(ForeignKey("tests.id", ondelete="RESTRICT"), index=True)
+    definition_version: Mapped[str] = mapped_column(String(80))
+    definition_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    questionnaire_version: Mapped[str] = mapped_column(String(80))
+    snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+    answers: Mapped[dict] = mapped_column(JSON, default=dict)
+    current_question_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), default="in_progress", server_default="in_progress"
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    save_consent: Mapped[bool | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

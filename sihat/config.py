@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr = SecretStr("development-only-key-replace-before-production")
     access_token_minutes: int = 15
     refresh_token_days: int = 30
+    attempt_temporary_hours: int = 24
     google_oauth_client_id: str | None = None
     smtp_host: str | None = None
     smtp_port: int = 587

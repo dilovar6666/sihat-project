@@ -211,5 +211,8 @@ def publish_test(
             status_code=409, detail="Validated methodology requires source and license information"
         )
     test.availability_status = "published"
+    questionnaire = db.scalar(select(Questionnaire).where(Questionnaire.test_id == test.id))
+    if questionnaire:
+        questionnaire.is_published = True
     db.commit()
     return _test_output(test, passport)
