@@ -88,3 +88,8 @@ The catalog, filters, age/guest rules, admin authoring API, questionnaire storag
 publication gate are complete. The 30 seeded modules remain drafts until their
 methodology, licensing, translations, and medical review are recorded; Stage 3 does
 not represent those modules as medically validated or publicly available.
+
+See `docs/METHODOLOGY_AUDIT.md` for the all-30 status table. Fifteen original,
+device-limited exercises may be developed only as educational modules; the remaining
+fifteen require an approved clinical source, licensing decision, or expert-reviewed
+triage rule before any public screening claim.
