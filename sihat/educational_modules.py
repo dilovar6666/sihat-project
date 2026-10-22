@@ -81,7 +81,10 @@ def install_educational_modules(db: Session) -> int:
                 test_id=test.id,
                 definition_version="educational-v1",
                 questions=[_question(slug)],
-                scoring_config={"metric": MODULE_METRICS[slug], "result_type": "exercise_performance"},
+                scoring_config={
+                    "metric": MODULE_METRICS[slug],
+                    "result_type": "exercise_performance",
+                },
                 is_published=True,
             )
             db.add(questionnaire)
