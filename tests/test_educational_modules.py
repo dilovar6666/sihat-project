@@ -4,7 +4,7 @@ from sqlalchemy.pool import StaticPool
 
 from sihat.catalog_seed import seed_catalog
 from sihat.db import Base
-from sihat.educational_modules import EDUCATIONAL_SLUGS, install_educational_modules
+from sihat.educational_modules import EDUCATIONAL_SLUGS, MODULE_METRICS, install_educational_modules
 from sihat.models import MethodologyPassport, Questionnaire
 from sihat.models import TestDefinition as CatalogTest
 
@@ -24,6 +24,8 @@ def test_all_educational_modules_have_a_safe_published_definition() -> None:
                 select(Questionnaire).where(Questionnaire.test_id == test.id)
             )
             assert questionnaire is not None and questionnaire.is_published
+            assert questionnaire.scoring_config["metric"] == MODULE_METRICS[slug]
+            assert questionnaire.questions[0]["metric"] == MODULE_METRICS[slug]
             passport = session.scalar(
                 select(MethodologyPassport).where(MethodologyPassport.test_id == test.id)
             )
