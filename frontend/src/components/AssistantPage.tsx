@@ -4,7 +4,6 @@ import {
   Send,
   Bot,
   ShieldCheck,
-  Key,
   AlertCircle,
   RotateCcw,
   ExternalLink,
@@ -17,7 +16,6 @@ import {
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import { Card } from './ui/Card'
-import { Modal } from './ui/Modal'
 import { UserAvatar } from './UserAvatar'
 import { apiRequest } from '../api'
 import type { Language } from '../i18n'
@@ -49,12 +47,7 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
   onNavigate,
   onNotify,
 }) => {
-  const [geminiKey, setGeminiKey] = useState<string>(() => {
-    return localStorage.getItem('sihat_gemini_key') || ''
-  })
-  const [keyModalOpen, setKeyModalOpen] = useState(false)
-  const [keyInput, setKeyInput] = useState(geminiKey)
-  const [providerAvailable, setProviderAvailable] = useState<boolean>(Boolean(geminiKey))
+  const [providerAvailable, setProviderAvailable] = useState<boolean>(true)
 
   const initialGreeting =
     lang === 'tj'
@@ -79,20 +72,6 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  const handleSaveKey = () => {
-    const cleaned = keyInput.trim()
-    setGeminiKey(cleaned)
-    if (cleaned) {
-      localStorage.setItem('sihat_gemini_key', cleaned)
-      setProviderAvailable(true)
-    } else {
-      localStorage.removeItem('sihat_gemini_key')
-      setProviderAvailable(false)
-    }
-    setKeyModalOpen(false)
-    onNotify(lang === 'tj' ? 'Танзимоти калиди Gemini захира шуд' : 'Настройки ключа Gemini обновлены')
-  }
 
   const handleClearHistory = () => {
     setMessages([
@@ -130,7 +109,6 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
           text: userText,
           conversation,
           shared_result_ids: [],
-          api_key: geminiKey || undefined,
         }),
       })
 
@@ -215,16 +193,16 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="emerald" className="gap-1.5 text-xs font-mono font-bold py-1 px-3 shadow-xs">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                <span>SIHAT Gemini AI Lab</span>
+                <span>SIHAT AI Lab</span>
               </Badge>
               {providerAvailable ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold liquid-glass-pill text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                  Gemini 2.5 Flash Онлайн
+                  {lang === 'tj' ? 'AI Фаъол' : lang === 'en' ? 'AI Active' : 'ИИ Активен'}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold liquid-glass-pill text-cyan-600 dark:text-cyan-400 border-cyan-500/30">
-                  Встроенный клинический справочник
+                  {lang === 'tj' ? 'Роҳнамои клиникӣ' : lang === 'en' ? 'Clinical Guide' : 'Клинический справочник'}
                 </span>
               )}
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono text-zinc-500 liquid-glass-pill">
@@ -249,21 +227,12 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setKeyModalOpen(true)}
-              className="gap-2 text-xs flex-1 sm:flex-initial"
-            >
-              <Key className="w-3.5 h-3.5 text-emerald-500" />
-              <span>{geminiKey ? 'API-ключ настроен' : 'Подключить Gemini API'}</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={handleClearHistory}
               className="gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
               title="Начать новый диалог"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Новый диалог</span>
+              <span>{lang === 'tj' ? 'Муколамаи нав' : lang === 'en' ? 'New chat' : 'Новый диалог'}</span>
             </Button>
           </div>
         </div>
@@ -491,53 +460,6 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
           </p>
         </div>
       </div>
-
-      {/* API Key Modal */}
-      <Modal
-        isOpen={keyModalOpen}
-        onClose={() => setKeyModalOpen(false)}
-        title="Подключение Gemini API (Google AI Studio)"
-      >
-        <div className="space-y-4">
-          <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Вы можете подключить собственный бесплатный API-ключ Gemini из Google AI Studio для включения живой генерации модели <strong>Gemini 2.5 Flash</strong>. Ключ хранится исключительно локально в вашем браузере.
-          </p>
-
-          <div>
-            <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              API-ключ Google AI Studio
-            </label>
-            <input
-              type="password"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="AIzaSy..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-            />
-          </div>
-
-          <div className="flex items-center justify-between text-xs pt-2">
-            <a
-              href="https://aistudio.google.com/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline flex items-center gap-1"
-            >
-              <span>Получить бесплатный ключ в AI Studio</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setKeyModalOpen(false)}>
-                Отмена
-              </Button>
-              <Button variant="emerald" size="sm" onClick={handleSaveKey}>
-                Сохранить
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }

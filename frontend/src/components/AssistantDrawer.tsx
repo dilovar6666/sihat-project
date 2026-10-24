@@ -4,10 +4,6 @@ import {
   X,
   Send,
   Bot,
-  Settings,
-  Key,
-  Check,
-  AlertCircle,
   Maximize2,
 } from 'lucide-react'
 import { Button } from './ui/Button'
@@ -42,13 +38,7 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
   onOpenDedicated,
   lang = 'ru',
 }) => {
-  const [geminiKey, setGeminiKey] = useState<string>(() => {
-    return localStorage.getItem('sihat_gemini_key') || ''
-  })
-  const [showSettings, setShowSettings] = useState(false)
-  const [keyInput, setKeyInput] = useState(geminiKey)
-  const [keySavedNotice, setKeySavedNotice] = useState(false)
-  const [providerAvailable, setProviderAvailable] = useState<boolean>(Boolean(geminiKey))
+  const [providerAvailable, setProviderAvailable] = useState<boolean>(true)
 
   const initialGreeting =
     lang === 'tj'
@@ -83,21 +73,6 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
 
   if (!isOpen) return null
 
-  const handleSaveKey = () => {
-    const cleaned = keyInput.trim()
-    setGeminiKey(cleaned)
-    if (cleaned) {
-      localStorage.setItem('sihat_gemini_key', cleaned)
-      setProviderAvailable(true)
-    } else {
-      localStorage.removeItem('sihat_gemini_key')
-      setProviderAvailable(false)
-    }
-    setKeySavedNotice(true)
-    setTimeout(() => setKeySavedNotice(false), 2500)
-    setShowSettings(false)
-  }
-
   const handleSend = async (textToSend?: string) => {
     const userText = (textToSend || input).trim()
     if (!userText || loading) return
@@ -122,7 +97,6 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
           text: userText,
           conversation,
           shared_result_ids: [],
-          api_key: geminiKey || undefined,
         }),
       })
 
@@ -225,19 +199,6 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
           )}
 
           <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-1.5 rounded-xl transition-colors ${
-              showSettings
-                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                : 'text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-            }`}
-            title="Настройки Gemini API"
-            aria-label="Настройки Gemini API"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-
-          <button
             onClick={onClose}
             className="p-1.5 rounded-xl text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             title="Закрыть"
@@ -247,56 +208,6 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <div className="p-3.5 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 text-xs space-y-2.5 animate-in fade-in duration-150 shrink-0">
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 text-xs">
-              <Key className="w-3.5 h-3.5 text-emerald-500" />
-              Подключение Gemini API
-            </span>
-            <a
-              href="https://aistudio.google.com/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold hover:underline"
-            >
-              Получить ключ ↗
-            </a>
-          </div>
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-snug">
-            Вставьте API-ключ из Google AI Studio для включения полной нейросетевой генерации:
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="password"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="AIzaSy..."
-              className="flex-1 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-            />
-            <Button size="sm" variant="emerald" onClick={handleSaveKey} className="px-3 text-xs">
-              Сохранить
-            </Button>
-          </div>
-          {geminiKey ? (
-            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <Check className="w-3 h-3" /> Ключ сохранён (Gemini активен)
-            </div>
-          ) : (
-            <div className="text-[10px] text-zinc-400 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> Ключ не задан — активен встроенный клинический гид
-            </div>
-          )}
-        </div>
-      )}
-
-      {keySavedNotice && (
-        <div className="px-3 py-1 bg-emerald-500 text-white text-[10px] font-semibold text-center animate-in fade-in shrink-0">
-          Настройки Gemini успешно обновлены!
-        </div>
-      )}
 
       {/* Message History */}
       <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
