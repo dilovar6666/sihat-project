@@ -6,6 +6,7 @@ export type UserProfile = {
   full_name: string
   role: UserRole
   age_group: string
+  avatar_url?: string | null
 }
 
 export type Category = {

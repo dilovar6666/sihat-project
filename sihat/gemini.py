@@ -26,49 +26,63 @@ def generate_assistant_response(
     settings: Settings,
     conversation: list[dict[str, str]],
     shared_results: list[dict[str, object]],
+    api_key: str | None = None,
 ) -> dict[str, Any]:
-    if not settings.gemini_is_configured:
+    active_key = api_key or (settings.gemini_api_key.get_secret_value() if settings.gemini_is_configured else None)
+    if not active_key:
         raise GeminiUnavailableError("Gemini is not configured")
-    contents = [
-        {
-            "role": "model" if message["role"] == "assistant" else "user",
-            "parts": [{"text": message["text"]}],
-        }
-        for message in conversation
-    ]
+
+    contents: list[dict[str, Any]] = []
+    for message in conversation:
+        role = "model" if message.get("role") == "assistant" else "user"
+        text = message.get("text", "").strip()
+        if not text:
+            continue
+        if contents and contents[-1]["role"] == role:
+            contents[-1]["parts"].append({"text": text})
+        else:
+            contents.append({"role": role, "parts": [{"text": text}]})
+
     if shared_results:
-        contents.append(
-            {
-                "role": "user",
-                "parts": [
-                    {
-                        "text": "The user explicitly shared these private result summaries: "
-                        + json.dumps(shared_results, ensure_ascii=False)
-                    }
-                ],
-            }
+        summary_text = (
+            "The user explicitly shared these private result summaries: "
+            + json.dumps(shared_results, ensure_ascii=False)
         )
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{settings.gemini_model}:generateContent"
+        if contents and contents[-1]["role"] == "user":
+            contents[-1]["parts"].append({"text": summary_text})
+        else:
+            contents.append({"role": "user", "parts": [{"text": summary_text}]})
+
+    model = settings.gemini_model or "gemini-1.5-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
     try:
         response = requests.post(
             url,
-            params={"key": settings.gemini_api_key.get_secret_value()},
+            params={"key": active_key},
             json={
                 "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
                 "contents": contents,
                 "generationConfig": {
                     "responseMimeType": "application/json",
-                    "maxOutputTokens": 600,
+                    "maxOutputTokens": 1000,
                 },
             },
-            timeout=12,
+            timeout=15,
         )
         response.raise_for_status()
         payload = response.json()
-        text = payload["candidates"][0]["content"]["parts"][0]["text"]
-        result = json.loads(text)
+        raw_text = payload["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if raw_text.startswith("```"):
+            lines = raw_text.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            raw_text = "\n".join(lines).strip()
+        result = json.loads(raw_text)
     except (KeyError, IndexError, TypeError, ValueError, requests.RequestException) as exc:
-        raise GeminiUnavailableError("Gemini request failed") from exc
+        raise GeminiUnavailableError(f"Gemini request failed: {exc}") from exc
     if not isinstance(result, dict):
         raise GeminiUnavailableError("Gemini returned an invalid response")
     return result

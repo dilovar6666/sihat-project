@@ -1,62 +1,678 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
-import './App.css'
-import { apiRequest, downloadPdfBlob, getRefreshToken, restoreSessionTokens, setApiToken, setRefreshToken } from './api'
+import { useEffect, useState, useCallback } from 'react'
+import { Navbar } from './components/Navbar'
+import { LandingHero } from './components/LandingHero'
+import { BentoFeatures } from './components/BentoFeatures'
+import { CatalogSection } from './components/CatalogSection'
+import { MethodologyPage } from './components/MethodologyPage'
+import { RunnerModal } from './components/RunnerModal'
+import { TestRunnerPage } from './components/TestRunnerPage'
+import { HistorySection } from './components/HistorySection'
+import { KnowledgeFaq } from './components/KnowledgeFaq'
+import { ContactSection } from './components/ContactSection'
+import { AuthPage } from './components/AuthPage'
+import { AdminDashboard } from './components/AdminDashboard'
+import { ProfilePage } from './components/ProfilePage'
+import { AssistantPage } from './components/AssistantPage'
+import { AssistantDrawer } from './components/AssistantDrawer'
+import { FloatingAiButton } from './components/FloatingAiButton'
+import { ProfileDrawer } from './components/ProfileDrawer'
+import { Footer } from './components/Footer'
+import { translations } from './i18n'
+import type { Language } from './i18n'
+import {
+  apiRequest,
+  downloadPdfBlob,
+  getRefreshToken,
+  restoreSessionTokens,
+  setApiToken,
+  setRefreshToken,
+} from './api'
+import type {
+  Attempt,
+  Category,
+  Completion,
+  FaqItem,
+  KnowledgeArticle,
+  SavedResult,
+  TestItem,
+  UserProfile,
+} from './types'
+import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react'
 
-type Any = any
-type Page = 'home'|'catalog'|'history'|'learn'|'support'|'profile'|'admin'
-const api = <T,>(path:string, init?:RequestInit) => apiRequest<T>(path, init)
-const text = (x:Any) => x?.localizations?.en?.title || x?.slug || 'SIHAT'
+export interface ToastItem {
+  id: string
+  message: string
+  type: 'success' | 'info' | 'warning' | 'error'
+}
 
 export default function App() {
- const [page,setPage]=useState<Page>('home'),[theme,setTheme]=useState<'light'|'dark'>('light'),[language,setLanguage]=useState<'en'|'ru'|'tg'>('en'),[token,setToken]=useState(''),[user,setUser]=useState<Any>(null),[notice,setNotice]=useState('')
- const [tests,setTests]=useState<Any[]>([]),[categories,setCategories]=useState<Any[]>([]),[q,setQ]=useState(''),[cat,setCat]=useState(''),[selected,setSelected]=useState<Any>(null)
- const [attempt,setAttempt]=useState<Any>(null),[answer,setAnswer]=useState(''),[done,setDone]=useState<Any>(null),[history,setHistory]=useState<Any[]>([])
- const [articles,setArticles]=useState<Any[]>([]),[faqs,setFaqs]=useState<Any[]>([]),[article,setArticle]=useState<Any>(null),[auth,setAuth]=useState<'login'|'register'|'forgot'|'reset'|null>(location.search.includes('token=')?'reset':null)
- const [ai,setAi]=useState(false),[messages,setMessages]=useState<Any[]>([]),[prompt,setPrompt]=useState(''),[admin,setAdmin]=useState<Any>({})
- const fail=(e:any)=>setNotice(e instanceof Error?e.message:'Request failed')
- useEffect(()=>{document.documentElement.dataset.theme=theme},[theme])
- useEffect(()=>{const restored=restoreSessionTokens();if(!restored.refreshToken)return;void api<any>('/auth/refresh',{method:'POST',body:JSON.stringify({refresh_token:restored.refreshToken})}).then(r=>{setApiToken(r.access_token);setRefreshToken(r.refresh_token);setToken(r.access_token);setUser(r.user)}).catch(()=>{setApiToken('');setRefreshToken('')})},[])
- useEffect(()=>{void Promise.all([api<Any[]>('/categories').then(setCategories),api<Any[]>('/tests').then(setTests),api<Any[]>('/knowledge').then(setArticles),api<Any[]>('/faq').then(setFaqs)]).catch(fail)},[])
- useEffect(()=>{if(page==='history'&&token) void api<Any[]>('/results/history').then(setHistory).catch(fail)},[page,token])
- useEffect(()=>{const id=sessionStorage.getItem('sihat_attempt_id');if(token&&id&&!attempt)void api(`/attempts/${id}/resume`).then(setAttempt).catch(()=>sessionStorage.removeItem('sihat_attempt_id'))},[token,attempt])
- const visible=useMemo(()=>tests.filter(t=>(!q||JSON.stringify(t).toLowerCase().includes(q.toLowerCase()))&&(!cat||t.category_id===cat)),[tests,q,cat])
- const localized=(item:Any, field='title')=>item?.localizations?.[language]?.[field]||item?.localizations?.en?.[field]||item?.slug||''
- const call=async(path:string,init?:RequestInit)=>{try{return await api<any>(path,init)}catch(e){fail(e);throw e}}
- const login=(u:Any,t:string,r:string)=>{setUser(u);setToken(t);setApiToken(t);setRefreshToken(r);setAuth(null)}
- const logout=()=>{const r=getRefreshToken();if(r)void api('/auth/logout',{method:'POST',body:JSON.stringify({refresh_token:r})});setToken('');setUser(null);setApiToken('');setRefreshToken('');setPage('home')}
- const start=async(t:Any)=>{if(!token)return setAuth('login');const a=await call('/attempts/start',{method:'POST',body:JSON.stringify({test_slug:t.slug})});sessionStorage.setItem('sihat_attempt_id',a.id);setSelected(t);setAttempt(a);setAnswer('')}
- const reply=async()=>{if(!attempt?.current_question)return;const n=await call(`/attempts/${attempt.id}/answer`,{method:'POST',body:JSON.stringify({question_id:attempt.current_question.id,answer})});setAnswer('');if(n.current_question)return setAttempt(n);setDone(await call(`/attempts/${attempt.id}/complete`,{method:'POST'}));sessionStorage.removeItem('sihat_attempt_id');setAttempt(null)}
- const save=async(keep:boolean)=>{await call(`/attempts/${done.id}/${keep?'save':'do-not-save'}`,{method:'POST'});setDone(null);setNotice(keep?'Saved in your private archive.':'Temporary result erased.');if(keep)setPage('history')}
- const loadAdmin=async()=>{const ps=['/admin/dashboard','/admin/users','/admin/categories','/admin/tests','/admin/faq','/admin/knowledge','/admin/support/tickets'];const r=await Promise.all(ps.map(p=>call(p)));setAdmin(Object.fromEntries(ps.map((p,i)=>[p,Array.isArray(r[i])?r[i]:[r[i]]])))}
- const ask=async(e:FormEvent)=>{e.preventDefault();if(!prompt.trim())return;const p=prompt;setPrompt('');setMessages(m=>[...m,{role:'user',text:p}]);const r=await call('/assistant/message',{method:'POST',body:JSON.stringify({text:p,conversation:messages.slice(-12),shared_result_ids:[]})});setMessages(m=>[...m,{role:'assistant',...r}])}
- return <main className="app">
-  <header><button className="brand" onClick={()=>setPage('home')}><img src="/sihat-mark.svg"/><b>SIHAT<small>clarity, at your pace</small></b></button><nav>{(['home','catalog','history','learn','support'] as Page[]).map(p=><button className={page===p?'selected':''} onClick={()=>setPage(p)} key={p}>{p}</button>)}{user?.role==='admin'&&<button onClick={()=>{setPage('admin');void loadAdmin()}}>console</button>}</nav><div><button aria-label="Change language" onClick={()=>setLanguage(language==='en'?'ru':language==='ru'?'tg':'en')}>{language.toUpperCase()}</button><button onClick={()=>setTheme(theme==='light'?'dark':'light')}>{theme==='light'?'◐':'☼'}</button>{user?<button onClick={()=>setPage('profile')}>{user.email}</button>:<button className="pill" onClick={()=>setAuth('login')}>Sign in</button>}</div></header>
-  {notice&&<aside className="notice">{notice}<button onClick={()=>setNotice('')}>×</button></aside>}
-  {page==='home'&&<>
-   <section className="hero">
-    <div className="hero-copy"><p className="eyebrow">UNDERSTAND YOUR HEALTH</p><h1>Make room<br/>for <em>clarity.</em></h1><p>Explore health exercises with transparent methods, clear limits, and a private space for the results you choose to keep.</p><div className="hero-actions"><button className="primary" onClick={()=>setPage('catalog')}>Explore SIHAT <b>→</b></button><button className="text-action" onClick={()=>setAi(true)}>Ask the guide <span>↗</span></button></div></div>
-    <div className="hero-orbit" aria-hidden="true"><div className="orbit-core"><span>SIHAT</span><b>01</b></div><i className="orbit-dot dot-one"/><i className="orbit-dot dot-two"/><div className="signal"><span>SAFE BY DESIGN</span><strong>Built to inform,<br/>never diagnose.</strong></div></div>
-   </section>
-   <section className="numbers"><b>38<small>connected capabilities</small></b><b>3<small>languages supported</small></b><b>0<small>diagnostic claims</small></b><b>YOU<small>control your archive</small></b></section>
-   <section className="home-section discovery"><div><p className="eyebrow">A CALMER START</p><h2>Knowledge that<br/><em>shows its work.</em></h2></div><p className="section-copy">Every experience starts with its methodology, practical constraints, and the choice to keep or discard a completed session.</p><div className="principles"><article><span>01</span><h3>Read the method</h3><p>Open a clear passport before a check begins.</p></article><article><span>02</span><h3>Move at your pace</h3><p>Focused exercises are designed for a considered session.</p></article><article><span>03</span><h3>Choose your record</h3><p>Save results privately or remove them when you finish.</p></article></div></section>
-   <section className="home-section catalogue-preview"><div className="preview-header"><div><p className="eyebrow">THE CATALOGUE</p><h2>Find a useful<br/><em>next question.</em></h2></div><button className="outline-button" onClick={()=>setPage('catalog')}>Browse all checks <span>→</span></button></div><div className="preview-grid">{(tests.length?tests.slice(0,3):[{slug:'discover',type:'guided exploration',localizations:{en:{title:'Your next check',description:'The SIHAT catalogue is loading.'}}}]).map((item:Any,index)=><article className={`preview-card card-${index}`} key={item.slug}><small>{item.type?.replaceAll('_',' ')}</small><div className="card-index">0{index+1}</div><h3>{localized(item)}</h3><p>{localized(item,'description')||'A transparent, non-diagnostic exercise.'}</p><button onClick={()=>setPage('catalog')} aria-label={`Explore ${localized(item)}`}>→</button></article>)}</div></section>
-   <section className="home-section ethics"><div className="ethics-orb">S</div><div><p className="eyebrow">THE SIHAT STANDARD</p><h2>Useful context.<br/><em>Clear boundaries.</em></h2><p>SIHAT is an informational platform, not a medical device. It does not diagnose conditions or replace a clinician’s care.</p><button className="text-action" onClick={()=>setPage('learn')}>Explore the knowledge base <span>↗</span></button></div></section>
-  </>}
-  {page==='catalog'&&<section className="page"><p className="eyebrow">DISCOVER</p><h2>Start with<br/><em>understanding.</em></h2><p className="intro">Every check makes its methodology and limitations visible before you begin.</p><div className="filters"><input placeholder="Search the catalogue" value={q} onChange={e=>setQ(e.target.value)}/><select value={cat} onChange={e=>setCat(e.target.value)}><option value="">All disciplines</option>{categories.map(c=><option key={c.id} value={c.id}>{localized(c)}</option>)}</select></div><div className="cards">{visible.map(t=><article key={t.id}><small>{t.type?.replaceAll('_',' ')}</small><h3>{localized(t)}</h3><p>{localized(t,'description')||'A transparent, non-diagnostic exercise.'}</p><footer><button onClick={async()=>{try{setSelected(await call(`/tests/${t.slug}`))}catch{}}}>Passport</button><button className="arrow" onClick={()=>void start(t)}>→</button></footer></article>)}</div></section>}
-  {attempt&&<section className="runner"><header><span>SIHAT / ACTIVE SESSION</span><button onClick={()=>{void call(`/attempts/${attempt.id}/discard`,{method:'DELETE'});setAttempt(null)}}>Exit</button></header><div><p className="eyebrow">QUESTION</p><h2>{attempt.current_question?.localizations?.en?.text||'Continue your check'}</h2>{attempt.current_question?.options?.length?<div className="answers">{attempt.current_question.options.map((o:Any)=><button className={answer===o.id?'chosen':''} onClick={()=>setAnswer(o.id)} key={o.id}>{o.localizations?.en?.text||o.id}</button>)}</div>:<input value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="Your response"/>}<button className="primary" disabled={!answer} onClick={()=>void reply()}>Continue →</button></div></section>}
-  {done&&<Modal><p className="eyebrow">COMPLETE</p><h2>Your session<br/><em>is ready.</em></h2><pre>{JSON.stringify(done.result,null,2)}</pre><p>Would you like to keep this result?</p><button className="primary" onClick={()=>void save(true)}>Save privately</button><button className="quiet" onClick={()=>void save(false)}>Do not save</button></Modal>}
-  {selected&&!attempt&&<Modal close={()=>setSelected(null)}><p className="eyebrow">METHODOLOGY PASSPORT</p><h2>{text(selected)}</h2><p>{selected.methodology?.limitations||'Conditions and limitations are stated by the methodology owner.'}</p><ul>{selected.methodology?.warnings?.map((w:string)=><li key={w}>{w}</li>)}</ul><button className="primary" onClick={()=>void start(selected)}>Begin check →</button></Modal>}
-  {page==='history'&&<section className="page"><p className="eyebrow">PRIVATE ARCHIVE</p><h2>Only what<br/><em>you choose.</em></h2><div className="history">{history.map(r=><article key={r.id}><div><small>{new Date(r.completed_at).toLocaleString()}</small><h3>{r.test_title}</h3><p>{r.methodology_name} · {r.methodology_version}</p></div><code>{JSON.stringify(r.result)}</code><div><button onClick={()=>void call(`/results/${r.id}/compare`).then(x=>setNotice(`${x.results.length} compatible record(s).`))}>Compare</button><button onClick={()=>void downloadPdfBlob(r.id,{include_result:true,include_methodology:true,include_limitations:true,include_warnings:true,include_answers:false})}>PDF</button><button onClick={()=>void call(`/results/${r.id}`,{method:'DELETE'}).then(()=>api<any[]>('/results/history').then((x:any)=>setHistory(x)))}>Delete</button></div></article>)}</div>{history.length>0&&<button className="quiet" onClick={()=>void call('/results/history',{method:'DELETE'}).then(()=>setHistory([]))}>Clear archive</button>}</section>}
-  {page==='learn'&&<section className="page"><p className="eyebrow">KNOWLEDGE</p><h2>Better questions.<br/><em>Gentler answers.</em></h2><div className="articles">{articles.map(a=><button key={a.id} onClick={()=>void call(`/knowledge/${a.slug}`).then((x:any)=>setArticle(x))}><small>{a.category}</small><h3>{a.localizations?.[language]?.title||a.localizations?.en?.title}</h3><p>{a.localizations?.[language]?.summary||a.localizations?.en?.summary||'Open article →'}</p></button>)}</div><div className="faq">{faqs.map(x=><details key={x.id}><summary>{x.question?.[language]||x.question?.en}</summary><p>{x.answer?.[language]||x.answer?.en}</p></details>)}</div></section>}
-  {article&&<Modal close={()=>setArticle(null)}><h2>{article.localizations?.[language]?.title||article.localizations?.en?.title}</h2><p>{article.localizations?.[language]?.content||article.localizations?.en?.content}</p></Modal>}
-  {page==='support'&&<Support token={token} call={call}/>} {page==='profile'&&user&&<section className="page profile"><p className="eyebrow">ACCOUNT</p><h2>Welcome,<br/><em>{user.full_name||user.email}</em></h2><p>{user.email}<br/>Role: {user.role}<br/>Age group: {user.age_group}</p><p>Google account linking requires a configured browser OAuth client and a verified identity token; it is not simulated here.</p><button className="primary" onClick={logout}>Sign out securely</button></section>}
-  {page==='admin'&&<Admin data={admin} call={call} refresh={loadAdmin}/>} 
-  <button className="ai-button" onClick={()=>setAi(true)}>✦ Ask SIHAT</button>{ai&&<aside className="ai"><header><b>✦ SIHAT navigator</b><button onClick={()=>setAi(false)}>×</button></header><p>Safe, non-diagnostic navigation and explanations.</p><div>{messages.map((m,i)=><article className={m.role} key={i}><small>{m.role}</small><p>{m.text||m.message}</p>{m.actions?.map((a:Any,j:number)=><button key={j} onClick={()=>{if(a.name==='search_tests'){setQ(a.arguments.query);setPage('catalog');setAi(false)}}}>{a.name.replaceAll('_',' ')}</button>)}</article>)}</div><form onSubmit={ask}><textarea value={prompt} onChange={e=>setPrompt(e.target.value)} placeholder="Ask SIHAT…"/><button className="primary">Send</button></form></aside>}
-  {auth&&<Auth mode={auth} close={()=>setAuth(null)} login={login} call={call}/>}<footer className="site-footer"><img src="/sihat-mark.svg"/><span><b>SIHAT</b><small>Not a medical diagnosis or treatment service.</small></span></footer>
- </main>
+  // Theme state
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('sihat_theme') as 'light' | 'dark') || 'dark'
+  })
+
+  // Language state
+  const [lang, setLang] = useState<Language>(() => {
+    return (localStorage.getItem('sihat_lang') as Language) || 'ru'
+  })
+
+  // Auth & User state
+  const [token, setToken] = useState<string>('')
+  const [user, setUser] = useState<UserProfile | null>(null)
+
+  // Navigation and active page
+  type PageId =
+    | 'home'
+    | 'catalog'
+    | 'history'
+    | 'faq'
+    | 'contact'
+    | 'admin'
+    | 'test'
+    | 'profile'
+    | 'assistant'
+    | 'passport'
+    | 'methodologies'
+    | 'login'
+    | 'register'
+    | 'forgot-password'
+    | 'reset-password'
+
+  const parseHash = (): { page: PageId; testSlug: string | null } => {
+    const raw = window.location.hash.replace('#/', '').replace('#', '').trim()
+    if (raw.startsWith('test/')) {
+      const slug = raw.replace('test/', '').trim()
+      return { page: 'test', testSlug: slug }
+    }
+    if (raw.startsWith('passport/')) {
+      const slug = raw.replace('passport/', '').trim()
+      return { page: 'passport', testSlug: slug }
+    }
+    if (raw === 'methodology' || raw.startsWith('methodology/')) {
+      const slug = raw.replace('methodology/', '').replace('methodology', '').trim()
+      return { page: 'passport', testSlug: slug || null }
+    }
+    if (raw === 'methodologies') {
+      return { page: 'methodologies', testSlug: null }
+    }
+    if (
+      [
+        'home',
+        'catalog',
+        'history',
+        'faq',
+        'contact',
+        'admin',
+        'profile',
+        'assistant',
+        'passport',
+        'methodologies',
+        'login',
+        'register',
+        'forgot-password',
+        'reset-password',
+      ].includes(raw)
+    ) {
+      return { page: raw as PageId, testSlug: null }
+    }
+    return { page: 'home', testSlug: null }
+  }
+
+  const [currentPage, setCurrentPage] = useState<PageId>(() => parseHash().page)
+  const [currentTestSlug, setCurrentTestSlug] = useState<string | null>(() => parseHash().testSlug)
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const parsed = parseHash()
+      setCurrentPage(parsed.page)
+      setCurrentTestSlug(parsed.testSlug)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  const handleNavigate = (pageId: string) => {
+    if (pageId.startsWith('test/')) {
+      const slug = pageId.replace('test/', '').trim()
+      setCurrentPage('test')
+      setCurrentTestSlug(slug)
+      window.location.hash = `#/test/${slug}`
+    } else if (pageId.startsWith('passport/')) {
+      const slug = pageId.replace('passport/', '').trim()
+      setCurrentPage('passport')
+      setCurrentTestSlug(slug)
+      window.location.hash = `#/passport/${slug}`
+    } else if (pageId === 'passport' || pageId === 'methodologies') {
+      setCurrentPage('methodologies')
+      setCurrentTestSlug(null)
+      window.location.hash = '#/methodologies'
+    } else {
+      const valid = [
+        'home',
+        'catalog',
+        'history',
+        'faq',
+        'contact',
+        'admin',
+        'profile',
+        'assistant',
+        'passport',
+        'methodologies',
+        'login',
+        'register',
+        'forgot-password',
+        'reset-password',
+      ].includes(pageId)
+        ? (pageId as PageId)
+        : 'home'
+      setCurrentPage(valid)
+      setCurrentTestSlug(null)
+      window.location.hash = valid === 'home' ? '' : `#/${valid}`
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Data
+  const [tests, setTests] = useState<TestItem[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [faq, setFaq] = useState<FaqItem[]>([])
+  const [articles, setArticles] = useState<KnowledgeArticle[]>([])
+  const [results, setResults] = useState<SavedResult[]>([])
+
+  // Active Modals & Testing Flows
+  const [activeAttempt, setActiveAttempt] = useState<Attempt | null>(null)
+  const [activeCompletion, setActiveCompletion] = useState<Completion | null>(null)
+  const [runnerAnswer, setRunnerAnswer] = useState('')
+  const [runnerLoading, setRunnerLoading] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false)
+
+  // Auto-Dismissing Toast Notifications System
+  const [toasts, setToasts] = useState<ToastItem[]>([])
+
+  const addToast = useCallback(
+    (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
+      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+      const newToast: ToastItem = { id, message, type }
+
+      setToasts((prev) => [...prev, newToast])
+
+      // Auto-dismiss timeouts based on specification:
+      // Success: 4000ms, Info: 5000ms, Warning: 7000ms, Error: 8000ms
+      const timeoutMs =
+        type === 'success' ? 4000 : type === 'warning' ? 7000 : type === 'error' ? 8000 : 5000
+
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id))
+      }, timeoutMs)
+    },
+    []
+  )
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  const t = translations[lang] || translations.ru
+
+  // Sync theme
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('sihat_theme', theme)
+  }, [theme])
+
+  // Sync language
+  const handleSelectLang = (newLang: Language) => {
+    setLang(newLang)
+    localStorage.setItem('sihat_lang', newLang)
+  }
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
+  // Restore authenticated session
+  useEffect(() => {
+    const session = restoreSessionTokens()
+    if (!session.refreshToken) return
+
+    void apiRequest<{ access_token: string; refresh_token: string; user: UserProfile }>(
+      '/auth/refresh',
+      {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: session.refreshToken }),
+      }
+    )
+      .then((res) => {
+        setApiToken(res.access_token)
+        setRefreshToken(res.refresh_token)
+        setToken(res.access_token)
+        setUser(res.user)
+      })
+      .catch(() => {
+        setApiToken('')
+        setRefreshToken('')
+      })
+  }, [])
+
+  // Load initial public content
+  useEffect(() => {
+    void Promise.all([
+      apiRequest<TestItem[]>('/tests').catch(() => []),
+      apiRequest<Category[]>('/categories').catch(() => []),
+      apiRequest<FaqItem[]>('/faq').catch(() => []),
+      apiRequest<KnowledgeArticle[]>('/knowledge').catch(() => []),
+    ]).then(([tList, cList, fList, aList]) => {
+      setTests(tList)
+      setCategories(cList)
+      setFaq(fList)
+      setArticles(aList)
+    })
+  }, [])
+
+  // Load user history when authenticated
+  const loadHistory = async () => {
+    if (!token) return
+    try {
+      const data = await apiRequest<SavedResult[]>('/results/history')
+      setResults(data)
+    } catch {
+      // Ignore if unauthorized
+    }
+  }
+
+  useEffect(() => {
+    if (token) {
+      loadHistory()
+    } else {
+      setResults([])
+    }
+  }, [token])
+
+  // Logout
+  const handleLogout = () => {
+    const rt = getRefreshToken()
+    if (rt) {
+      void apiRequest('/auth/logout', {
+        method: 'POST',
+        body: JSON.stringify({ refresh_token: rt }),
+      }).catch(() => {})
+    }
+    setApiToken('')
+    setRefreshToken('')
+    setToken('')
+    setUser(null)
+    addToast('Вы вышли из системы.', 'info')
+    handleNavigate('home')
+  }
+
+  // Test Runner Flow
+  const handleStartAttempt = (item: TestItem) => {
+    handleNavigate(`test/${item.slug}`)
+  }
+
+  const handleSubmitAnswer = async () => {
+    if (!activeAttempt?.current_question || !runnerAnswer) return
+
+    setRunnerLoading(true)
+    try {
+      const nextAttempt = await apiRequest<Attempt>(
+        `/attempts/${activeAttempt.id}/answer`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            question_id: activeAttempt.current_question.id,
+            answer: runnerAnswer,
+          }),
+        }
+      )
+
+      setRunnerAnswer('')
+      if (nextAttempt.current_question) {
+        setActiveAttempt(nextAttempt)
+      } else {
+        // Complete attempt -> triggers Consent Gate
+        const completion = await apiRequest<Completion>(
+          `/attempts/${activeAttempt.id}/complete`,
+          { method: 'POST' }
+        )
+        setActiveAttempt(null)
+        setActiveCompletion(completion)
+      }
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Ошибка отправки ответа', 'error')
+    } finally {
+      setRunnerLoading(false)
+    }
+  }
+
+  const handleConsentChoice = async (save: boolean) => {
+    if (!activeCompletion) return
+
+    setRunnerLoading(true)
+    try {
+      await apiRequest(
+        `/attempts/${activeCompletion.id}/${save ? 'save' : 'do-not-save'}`,
+        { method: 'POST' }
+      )
+      setActiveCompletion(null)
+      addToast(
+        save
+          ? 'Результат успешно сохранён в вашем личном архиве.'
+          : 'Результат и все временные ответы безвозвратно удалены.',
+        save ? 'success' : 'info'
+      )
+      if (save) {
+        loadHistory()
+      }
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Ошибка фиксации выбора', 'error')
+    } finally {
+      setRunnerLoading(false)
+    }
+  }
+
+  // Delete saved result
+  const handleDeleteResult = async (resultId: string) => {
+    try {
+      await apiRequest(`/results/${resultId}`, { method: 'DELETE' })
+      setResults((prev) => prev.filter((r) => r.id !== resultId))
+      addToast('Запись успешно удалена из вашего архива.', 'success')
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Ошибка при удалении', 'error')
+    }
+  }
+
+  // Clear all saved results
+  const handleClearAllHistory = async () => {
+    if (!confirm('Вы уверены, что хотите полностью стереть все сохранённые результаты?')) {
+      return
+    }
+    try {
+      await apiRequest('/results/history', { method: 'DELETE' })
+      setResults([])
+      addToast('Весь личный архив результатов успешно стерт.', 'success')
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Ошибка очистки архива', 'error')
+    }
+  }
+
+  // Download PDF
+  const handleDownloadPdf = async (resultId: string) => {
+    try {
+      await downloadPdfBlob(resultId, {
+        include_result: true,
+        include_methodology: true,
+        include_limitations: true,
+        include_answers: false,
+        include_warnings: true,
+      })
+      addToast('PDF-паспорт успешно сформирован и скачан.', 'success')
+    } catch (err: unknown) {
+      addToast(err instanceof Error ? err.message : 'Ошибка загрузки PDF', 'error')
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8F9F5] dark:bg-[#101716] text-[#202827] dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
+      {/* Floating Dynamic Navbar */}
+      <Navbar
+        t={t}
+        lang={lang}
+        onSelectLang={handleSelectLang}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        user={user}
+        onOpenAuth={() => handleNavigate('login')}
+        onLogout={handleLogout}
+        onNavigate={handleNavigate}
+        currentSection={currentPage}
+        onOpenAssistant={() => setAssistantOpen(true)}
+        onOpenProfile={() => setProfileDrawerOpen(true)}
+      />
+
+      {/* Main Content Pages (Separated by Route) */}
+      <main className="min-h-[75vh] pt-20 sm:pt-24">
+        {currentPage === 'home' && (
+          <>
+            <LandingHero
+              t={t}
+              lang={lang}
+              onOpenCatalog={() => handleNavigate('catalog')}
+              onOpenMethodology={() => handleNavigate('methodologies')}
+              onStartScreening={(slug) => {
+                const found = tests.find((x) => x.slug === slug)
+                if (found) {
+                  handleStartAttempt(found)
+                } else {
+                  handleNavigate(`test/${slug}`)
+                }
+              }}
+            />
+            <BentoFeatures
+              t={t}
+              lang={lang}
+              onOpenMethodology={() => handleNavigate('methodologies')}
+              onOpenCatalog={() => handleNavigate('catalog')}
+              onOpenAssistant={() => setAssistantOpen(true)}
+            />
+          </>
+        )}
+
+        {currentPage === 'test' && currentTestSlug && (
+          <TestRunnerPage
+            slug={currentTestSlug}
+            lang={lang}
+            token={token}
+            allTests={tests}
+            onBackToCatalog={() => handleNavigate('catalog')}
+            onOpenAuth={() => handleNavigate('login')}
+            onNotify={(msg) => addToast(msg, 'info')}
+          />
+        )}
+
+        {(currentPage === 'passport' || currentPage === 'methodologies') && (
+          <MethodologyPage
+            tests={tests}
+            currentSlug={currentTestSlug}
+            lang={lang}
+            token={token}
+            onNavigate={handleNavigate}
+            onStartAttempt={(item) => handleStartAttempt(item)}
+            onOpenAuth={() => handleNavigate('login')}
+          />
+        )}
+
+        {currentPage === 'catalog' && (
+          <CatalogSection
+            t={t}
+            lang={lang}
+            tests={tests}
+            categories={categories}
+            onSelectTest={(item) => handleNavigate(`passport/${item.slug}`)}
+            onStartAttempt={(item) => handleStartAttempt(item)}
+          />
+        )}
+
+        {currentPage === 'history' && (
+          <HistorySection
+            results={results}
+            onDownloadPdf={handleDownloadPdf}
+            onDeleteResult={handleDeleteResult}
+            onClearAll={handleClearAllHistory}
+            onOpenCatalog={() => handleNavigate('catalog')}
+            token={token}
+            onOpenAuth={() => handleNavigate('login')}
+            lang={lang}
+          />
+        )}
+
+        {currentPage === 'faq' && (
+          <KnowledgeFaq
+            t={t}
+            lang={lang}
+            faq={faq}
+            articles={articles}
+          />
+        )}
+
+        {currentPage === 'contact' && (
+          <ContactSection lang={lang} t={t} onNotify={(msg) => addToast(msg, 'info')} />
+        )}
+
+        {currentPage === 'admin' && (
+          <AdminDashboard
+            token={token}
+            user={user}
+            lang={lang}
+            onNotify={(msg) => addToast(msg, 'info')}
+            onNavigate={handleNavigate}
+          />
+        )}
+
+        {currentPage === 'profile' && (
+          <ProfilePage
+            user={user}
+            token={token}
+            lang={lang}
+            results={results}
+            onDownloadPdf={handleDownloadPdf}
+            onDeleteResult={handleDeleteResult}
+            onClearAll={handleClearAllHistory}
+            onOpenAuth={() => handleNavigate('login')}
+            onUpdateUser={(updated) => setUser(updated)}
+            onNavigate={handleNavigate}
+            onNotify={(msg) => addToast(msg, 'info')}
+            onLogout={handleLogout}
+          />
+        )}
+
+        {currentPage === 'assistant' && (
+          <AssistantPage
+            user={user}
+            lang={lang}
+            onNavigate={handleNavigate}
+            onNotify={(msg) => addToast(msg, 'info')}
+          />
+        )}
+
+        {/* Dedicated Auth Routes */}
+        {(currentPage === 'login' ||
+          currentPage === 'register' ||
+          currentPage === 'forgot-password' ||
+          currentPage === 'reset-password') && (
+          <AuthPage
+            initialMode={currentPage as any}
+            lang={lang}
+            onSuccess={(newUser, newToken) => {
+              setUser(newUser)
+              setToken(newToken)
+              setApiToken(newToken)
+            }}
+            onNotify={(msg) => addToast(msg, 'info')}
+            onNavigate={handleNavigate}
+          />
+        )}
+      </main>
+
+      {/* Footer */}
+      <Footer t={t} lang={lang} onNavigate={handleNavigate} />
+
+      {/* Test Runner & Consent Gate Modal */}
+      <RunnerModal
+        isOpen={Boolean(activeAttempt || activeCompletion)}
+        onClose={() => {
+          setActiveAttempt(null)
+          setActiveCompletion(null)
+        }}
+        attempt={activeAttempt}
+        completion={activeCompletion}
+        answer={runnerAnswer}
+        onSelectAnswer={setRunnerAnswer}
+        onSubmitAnswer={handleSubmitAnswer}
+        onConsentChoice={handleConsentChoice}
+        lang={lang}
+        loading={runnerLoading}
+      />
+
+      {/* Compact Floating Gemini AI Assistant */}
+      <AssistantDrawer
+        isOpen={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onNavigateToCatalog={() => handleNavigate('catalog')}
+        onOpenDedicated={() => {
+          handleNavigate('assistant')
+          setAssistantOpen(false)
+        }}
+        lang={lang}
+      />
+
+      {/* Floating AI Trigger Action Button */}
+      <FloatingAiButton
+        isOpen={assistantOpen}
+        onClick={() => setAssistantOpen((prev) => !prev)}
+        lang={lang}
+      />
+
+      {/* User Profile & Services Drawer */}
+      <ProfileDrawer
+        isOpen={profileDrawerOpen}
+        onClose={() => setProfileDrawerOpen(false)}
+        user={user}
+        lang={lang}
+        onOpenAuth={() => {
+          setProfileDrawerOpen(false)
+          handleNavigate('login')
+        }}
+        onLogout={handleLogout}
+        onNavigate={(page) => {
+          setProfileDrawerOpen(false)
+          handleNavigate(page)
+        }}
+        onOpenAssistant={() => setAssistantOpen(true)}
+        currentSection={currentPage}
+      />
+
+      {/* Auto-Dismissing Toast Notifications Stack */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-4 sm:right-6 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`pointer-events-auto p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-3 text-xs animate-in slide-in-from-bottom-3 duration-200 border backdrop-blur-md ${
+                toast.type === 'success'
+                  ? 'bg-[#103D35] text-white border-[#17A884]/40'
+                  : toast.type === 'warning'
+                  ? 'bg-amber-950/95 text-amber-200 border-amber-500/40'
+                  : toast.type === 'error'
+                  ? 'bg-rose-950/95 text-rose-200 border-rose-500/40'
+                  : 'bg-slate-900/95 text-slate-100 border-slate-700/60 dark:bg-slate-800/95'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-[#2EC4A7] shrink-0" />}
+                {toast.type === 'warning' && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
+                {toast.type === 'error' && <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />}
+                {toast.type === 'info' && <Info className="w-4 h-4 text-[#2EC4A7] shrink-0" />}
+                <span className="leading-snug">{toast.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeToast(toast.id)}
+                className="p-1 rounded-lg text-white/50 hover:text-white cursor-pointer shrink-0 transition-colors"
+                aria-label="Закрыть уведомление"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
-function Modal({children,close}:any){return <div className="modal"><article>{close&&<button className="close" onClick={close}>×</button>}{children}</article></div>}
-function Auth({mode,close,login,call}:any){const [f,setF]=useState<Any>({age_group:'18_plus',token:new URLSearchParams(location.search).get('token')||''});const submit=async(e:FormEvent)=>{e.preventDefault();if(mode==='forgot')return void call('/auth/forgot-password',{method:'POST',body:JSON.stringify({email:f.email})}).then(close);if(mode==='reset')return void call('/auth/reset-password',{method:'POST',body:JSON.stringify({token:f.token,new_password:f.password})}).then(close);if(mode==='register')await call('/auth/register',{method:'POST',body:JSON.stringify({email:f.email,password:f.password,full_name:f.full_name,age_group:f.age_group})});const r=await call('/auth/login',{method:'POST',body:JSON.stringify({email:f.email,password:f.password})});login(r.user||await call('/me/profile',{headers:{Authorization:`Bearer ${r.access_token}`}}),r.access_token,r.refresh_token)};return <Modal close={close}><p className="eyebrow">SIHAT ACCOUNT</p><h2>{mode==='register'?'Begin with care.':mode==='forgot'?'Restore access.':mode==='reset'?'New password.':'Welcome back.'}</h2><form className="form" onSubmit={submit}>{mode==='register'&&<input placeholder="Full name" required onChange={e=>setF({...f,full_name:e.target.value})}/>} {mode!=='reset'&&<input type="email" placeholder="Email" required onChange={e=>setF({...f,email:e.target.value})}/>} {mode==='reset'&&<input placeholder="Reset token" value={f.token} required onChange={e=>setF({...f,token:e.target.value})}/>} {mode!=='forgot'&&<input type="password" placeholder="Password" minLength={8} required onChange={e=>setF({...f,password:e.target.value})}/>} {mode==='register'&&<select onChange={e=>setF({...f,age_group:e.target.value})}><option value="18_plus">18+</option><option value="16_17">16–17</option></select>}<button className="primary">{mode==='forgot'?'Send reset email':mode==='reset'?'Save password':mode==='register'?'Create account':'Sign in'}</button></form><p>Google sign-in is unavailable until the browser OAuth client is configured.</p></Modal>}
-function Support({token,call}:any){const[f,setF]=useState<Any>({}),[tickets,setTickets]=useState<Any[]>([]);useEffect(()=>{if(token)void call('/support/my-tickets').then((x:any)=>setTickets(x))},[token]);return <section className="page"><p className="eyebrow">SUPPORT</p><h2>A human route,<br/><em>when it matters.</em></h2><form className="form support" onSubmit={e=>{e.preventDefault();void call('/support/tickets',{method:'POST',body:JSON.stringify(f)})}}><input type="email" placeholder="Contact email" required onChange={e=>setF({...f,contact_email:e.target.value})}/><input placeholder="Subject" required minLength={3} onChange={e=>setF({...f,subject:e.target.value})}/><textarea placeholder="Tell us what happened" required minLength={10} onChange={e=>setF({...f,message:e.target.value})}/><button className="primary">Send inquiry →</button></form>{tickets.map(t=><article className="ticket" key={t.id}><b>{t.subject}</b><small>{t.status}</small><p>{t.admin_notes||'Awaiting review'}</p></article>)}</section>}
-function Admin({data,call,refresh}:any){const [path,setPath]=useState('/admin/categories'),[method,setMethod]=useState('POST'),[json,setJson]=useState('{\n  \n}');const preset=(kind:string)=>{const id=prompt('Test ID');if(!id)return;if(kind==='passport'){setPath(`/admin/tests/${id}/methodology`);setMethod('PUT');setJson(JSON.stringify({methodology_name:'',methodology_version:'1.0',evidence_status:'pending_review',limitations:'',warnings:[],allowed_languages:['ru','tg','en'],device_conditions:[]},null,2))}else if(kind==='questionnaire'){setPath(`/admin/tests/${id}/questionnaire`);setMethod('PUT');setJson(JSON.stringify({definition_version:'1.0',questions:[{id:'q1',localizations:{ru:{text:''},tg:{text:''},en:{text:''}}}],branching_rules:[],scoring_config:{}},null,2))}else{setPath(`/admin/tests/${id}/${kind}`);setMethod('POST');setJson('{}')}};const send=async(e:FormEvent)=>{e.preventDefault();try{await call(path,{method,body:['GET','DELETE'].includes(method)?undefined:json});await refresh()}catch{}};return <section className="page admin"><p className="eyebrow">ADMIN CONSOLE</p><h2>Publishing needs<br/><em>provenance.</em></h2><div className="admin-grid"><section><div className="admin-presets"><button onClick={()=>preset('passport')}>Methodology passport</button><button onClick={()=>preset('questionnaire')}>Questionnaire builder</button><button onClick={()=>preset('publish')}>Publish test</button><button onClick={()=>preset('block')}>Block test</button><button onClick={()=>preset('unpublish')}>Unpublish test</button></div>{Object.entries(data).map(([k,v]:any)=><details key={k}><summary>{k} ({v.length})</summary>{v.map((x:Any)=><article key={x.id||JSON.stringify(x)}><pre>{JSON.stringify(x,null,2)}</pre>{x.id&&<button onClick={()=>{setPath(`${k}/${x.id}`);setMethod('PATCH');setJson(JSON.stringify(x,null,2))}}>Edit in request editor</button>}</article>)}</details>)}</section><form className="form" onSubmit={send}><label>Endpoint<input value={path} onChange={e=>setPath(e.target.value)} placeholder="/admin/tests/{id}/questionnaire"/></label><label>Method<select value={method} onChange={e=>setMethod(e.target.value)}>{['GET','POST','PUT','PATCH','DELETE'].map(x=><option key={x}>{x}</option>)}</select></label><label>Validated JSON request body<textarea value={json} onChange={e=>setJson(e.target.value)}/></label><button className="primary">Send real API request →</button><p>All changes are sent to the real protected API. Publication safeguards and methodology review remain backend-authoritative.</p></form></div></section>}

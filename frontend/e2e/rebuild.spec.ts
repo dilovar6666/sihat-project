@@ -1,21 +1,49 @@
 import { expect, test } from '@playwright/test'
 
-test('renders the rebuilt SIHAT landing experience', async ({ page }) => {
-  await page.route('http://127.0.0.1:8000/**', route => {
-    const path = new URL(route.request().url()).pathname
-    if (path === '/categories') return route.fulfill({ json: [{id:'c1',slug:'vision',localizations:{en:{title:'Vision'},ru:{title:'Зрение'},tg:{title:'Биноӣ'}}}] })
-    if (path === '/tests') return route.fulfill({ json: [{id:'t1',category_id:'c1',slug:'contrast-check',type:'digital_check',localizations:{en:{title:'Contrast check',description:'English'},ru:{title:'Проверка контраста',description:'Русский'},tg:{title:'Санҷиши контраст',description:'Тоҷикӣ'}}}] })
-    if (path === '/knowledge' || path === '/faq') return route.fulfill({ json: [] })
-    return route.fulfill({ status: 404, json: { detail: 'Not found' } })
-  })
+test('renders core navigation and verified routes across SIHAT platform', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: /Make room/i })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Explore SIHAT/i })).toBeVisible()
-  await page.getByRole('button', { name: /Explore SIHAT/i }).click()
-  await expect(page.getByRole('heading', { name: /Start with/i })).toBeVisible()
-  await expect(page.getByText('Contrast check')).toBeVisible()
-  await page.getByLabel('Change language').click()
-  await expect(page.getByText('Проверка контраста')).toBeVisible()
-  await page.getByLabel('Change language').click()
-  await expect(page.getByText('Санҷиши контраст')).toBeVisible()
+
+  // 1. Home page renders brand logo and hero
+  await expect(page.locator('header img[alt="SIHAT"]')).toBeVisible()
+
+  // 2. Navigate to Catalog
+  await page.goto('/#/catalog')
+  await expect(page).toHaveURL(/#\/catalog/)
+
+  // 3. Navigate to Methodology Library
+  await page.goto('/#/methodologies')
+  await expect(page).toHaveURL(/#\/methodologies/)
+  await expect(page.getByText('Библиотека паспортов методик SIHAT')).toBeVisible()
+
+  // 4. Navigate to dedicated Auth login page
+  await page.goto('/#/login')
+  await expect(page).toHaveURL(/#\/login/)
+  await expect(page.getByText('Вход в аккаунт SIHAT')).toBeVisible()
+
+  // 5. Navigate to dedicated Auth register page
+  await page.goto('/#/register')
+  await expect(page).toHaveURL(/#\/register/)
+  await expect(page.locator('h3', { hasText: 'Создать личный профиль' })).toBeVisible()
+
+  // 6. Navigate to Profile page (Guest view)
+  await page.goto('/#/profile')
+  await expect(page).toHaveURL(/#\/profile/)
+  await expect(page.getByText('Личный закрытый кабинет SIHAT')).toBeVisible()
+
+  // 7. Navigate to interactive test: Schulte Table
+  await page.goto('/#/test/attention-concentration')
+  await expect(page).toHaveURL(/#\/test\/attention-concentration/)
+  await expect(page.locator('h1', { hasText: 'Таблицы Шульте (5 × 5)' })).toBeVisible()
+
+  // 8. Navigate to interactive test: Cursor Corridor Path
+  await page.goto('/#/test/cursor-path')
+  await expect(page).toHaveURL(/#\/test\/cursor-path/)
+  await expect(page.locator('h1', { hasText: 'Точный маршрут курсора' })).toBeVisible()
+  await expect(page.locator('h3', { hasText: 'Удержание траектории' })).toBeVisible()
+
+  // 9. Navigate to interactive test: GAD-7 Anxiety Scale
+  await page.goto('/#/test/anxiety')
+  await expect(page).toHaveURL(/#\/test\/anxiety/)
+  await expect(page.locator('h1', { hasText: 'Шкала тревожности GAD-7' })).toBeVisible()
+  await expect(page.locator('h3', { hasText: 'Шкала генерализованной тревожности' })).toBeVisible()
 })

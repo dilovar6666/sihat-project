@@ -1,17 +1,71 @@
 """Owner-only saved result history, comparison, deletion, and small PDF exports."""
 
+from datetime import UTC, datetime
 from io import BytesIO
+from typing import Any
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from sihat.attempt_schemas import ComparisonOutput, PdfExportInput, SavedResultOutput
 from sihat.auth import get_current_user
 from sihat.db import get_db_session
-from sihat.models import SavedResult, TestAttempt, User
+from sihat.models import MethodologyPassport, SavedResult, TestAttempt, TestDefinition, User
 
 router = APIRouter(tags=["results"])
+
+
+class DirectSaveInput(BaseModel):
+    test_slug: str
+    result: dict[str, Any]
+    answers: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.post("/results/save-direct", response_model=SavedResultOutput, status_code=201)
+def save_direct_result(
+    payload: DirectSaveInput,
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> SavedResultOutput:
+    test_def = db.scalar(
+        select(TestDefinition).where(TestDefinition.slug == payload.test_slug)
+    )
+    if not test_def:
+        raise HTTPException(status_code=404, detail="Test not found")
+    passport = db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test_def.id)
+    )
+
+    title = payload.test_slug
+    if isinstance(test_def.localizations, dict):
+        ru_loc = test_def.localizations.get("ru") or test_def.localizations.get("en") or {}
+        if isinstance(ru_loc, dict):
+            title = ru_loc.get("title", payload.test_slug)
+
+    saved = SavedResult(
+        id=str(uuid.uuid4()),
+        user_id=user.id,
+        test_id=test_def.id,
+        test_slug=test_def.slug,
+        test_type=test_def.test_type,
+        test_title=title,
+        methodology_name=passport.methodology_name if passport else title,
+        methodology_version=passport.methodology_version if passport else "1.0.0",
+        definition_version="1.0.0",
+        compatibility_conditions={"device_conditions": passport.device_conditions if passport else []},
+        result=payload.result,
+        answers=payload.answers,
+        limitations=passport.limitations if passport else "Educational demonstration screening only. Not a medical diagnosis.",
+        warnings=passport.warnings if (passport and passport.warnings) else ["Not a clinical diagnostic result"],
+        completed_at=datetime.now(UTC),
+    )
+    db.add(saved)
+    db.commit()
+    db.refresh(saved)
+    return _result_output(saved)
 
 
 def _result_output(item: SavedResult) -> SavedResultOutput:

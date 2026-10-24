@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from sihat.assistant_schemas import AssistantAction, AssistantMessageInput, AssistantMessageOutput
-from sihat.auth import get_current_user
+from sihat.auth import get_current_user_optional
 from sihat.config import Settings, get_settings
 from sihat.db import get_db_session
 from sihat.gemini import GeminiUnavailableError, generate_assistant_response
@@ -48,9 +48,11 @@ def _enforce_rate_limit(key: str) -> None:
     timestamps.append(now)
 
 
-def _safe_result_context(db: Session, user: User, result_ids: list[str]) -> list[dict[str, object]]:
+def _safe_result_context(db: Session, user: User | None, result_ids: list[str]) -> list[dict[str, object]]:
     if not result_ids:
         return []
+    if not user:
+        raise HTTPException(status_code=404, detail="A shared result was not found")
     results = db.scalars(
         select(SavedResult).where(SavedResult.user_id == user.id, SavedResult.id.in_(result_ids))
     ).all()
@@ -70,7 +72,7 @@ def _safe_result_context(db: Session, user: User, result_ids: list[str]) -> list
     ]
 
 
-def _validated_action(action: object, db: Session, user: User) -> AssistantAction | None:
+def _validated_action(action: object, db: Session, user: User | None) -> AssistantAction | None:
     if not isinstance(action, dict) or not isinstance(action.get("name"), str):
         return None
     name = action["name"]
@@ -92,9 +94,10 @@ def _validated_action(action: object, db: Session, user: User) -> AssistantActio
         )
     if name == "show_test_results":
         result_id = arguments.get("result_id")
-        if not isinstance(result_id, str) or not db.get(SavedResult, result_id):
+        if not user or not isinstance(result_id, str) or not db.get(SavedResult, result_id):
             return None
-        if db.get(SavedResult, result_id).user_id != user.id:
+        saved = db.get(SavedResult, result_id)
+        if not saved or saved.user_id != user.id:
             return None
         return AssistantAction(
             name=name, arguments={"result_id": result_id}, requires_confirmation=True
@@ -110,18 +113,114 @@ def _validated_action(action: object, db: Session, user: User) -> AssistantActio
             return None
         return AssistantAction(name=name, arguments={"query": query})
     if name == "open_profile":
-        return AssistantAction(name=name)
+        return AssistantAction(name=name) if user else None
     return None
 
 
-def _fallback() -> AssistantMessageOutput:
-    return AssistantMessageOutput(
-        message=(
-            "The assistant is unavailable right now. SIHAT can still help you browse exercises, "
-            "but it does not diagnose conditions or prescribe treatment."
-        ),
-        provider_available=False,
-    )
+def _fallback(user_text: str = "") -> AssistantMessageOutput:
+    low = user_text.lower().strip()
+    actions: list[AssistantAction] = []
+
+    # 1. Emergency / Acute symptoms
+    if any(k in low for k in ["бол", "температур", "давлен", "плохо", "сердц", "pain", "hurt", "dizzy", "emergency", "дышать", "одышк", "травм", "дард"]):
+        msg = (
+            "⚠️ Внимание: Платформа SIHAT does not diagnose conditions or prescribe treatment. "
+            "Если вы испытываете сильную боль, давящие ощущения в груди, внезапную потерю зрения/слуха, одышку или резкое ухудшение самочувствия, "
+            "немедленно вызовите бригаду скорой помощи (103 / 112) или обратитесь в ближайший приёмный покой больницы!"
+        )
+
+    # 2. Greetings
+    elif any(k in low for k in ["привет", "здравствуй", "салам", "салом", "добрый", "хай", "hello", "hi", "start"]):
+        msg = (
+            "Здравствуйте! Я клинический навигатор платформы SIHAT (Сиҳат). "
+            "Я помогаю подобрать научно обоснованные скрининги сенсорных функций (зрение, слух, внимание), "
+            "объясняю условия калибровки экрана и паспорта методик. "
+            "Платформа SIHAT does not diagnose conditions (не ставит диагнозов и не назначает лекарств), "
+            "а служит доказательным инструментом объективной самопроверки. С чего вы хотите начать?"
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 3. Catalog / What tests exist / Capabilities
+    elif any(k in low for k in ["что ты умеешь", "какие тесты", "список", "возможности", "что делать", "помоги выбрать", "тесты", "каталог", "проверк"]):
+        msg = (
+            "В каталоге SIHAT доступны 4 ключевых направления самопроверки:\n"
+            "1. 👁️ Зрение (ISO 8596) — оптотипы Ландольта и контрастная чувствительность.\n"
+            "2. 👂 Слух (ISO 8253-1) — тональная аудиометрия чистых тонов (250–8000 Гц).\n"
+            "3. 🧠 Внимание и память — тест Струпа (задержка когнитивной интерференции).\n"
+            "4. 🌿 Общее самочувствие — интегральная шкала сна, уровня стресса и энергии.\n"
+            "Платформа SIHAT does not diagnose conditions. Нажмите ниже, чтобы открыть каталог."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 4. Vision / Landolt C
+    elif any(k in low for k in ["зрен", "глаз", "видеть", "vision", "eye", "оптотип", "ландольт", "бино", "чашм", "близорук", "дальнозор"]):
+        msg = (
+            "Для проверки зрительного анализатора доступен скрининг контрастной чувствительности и остроты зрения на базе оптотипов Ландольта (стандарт ISO 8596). "
+            "Перед прохождением теста экран калибруется на расстояние вытянутой руки (~50–60 см). "
+            "При зрительной утомляемости офтальмологи рекомендуют правило 20-20-20: каждые 20 минут смотрите на 20 футов (6 метров) вдаль в течение 20 секунд. "
+            "Напоминаем: SIHAT does not diagnose conditions."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 5. Hearing / Audiometry
+    elif any(k in low for k in ["слух", "ухо", "слыш", "громк", "hear", "ear", "sound", "аудио", "шунавоӣ", "гӯш", "тиннитус", "шум в ушах"]):
+        msg = (
+            "Для оценки слухового восприятия в каталоге представлен скрининг порогов слышимости чистых тонов (250–8000 Гц, стандарт ISO 8253-1). "
+            "Рекомендуется проходить в проводных наушниках в тихой комнате. Установите громкость устройства не более 60%, чтобы избежать акустической травмы. "
+            "Если вас беспокоит постоянный шум или звон в ушах (тиннитус), обратитесь к врачу-сурдологу или оториноларингологу. "
+            "SIHAT does not diagnose conditions."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 6. Attention / Cognition / Stroop
+    elif any(k in low for k in ["памят", "вниман", "струп", "концентр", "cognit", "memory", "stroop", "мозг", "хотира", "диққат", "устал", "фокус"]):
+        msg = (
+            "Для оценки когнитивного контроля и скорости торможения автоматических реакций доступен тест цвето-словесной интерференции Струпа. "
+            "Упражнение измеряет задержку моторного отклика (в миллисекундах) при конфликте между значением слова и цветом его шрифта. "
+            "Помогает объективно оценить ментальную утомляемость и способность к избирательному вниманию. "
+            "SIHAT does not diagnose conditions."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 7. Sleep / Insomnia
+    elif any(k in low for k in ["сон", "спать", "бессон", "sleep", "хоб", "засыпа"]):
+        msg = (
+            "В нашей базе знаний собраны клинические рекомендации по гигиене здорового сна: "
+            "регулярное время отхода ко сну и подъема, исключение ярких экранов за 1 час до сна, температура спальни 18–20°C и ограничение кофеина во второй половине дня. "
+            "SIHAT does not diagnose conditions, но в каталоге доступен опросник дневной сонливости."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/faq"}))
+
+    # 8. Privacy & Data deletion
+    elif any(k in low for k in ["удал", "приватн", "сохран", "данн", "privacy", "delete", "махфият", "нест"]):
+        msg = (
+            "Архитектура SIHAT построена по принципу Zero-Retention: "
+            "все скрининги обрабатываются в оперативной памяти браузера. После завершения сессии вы сами решаете: "
+            "нажать «Сохранить» в личный зашифрованный архив или «Не сохранять» — тогда данные немедленно и безвозвратно удаляются с сервера. "
+            "SIHAT does not diagnose conditions."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/history"}))
+
+    # 9. Methodology / Standards
+    elif any(k in low for k in ["метод", "научн", "стандарт", "iso", "кто создал", "паспорт", "доказатель"]):
+        msg = (
+            "Каждый модуль на платформе SIHAT имеет открытый паспорт методики: первоисточники в PubMed/ISO, класс доказательности, калибровочные условия и клинические ограничения. "
+            "Мы не вычисляем псевдонаучные 'проценты здоровья', а даём точные объективные параметры. "
+            "Платформа SIHAT does not diagnose conditions."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/faq"}))
+
+    # 10. General default
+    else:
+        msg = (
+            "Я клинический навигатор SIHAT. Помогаю выбрать программу скрининга (зрение, слух, внимание), "
+            "объясняю условия калибровки и принципы доказательной медицины. "
+            "Вы можете спросить меня: «Как проверить зрение?», «Какие тесты есть?», «Как защищены мои данные?» или перейти сразу в каталог. "
+            "SIHAT does not diagnose conditions or prescribe treatment."
+        )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    return AssistantMessageOutput(message=msg, actions=actions, provider_available=False)
 
 
 @router.post("/message", response_model=AssistantMessageOutput)
@@ -129,25 +228,29 @@ def send_message(
     payload: AssistantMessageInput,
     request: Request,
     db: Session = Depends(get_db_session),
-    user: User = Depends(get_current_user),
+    user: User | None = Depends(get_current_user_optional),
     settings: Settings = Depends(get_settings),
 ) -> AssistantMessageOutput:
-    _enforce_rate_limit(f"{user.id}:{request.client.host if request.client else 'unknown'}")
+    user_id = user.id if user else (request.client.host if request.client else "guest")
+    _enforce_rate_limit(f"{user_id}:{request.client.host if request.client else 'unknown'}")
     shared_results = _safe_result_context(db, user, payload.shared_result_ids)
     conversation = [message.model_dump() for message in payload.conversation]
     conversation.append({"role": "user", "text": payload.text})
     try:
         raw = generate_assistant_response(
-            settings=settings, conversation=conversation, shared_results=shared_results
+            settings=settings,
+            conversation=conversation,
+            shared_results=shared_results,
+            api_key=payload.api_key,
         )
     except GeminiUnavailableError:
-        return _fallback()
+        return _fallback(payload.text)
     message = raw.get("message")
     if not isinstance(message, str) or not message.strip() or len(message) > 2000:
-        return _fallback()
+        return _fallback(payload.text)
     raw_actions = raw.get("actions", [])
     if not isinstance(raw_actions, list):
-        return _fallback()
+        return _fallback(payload.text)
     actions = [
         validated
         for item in raw_actions

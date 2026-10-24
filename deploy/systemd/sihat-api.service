@@ -1,0 +1,21 @@
+[Unit]
+Description=SIHAT FastAPI application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/dilovar/sihat
+EnvironmentFile=/home/dilovar/sihat/.env
+ExecStart=/home/dilovar/sihat/.venv/bin/uvicorn sihat.main:app --host 127.0.0.1 --port 8016 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=45
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/home/dilovar/sihat
+
+[Install]
+WantedBy=default.target

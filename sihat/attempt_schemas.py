@@ -12,12 +12,17 @@ class AnswerInput(BaseModel):
     answer: str | int | float | bool
 
 
+class AttemptCompleteInput(BaseModel):
+    telemetry: dict[str, Any] = Field(default_factory=dict)
+
+
 class AttemptStateOutput(BaseModel):
     id: str
     status: str
     definition_version: str
     current_question: dict[str, Any] | None
     expires_at: str
+    challenge: dict[str, Any] | None = None
 
 
 class AttemptCompletionOutput(BaseModel):

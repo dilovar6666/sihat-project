@@ -31,12 +31,19 @@ class ResetPasswordInput(BaseModel):
     new_password: str = Field(min_length=12, max_length=128)
 
 
+class ProfileUpdateInput(BaseModel):
+    full_name: str | None = Field(default=None, min_length=1, max_length=120)
+    age_group: str | None = Field(default=None, pattern="^(16_17|18_plus)$")
+    avatar_url: str | None = Field(default=None, max_length=500000)
+
+
 class UserOutput(BaseModel):
     id: str
     email: str = Field(min_length=3, max_length=320)
     full_name: str
     role: str
     age_group: str
+    avatar_url: str | None = None
 
 
 class AuthTokensOutput(BaseModel):

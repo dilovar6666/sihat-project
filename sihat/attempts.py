@@ -1,4 +1,4 @@
-"""Authenticated, temporary questionnaire attempts with declarative navigation only."""
+"""Authenticated, temporary questionnaire attempts with dynamic challenge snapshots and server-side scoring."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from sihat.attempt_schemas import (
     AnswerInput,
+    AttemptCompleteInput,
     AttemptCompletionOutput,
     AttemptStartInput,
     AttemptStateOutput,
@@ -18,6 +19,7 @@ from sihat.config import Settings, get_settings
 from sihat.db import get_db_session
 from sihat.models import MethodologyPassport, Questionnaire, TestAttempt, TestDefinition, User
 from sihat.security import is_expired
+from sihat.test_generators import generate_challenge, score_attempt
 
 router = APIRouter(prefix="/attempts", tags=["attempts"])
 _MISSING = object()
@@ -41,7 +43,7 @@ def _safe_localizations(value: object) -> dict[str, dict[str, str]]:
 def _public_question(question: object) -> dict[str, Any]:
     if not isinstance(question, dict) or not isinstance(question.get("id"), str):
         raise ValueError("Each question needs a string id")
-    public = {
+    public: dict[str, Any] = {
         "id": question["id"],
         "localizations": _safe_localizations(question.get("localizations")),
     }
@@ -113,7 +115,7 @@ def _definition_snapshot(questionnaire: Questionnaire) -> dict[str, Any]:
 
 
 def _state_output(attempt: TestAttempt) -> AttemptStateOutput:
-    questions = attempt.definition_snapshot["questions"]
+    questions = attempt.definition_snapshot.get("questions", [])
     current_question = next(
         (question for question in questions if question["id"] == attempt.current_question_id), None
     )
@@ -123,6 +125,7 @@ def _state_output(attempt: TestAttempt) -> AttemptStateOutput:
         definition_version=attempt.definition_version,
         current_question=current_question,
         expires_at=attempt.expires_at.isoformat(),
+        challenge=attempt.definition_snapshot.get("challenge"),
     )
 
 
@@ -165,15 +168,16 @@ def _require_in_progress(attempt: TestAttempt) -> None:
 
 def _next_question_id(attempt: TestAttempt, answer: object) -> str | None:
     current_question_id = attempt.current_question_id
-    for rule in attempt.definition_snapshot["branching_rules"]:
+    for rule in attempt.definition_snapshot.get("branching_rules", []):
         question_id, expected, next_question_id = _branch_rule(rule)
         if question_id == current_question_id and answer == expected:
             return next_question_id
-    questions = attempt.definition_snapshot["questions"]
+    questions = attempt.definition_snapshot.get("questions", [])
     current_index = next(
-        index for index, question in enumerate(questions) if question["id"] == current_question_id
+        (index for index, question in enumerate(questions) if question["id"] == current_question_id),
+        -1
     )
-    if current_index + 1 == len(questions):
+    if current_index == -1 or current_index + 1 >= len(questions):
         return None
     return questions[current_index + 1]["id"]
 
@@ -214,6 +218,10 @@ def start_attempt(
         "limitations": passport.limitations,
         "warnings": list(passport.warnings),
     }
+
+    # Generate individualized reproducible challenge for this attempt
+    definition_snapshot["challenge"] = generate_challenge(test.slug)
+
     attempt = TestAttempt(
         user_id=user.id,
         test_id=test.id,
@@ -222,7 +230,7 @@ def start_attempt(
         questionnaire_version=questionnaire.definition_version,
         snapshot=definition_snapshot,
         answers={},
-        current_question_id=definition_snapshot["questions"][0]["id"],
+        current_question_id=definition_snapshot["questions"][0]["id"] if definition_snapshot.get("questions") else None,
         expires_at=datetime.now(UTC) + timedelta(hours=settings.attempt_temporary_hours),
     )
     db.add(attempt)
@@ -261,15 +269,16 @@ def submit_answer(
     if payload.question_id != attempt.current_question_id:
         raise HTTPException(status_code=409, detail="Answer must be for the current question")
     current_question = next(
-        question
-        for question in attempt.definition_snapshot["questions"]
-        if question["id"] == attempt.current_question_id
+        (question for question in attempt.definition_snapshot.get("questions", [])
+        if question["id"] == attempt.current_question_id),
+        None
     )
-    option_ids = {option["id"] for option in current_question.get("options", [])}
-    if option_ids and payload.answer not in option_ids:
-        raise HTTPException(
-            status_code=422, detail="Answer is not an option for the current question"
-        )
+    if current_question:
+        option_ids = {option["id"] for option in current_question.get("options", [])}
+        if option_ids and payload.answer not in option_ids:
+            raise HTTPException(
+                status_code=422, detail="Answer is not an option for the current question"
+            )
 
     answers = dict(attempt.answers)
     answers[payload.question_id] = payload.answer
@@ -283,21 +292,26 @@ def submit_answer(
 @router.post("/{attempt_id}/complete", response_model=AttemptCompletionOutput)
 def complete_attempt(
     attempt_id: str,
+    payload: AttemptCompleteInput | None = None,
     db: Session = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> AttemptCompletionOutput:
     attempt = _load_attempt(db, attempt_id, user)
     if attempt.status == "completed":
         return _completion_output(attempt)
-    if attempt.current_question_id is not None:
-        raise HTTPException(status_code=409, detail="Attempt has unanswered questions")
+    
     attempt.status = "completed"
     attempt.completed_at = datetime.now(UTC)
-    score = sum(
-        attempt.definition_snapshot.get("scoring", {}).get(question_id, {}).get(str(answer), 0)
-        for question_id, answer in attempt.answers.items()
-    )
-    attempt.result = {"score": score, "message": "Exercise result only; it is not a diagnosis."}
+
+    test_slug = attempt.definition_snapshot.get("result_context", {}).get("test_slug", "")
+    challenge = attempt.definition_snapshot.get("challenge", {})
+
+    user_data = dict(attempt.answers)
+    if payload and payload.telemetry:
+        user_data.update(payload.telemetry)
+
+    scored = score_attempt(test_slug, challenge, user_data)
+    attempt.result = scored
     db.commit()
     db.refresh(attempt)
     return _completion_output(attempt)

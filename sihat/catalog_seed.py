@@ -68,6 +68,7 @@ def _localizations(ru: str, tg: str, en: str) -> dict[str, dict[str, str]]:
     return {
         "ru": {"title": ru, "description": "Требует проверки методики перед публикацией."},
         "tg": {"title": tg, "description": "Пеш аз нашр санҷиши методика лозим аст."},
+        "tj": {"title": tg, "description": "Пеш аз нашр санҷиши методика лозим аст."},
         "en": {"title": en, "description": "Requires methodology review before publication."},
     }
 

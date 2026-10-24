@@ -1,0 +1,104 @@
+"""Update the 15 educational module localizations in PostgreSQL."""
+
+from sihat.db import SessionLocal
+from sihat.models import TestDefinition
+
+DESCRIPTIONS = {
+    "reaction-speed": {
+        "ru": ("Скорость простой реакции", "Сенсомоторная скорость простой реакции в миллисекундах по методике Donders A."),
+        "tg": ("Суръати аксуламали оддӣ", "Санҷиши суръати рефлекси биноӣ-ҳаракатӣ бо миллисонияҳо аз рӯи Donders A."),
+        "en": ("Simple Reaction Speed", "Visual-motor reflex response latency in milliseconds using Donders A standard."),
+    },
+    "attention-concentration": {
+        "ru": ("Таблицы Шульте (5 × 5)", "Концентрация, устойчивость и избирательность зрительного внимания."),
+        "tg": ("Ҷадвалҳои Шулте (5 × 5)", "Суръати ҷустуҷӯ, тамаркуз ва устувории диққат дар шабакаи 5 ба 5."),
+        "en": ("Schulte Attention Tables", "Visual search rate, focal concentration, and attention stability."),
+    },
+    "visual-perception": {
+        "ru": ("Острота зрения (Кольца Ландольта C)", "Стандартизированная проверка оптотипов остроты зрения ISO 8596."),
+        "tg": ("Тезиши биноӣ (Ҳалқаҳои Ландолт C)", "Санҷиши стандартии тезиши биноӣ бо оптотипҳои ISO 8596."),
+        "en": ("Visual Acuity (Landolt C)", "ISO 8596 standardized visual acuity optotype screening."),
+    },
+    "contrast-sensitivity": {
+        "ru": ("Контрастная чувствительность (Pelli-Robson)", "Оценка различимости символов при ступенчатом снижении контрастности до 1%."),
+        "tg": ("Ҳассосияти контрастӣ (Pelli-Robson)", "Баҳодиҳии фарқкунии рамзҳо ҳангоми паст шудани контраст то 1%."),
+        "en": ("Contrast Sensitivity (Pelli-Robson)", "Letter triplet contrast threshold evaluation down to 1% contrast."),
+    },
+    "color-hue-discrimination": {
+        "ru": ("Цветоразличение оттенков (Farnsworth D-15)", "Спектральная сортировка цветовых оттенков по кругу Манселла."),
+        "tg": ("Фарқкунии тобишҳои ранг (Farnsworth D-15)", "Тартибдиҳии спектралии доираҳои ранга дар пайдарпайии ҳамвор."),
+        "en": ("Color Hue Discrimination (Farnsworth D-15)", "Spectral hue arrangement across the chromatic circle."),
+    },
+    "sound-discrimination": {
+        "ru": ("Тональная аудиометрия (250–8000 Гц)", "Компьютерная пороговая аудиометрия чистыми тонами ISO 8253-1."),
+        "tg": ("Аудиометрияи тоналӣ (250–8000 Гц)", "Санҷиши компютерии ҳадди шунавоӣ бо садоҳои тозаи ISO 8253-1."),
+        "en": ("Pure Tone Audiometry (250–8000 Hz)", "Pure-tone hearing threshold evaluation using ISO 8253-1."),
+    },
+    "speech-in-noise": {
+        "ru": ("Разборчивость речи в шуме (SNR)", "Определение речевого порога (SRT) на фоне акустического шума."),
+        "tg": ("Фаҳмоии нутқ дар садои бегона (SNR)", "Муайян кардани ҳадди фаҳмоии нутқ дар шароити серсадо."),
+        "en": ("Speech-in-Noise Discrimination", "Speech reception threshold evaluation under babble noise."),
+    },
+    "visual-memory": {
+        "ru": ("Пространственная память (Блоки Корси)", "Оценка объема пространственной рабочей памяти и удержания последовательностей."),
+        "tg": ("Хотираи фазоӣ (Блокҳои Корси)", "Баҳодиҳии ҳаҷми хотираи фазоӣ ва нигоҳдории пайдарпайӣ."),
+        "en": ("Spatial Memory (Corsi Blocks)", "Spatial working memory span and sequential pattern recall."),
+    },
+    "short-term-memory": {
+        "ru": ("Кратковременная память (Digit Span)", "Символьно-вербальная рабочая память с запоминанием числовых рядов."),
+        "tg": ("Хотираи кӯтоҳмуддат (Digit Span)", "Хотираи кӯтоҳмуддати рақамӣ бо такрори занҷири ададҳо."),
+        "en": ("Short-Term Memory (Digit Span)", "Working memory capacity through sequential digit recall."),
+    },
+    "attention-switching": {
+        "ru": ("Переключаемость внимания (Trail Making B)", "Когнитивная гибкость и исполнительный контроль чередования 1-A-2-B."),
+        "tg": ("Ивазшавии диққат (Trail Making B)", "Чаниши фикрӣ ва ивазшавии фаъолонаи диққат 1-A-2-B."),
+        "en": ("Cognitive Switching (Trail Making B)", "Executive switching cost and cognitive flexibility 1-A-2-B."),
+    },
+    "mouse-eye-coordination": {
+        "ru": ("Координация «глаз-рука» (Pursuit Tracking)", "Непрерывное слежение за динамической траекторией (Time-on-Target)."),
+        "tg": ("Ҳамоҳангии чашму даст (Pursuit Tracking)", "Пайгирии мунтазами ҳадафи ҳаракаткунанда (Time-on-Target)."),
+        "en": ("Eye-Hand Coordination (Pursuit Tracking)", "Continuous dynamic target tracking (Time-on-Target %)."),
+    },
+    "information-processing-speed": {
+        "ru": ("Скорость обработки символов (SDMT)", "Символьно-цифровой тест быстроты когнитивной обработки под таймером."),
+        "tg": ("Суръати коркарди иттилоот (SDMT)", "Санҷиши суръати мувофиқати рамзҳо ва рақамҳо дар 30 сония."),
+        "en": ("Symbol Digit Modalities (SDMT)", "Rapid symbol-digit translation under timed 30-second interval."),
+    },
+    "physical-wellbeing": {
+        "ru": ("Соматический тонус и баланс энергии", "Многоосевой радар телесного комфорта, мышечного напряжения и дыхания."),
+        "tg": ("Тонуси ҷисмонӣ ва тавозуни нерӯ", "Радари бисёрсамтаи бароҳатии бадан, мушакҳо ва нафаскашӣ."),
+        "en": ("Somatic Equilibrium & Energy", "Multi-axial assessment of somatic tension, fatigue, and respiration."),
+    },
+    "emotional-wellbeing": {
+        "ru": ("Психоэмоциональный баланс (Сетка Рассела)", "Двухосевая модель аффекта: Валентность настроения и уровень психомоторной энергии."),
+        "tg": ("Тавозуни равонӣ-эҳсосӣ (Модели Рассел)", "Модели дусамтаи эҳсосот: Ҳолати шодмонӣ/ғамгинӣ ва сатҳи бедорӣ."),
+        "en": ("Affective Equilibrium (Russell Circumplex)", "2D affective plane: Valence and Arousal coordinates."),
+    },
+    "daily-activity": {
+        "ru": ("Циркадианный ритм и цифровая гигиена", "Анализ 24-часового цикла, выработки мелатонина и вечерней синей подсветки."),
+        "tg": ("Ритми сиркадӣ ва гигиенаи рақамӣ", "Таҳлили давраи 24-соата, хоб ва таъсири равшании экранҳо."),
+        "en": ("Circadian Hygiene & Light Alignment", "24-hour photobiology, melatonin curve protection, and screen cutoff."),
+    },
+}
+
+def main():
+    db = SessionLocal()
+    updated = 0
+    for slug, locs in DESCRIPTIONS.items():
+        test = db.query(TestDefinition).filter(TestDefinition.slug == slug).first()
+        if not test:
+            continue
+        test.localizations = {
+            "ru": {"title": locs["ru"][0], "description": locs["ru"][1]},
+            "tg": {"title": locs["tg"][0], "description": locs["tg"][1]},
+            "tj": {"title": locs["tg"][0], "description": locs["tg"][1]},
+            "en": {"title": locs["en"][0], "description": locs["en"][1]},
+        }
+        test.guest_allowed = True
+        test.availability_status = "published"
+        updated += 1
+    db.commit()
+    print(f"Successfully updated {updated} test definitions.")
+
+if __name__ == "__main__":
+    main()

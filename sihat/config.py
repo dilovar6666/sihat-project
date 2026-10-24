@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     attempt_temporary_hours: int = 24
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-1.5-flash"
     google_oauth_client_id: str | None = None
     smtp_host: str | None = None
     smtp_port: int = 587
@@ -41,6 +41,12 @@ class Settings(BaseSettings):
         return bool(self.google_oauth_client_id)
 
     @property
+    def clean_google_oauth_client_id(self) -> str | None:
+        if not self.google_oauth_client_id:
+            return None
+        return self.google_oauth_client_id.replace("https://", "").replace("http://", "").strip()
+
+    @property
     def smtp_is_configured(self) -> bool:
         return bool(
             self.smtp_host and self.smtp_username and self.smtp_password and self.smtp_from_email
@@ -59,6 +65,5 @@ class Settings(BaseSettings):
         return self
 
 
-@lru_cache
 def get_settings() -> Settings:
     return Settings()

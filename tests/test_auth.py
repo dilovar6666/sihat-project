@@ -379,11 +379,11 @@ def test_catalog_publication_requires_admin_and_methodology_passport(client: Tes
     assert public_catalog.json()[0]["methodology"]["evidence_status"] == "educational"
 
 
-def test_google_identity_must_not_take_over_existing_email(
+def test_google_login_allows_existing_registered_email_to_sign_in(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    register(client)
+    registered = register(client)
     monkeypatch.setattr(
         auth,
         "verify_google_id_token",
@@ -398,7 +398,8 @@ def test_google_identity_must_not_take_over_existing_email(
         "/auth/google",
         json={"id_token": "a" * 32, "age_group": "18_plus"},
     )
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["user"]["id"] == registered["id"]
 
 
 def test_authenticated_user_can_link_matching_google_email(

