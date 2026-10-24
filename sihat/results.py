@@ -14,6 +14,7 @@ from sihat.attempt_schemas import ComparisonOutput, PdfExportInput, SavedResultO
 from sihat.auth import get_current_user
 from sihat.db import get_db_session
 from sihat.models import MethodologyPassport, SavedResult, TestAttempt, TestDefinition, User
+from sihat.pdf_report import build_screening_pdf
 
 router = APIRouter(tags=["results"])
 
@@ -253,31 +254,36 @@ def export_pdf(
     user: User = Depends(get_current_user),
 ) -> Response:
     item = _owned_saved_result(db, result_id, user)
-    lines = [
-        "SIHAT result record",
-        f"Date: {item.completed_at.isoformat()}",
-        f"Test: {item.test_title}",
-        f"Type: {item.test_type}",
-        "This record is not a diagnosis.",
-    ]
-    if payload.include_result:
-        lines.append(f"Result: {item.result}")
-    if payload.include_methodology:
-        lines.extend(
-            [
-                f"Methodology: {item.methodology_name}",
-                f"Version: {item.methodology_version}",
-            ]
-        )
-    if payload.include_limitations:
-        lines.append(f"Limitations: {item.limitations}")
-    if payload.include_warnings:
-        lines.append(f"Warnings: {', '.join(item.warnings) or 'None recorded'}")
-    if payload.include_answers:
-        lines.append(f"Answers included by user request: {item.answers}")
-    filename = f"sihat-result-{item.id}.pdf"
+    try:
+        content = build_screening_pdf(item, user, payload)
+    except Exception:
+        lines = [
+            "SIHAT result record",
+            f"Date: {item.completed_at.isoformat()}",
+            f"Test: {item.test_title}",
+            f"Type: {item.test_type}",
+            "This record is not a diagnosis.",
+        ]
+        if payload.include_result:
+            lines.append(f"Result: {item.result}")
+        if payload.include_methodology:
+            lines.extend(
+                [
+                    f"Methodology: {item.methodology_name}",
+                    f"Version: {item.methodology_version}",
+                ]
+            )
+        if payload.include_limitations:
+            lines.append(f"Limitations: {item.limitations}")
+        if payload.include_warnings:
+            lines.append(f"Warnings: {', '.join(item.warnings) or 'None recorded'}")
+        if payload.include_answers:
+            lines.append(f"Answers included by user request: {item.answers}")
+        content = _pdf_bytes(lines)
+
+    filename = f"sihat-result-{item.id[:8]}.pdf"
     return Response(
-        content=_pdf_bytes(lines),
+        content=content,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
