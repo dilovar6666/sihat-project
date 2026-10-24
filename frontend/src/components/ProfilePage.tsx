@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   User,
   ShieldCheck,
@@ -18,6 +18,9 @@ import {
   HeartPulse,
   Sparkles,
   ExternalLink,
+  Upload,
+  Check,
+  RefreshCw,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
@@ -26,6 +29,15 @@ import { PRESET_AVATARS } from './UserAvatar'
 import { apiRequest } from '../api'
 import type { Language } from '../i18n'
 import type { SavedResult, UserProfile } from '../types'
+
+export const PRESET_PORTRAITS = [
+  { id: '/images/profile-default.webp', label: 'Стандарт', role: 'Врач' },
+  { id: '/images/avatars/female-doctor.webp', label: 'Доктор (ж)', role: 'Невролог' },
+  { id: '/images/avatars/male-doctor.webp', label: 'Клиницист', role: 'Офтальмолог' },
+  { id: '/images/avatars/female-scientist.webp', label: 'Учёный', role: 'Психофизиолог' },
+  { id: '/images/avatars/male-scientist.webp', label: 'Специалист', role: 'Аудиолог' },
+  { id: '/images/avatars/neuro-avatar.webp', label: 'Нейросеть', role: 'ИИ' },
+]
 
 interface ProfilePageProps {
   user: UserProfile | null
@@ -79,6 +91,56 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [avatarModalOpen, setAvatarModalOpen] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState<string>(user?.avatar_url || '')
   const [savingAvatar, setSavingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Keep selected avatar synced if user prop changes
+  useEffect(() => {
+    setSelectedAvatar(user?.avatar_url || '')
+  }, [user?.avatar_url])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      onNotify('Пожалуйста, выберите файл изображения (PNG, JPG, WebP)')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new window.Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_SIZE = 500
+        let width = img.width
+        let height = img.height
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height = Math.round((height * MAX_SIZE) / width)
+            width = MAX_SIZE
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width = Math.round((width * MAX_SIZE) / height)
+            height = MAX_SIZE
+          }
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88)
+          setSelectedAvatar(compressedDataUrl)
+        }
+      }
+      img.src = event.target?.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleResetAvatar = () => {
+    setSelectedAvatar('')
+  }
 
   // Filter
   const [searchFilter, setSearchFilter] = useState('')
@@ -372,7 +434,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   }
 
   const handleSaveAvatar = async () => {
-    if (!token || !selectedAvatar) return
+    if (!token) return
     setSavingAvatar(true)
     try {
       const updated = await apiRequest<UserProfile>('/auth/profile', {
@@ -484,7 +546,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
   const userAvatarImage =
     user.avatar_url &&
-    (user.avatar_url.startsWith('http') || user.avatar_url.startsWith('data:image'))
+    (user.avatar_url.startsWith('http') ||
+      user.avatar_url.startsWith('data:image') ||
+      user.avatar_url.startsWith('/images/'))
       ? user.avatar_url
       : '/images/profile-default.webp'
 
@@ -616,11 +680,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                         <img
                           src={userAvatarImage}
                           alt={user.full_name}
-                          className="w-full h-full object-cover object-top grayscale contrast-125 group-hover:scale-105 transition-transform duration-500"
+                          className={`w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ${
+                            userAvatarImage === '/images/profile-default.webp' ? 'grayscale contrast-125' : ''
+                          }`}
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80" />
-                        <div className="absolute top-3 right-3 p-2 rounded-full bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 backdrop-blur-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Camera className="w-4 h-4 text-[#17A884]" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAvatarModalOpen(true)
+                            }}
+                            className="px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 text-[11px] font-bold shadow-md hover:bg-[#17A884] hover:text-white transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-[#17A884]" />
+                            <span>{t.changeAvatarBtn || 'Сменить фото'}</span>
+                          </button>
                         </div>
                         <div className="absolute bottom-3 left-4 text-white text-xs font-bold tracking-wider uppercase flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-[#2EC4A7]" />
@@ -1252,35 +1328,153 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       <Modal
         isOpen={avatarModalOpen}
         onClose={() => setAvatarModalOpen(false)}
-        title={t.avatarModalTitle}
+        title={t.avatarModalTitle || 'Выбор и загрузка аватара'}
       >
         <div className="space-y-6">
-          <p className="text-xs text-slate-500 leading-relaxed">{t.avatarModalDesc}</p>
+          {/* Top Preview & Direct Upload Area */}
+          <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80">
+            {/* Live Preview */}
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-700 shrink-0 border-2 border-[#17A884] shadow-md">
+              <img
+                src={
+                  selectedAvatar && (selectedAvatar.startsWith('http') || selectedAvatar.startsWith('data:') || selectedAvatar.startsWith('/'))
+                    ? selectedAvatar
+                    : userAvatarImage
+                }
+                alt="Предпросмотр аватара"
+                className="w-full h-full object-cover object-top"
+              />
+            </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-            {PRESET_AVATARS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => setSelectedAvatar(preset.id)}
-                className={`relative rounded-2xl p-2.5 transition-all cursor-pointer flex flex-col items-center gap-1.5 border ${
-                  selectedAvatar === preset.id
-                    ? 'border-[#17A884] bg-[#17A884]/15 ring-2 ring-[#17A884]'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-[#17A884]/40 hover:bg-slate-50 dark:hover:bg-slate-800'
-                }`}
-              >
-                <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${preset.bg} flex items-center justify-center text-2xl shadow-xs`}
+            {/* Upload & Reset Controls */}
+            <div className="flex-1 space-y-2.5 text-center sm:text-left">
+              <div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                  {lang === 'tj' ? 'Акси шахсӣ ё аватари шумо' : lang === 'en' ? 'Your Personal Photo or Avatar' : 'Ваша личная фотография или аватар'}
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {lang === 'tj'
+                    ? 'Акси худро аз дастгоҳ боргузорӣ кунед (JPG, PNG, WebP) ё аз коллексияи зер интихоб намоед.'
+                    : lang === 'en'
+                    ? 'Upload your photo from your device (JPG, PNG, WebP) or choose from the gallery below.'
+                    : 'Загрузите своё фото с компьютера/телефона (JPG, PNG, WebP) или выберите из коллекции ниже.'}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                <input
+                  type="file"
+                  id="avatar-file-input"
+                  ref={fileInputRef}
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-[#17A884] hover:bg-[#103D35] text-white text-xs font-bold gap-1.5 cursor-pointer shadow-xs"
                 >
-                  {preset.emoji}
-                </div>
-                <span className="text-[10px] text-slate-600 dark:text-slate-400 font-bold truncate max-w-[80px]">
-                  {preset.label}
-                </span>
-              </button>
-            ))}
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{lang === 'tj' ? 'Боргузории акси худ' : lang === 'en' ? 'Upload Photo' : 'Загрузить своё фото'}</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetAvatar}
+                  className="text-xs text-slate-600 dark:text-slate-300 gap-1.5 cursor-pointer"
+                  title="Вернуть стандартный аватар"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>{lang === 'tj' ? 'Пешфарз' : lang === 'en' ? 'Default' : 'По умолчанию'}</span>
+                </Button>
+              </div>
+            </div>
           </div>
 
+          {/* Section: Preset Professional Portraits */}
+          <div>
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                {lang === 'tj' ? 'Коллексияи портретҳо' : lang === 'en' ? 'Portrait Gallery' : 'Коллекция портретов'}
+              </span>
+              <span className="text-[10px] text-slate-400">
+                {lang === 'tj' ? 'Барои интихоб зер кунед' : lang === 'en' ? 'Click to select' : 'Кликните для выбора'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
+              {PRESET_PORTRAITS.map((p) => {
+                const isSelected = selectedAvatar === p.id || (!selectedAvatar && p.id === '/images/profile-default.webp')
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelectedAvatar(p.id)}
+                    className={`relative rounded-2xl overflow-hidden aspect-square border-2 transition-all cursor-pointer group flex flex-col justify-end p-1.5 ${
+                      isSelected
+                        ? 'border-[#17A884] ring-2 ring-[#17A884]/40 scale-102 shadow-md'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-[#17A884]/60 opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={p.id}
+                      alt={p.label}
+                      className="absolute inset-0 w-full h-full object-cover object-top"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    {isSelected && (
+                      <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#17A884] text-white flex items-center justify-center shadow-xs">
+                        <Check className="w-2.5 h-2.5 stroke-3" />
+                      </div>
+                    )}
+                    <span className="relative z-10 text-[9px] font-bold text-white leading-tight truncate w-full text-center">
+                      {p.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Section: Clinical & Science Badges */}
+          <div>
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                {lang === 'tj' ? 'Нишонаҳои клиникӣ' : lang === 'en' ? 'Clinical Badges' : 'Специализированные иконки'}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {PRESET_AVATARS.slice(0, 6).map((preset) => {
+                const isSelected = selectedAvatar === preset.id
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setSelectedAvatar(preset.id)}
+                    className={`relative rounded-xl p-2 transition-all cursor-pointer flex flex-col items-center gap-1 border ${
+                      isSelected
+                        ? 'border-[#17A884] bg-[#17A884]/15 ring-2 ring-[#17A884]'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-[#17A884]/40 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-9 h-9 rounded-lg bg-gradient-to-tr ${preset.bg} flex items-center justify-center text-lg shadow-xs`}
+                    >
+                      {preset.emoji}
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-slate-400 font-bold truncate max-w-[70px]">
+                      {preset.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Modal Footer */}
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
             <Button
               variant="outline"
@@ -1292,9 +1486,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <Button
               onClick={handleSaveAvatar}
               disabled={savingAvatar}
-              className="bg-[#17A884] hover:bg-[#103D35] text-white text-xs font-bold cursor-pointer"
+              className="bg-[#17A884] hover:bg-[#103D35] text-white text-xs font-bold cursor-pointer shadow-md shadow-[#17A884]/20"
             >
-              {savingAvatar ? '...' : t.saveAvatarBtn}
+              {savingAvatar ? 'Сохранение...' : (t.saveAvatarBtn || 'Сохранить аватар')}
             </Button>
           </div>
         </div>

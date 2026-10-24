@@ -53,8 +53,12 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   // 1. Check if user avatar is one of the preset avatars
   const matchedPreset = PRESET_AVATARS.find((p) => p.id === avatarUrl)
 
-  // 2. Check if avatar is an uploaded image (data URL or http link)
-  const isCustomImage = avatarUrl.startsWith('data:image') || avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')
+  // 2. Check if avatar is an uploaded image (data URL or http/relative link)
+  const isCustomImage =
+    avatarUrl.startsWith('data:image') ||
+    avatarUrl.startsWith('http://') ||
+    avatarUrl.startsWith('https://') ||
+    avatarUrl.startsWith('/')
 
   return (
     <div className="relative inline-block">

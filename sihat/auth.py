@@ -418,7 +418,7 @@ def update_profile(
     if payload.age_group is not None:
         user.age_group = payload.age_group
     if payload.avatar_url is not None:
-        user.avatar_url = payload.avatar_url
+        user.avatar_url = None if payload.avatar_url.strip() in {"", "default"} else payload.avatar_url
     db.commit()
     db.refresh(user)
     return user_output(user)
