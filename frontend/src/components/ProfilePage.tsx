@@ -10,7 +10,6 @@ import {
   Settings,
   LogOut,
   LayoutDashboard,
-  History,
   GitCompare,
   Bell,
   ChevronDown,
@@ -59,7 +58,6 @@ interface ProfilePageProps {
 type ProfileTab =
   | 'overview'
   | 'results'
-  | 'history'
   | 'comparisons'
   | 'personal_data'
   | 'security'
@@ -191,13 +189,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       dashboardTitle: 'Личный кабинет здоровья',
       dashboardSubtitle: 'Центр доказательной психофизиологии и скринингов',
       helloUser: 'Привет',
-      tabOverview: 'Мой дашборд',
+      tabOverview: 'Сводка и профиль',
       tabResults: 'Мои результаты',
-      tabHistory: 'История скринингов',
       tabComparisons: 'Сравнение и динамика',
       tabPersonal: 'Личные данные',
-      tabSecurity: 'Безопасность',
-      tabSettings: 'Настройки',
+      tabSecurity: 'Безопасность и сессии',
+      tabSettings: 'Настройки аккаунта',
       tabLogout: 'Выйти из аккаунта',
       myProfileTitle: 'Мой профиль',
       lastLoginLabel: 'Последний вход: 24 окт 2026, 17:25 • Web Client',
@@ -266,13 +263,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       dashboardTitle: 'Ҳисоби шахсии саломатӣ',
       dashboardSubtitle: 'Маркази скринингҳо ва психофизиологияи исботшуда',
       helloUser: 'Салом',
-      tabOverview: 'Дашборди ман',
+      tabOverview: 'Хулоса ва профил',
       tabResults: 'Натиҷаҳои ман',
-      tabHistory: 'Таърихи скринингҳо',
       tabComparisons: 'Муқоиса ва динамика',
       tabPersonal: 'Маълумоти шахсӣ',
-      tabSecurity: 'Амният',
-      tabSettings: 'Танзимот',
+      tabSecurity: 'Амният ва сессияҳо',
+      tabSettings: 'Танзимоти ҳисоб',
       tabLogout: 'Баромад аз ҳисоб',
       myProfileTitle: 'Профили ман',
       lastLoginLabel: 'Вуруди охирин: 24 окт 2026, 17:25 • Web Client',
@@ -339,13 +335,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       dashboardTitle: 'My Health Dashboard',
       dashboardSubtitle: 'Welcome to SIHAT personal health portal',
       helloUser: 'Hello',
-      tabOverview: 'My Dashboard',
+      tabOverview: 'Summary & Profile',
       tabResults: 'My Results',
-      tabHistory: 'Screening History',
-      tabComparisons: 'Biomarker Comparisons',
+      tabComparisons: 'Comparison & Dynamics',
       tabPersonal: 'Personal Data',
-      tabSecurity: 'Security',
-      tabSettings: 'Settings',
+      tabSecurity: 'Security & Sessions',
+      tabSettings: 'Account Settings',
       tabLogout: 'Sign Out',
       myProfileTitle: 'My Profile',
       lastLoginLabel: 'Last login: 24 Oct 2026, 17:25 • Web Client',
@@ -501,7 +496,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const sidebarNavItems: Array<{ id: ProfileTab; label: string; icon: React.ReactNode }> = [
     { id: 'overview', label: t.tabOverview, icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'results', label: t.tabResults, icon: <FileText className="w-4 h-4" /> },
-    { id: 'history', label: t.tabHistory, icon: <History className="w-4 h-4" /> },
     { id: 'comparisons', label: t.tabComparisons, icon: <GitCompare className="w-4 h-4" /> },
     { id: 'personal_data', label: t.tabPersonal, icon: <User className="w-4 h-4" /> },
     { id: 'security', label: t.tabSecurity, icon: <ShieldCheck className="w-4 h-4" /> },
@@ -962,7 +956,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               )}
 
               {/* TAB 2: MY RESULTS / ARCHIVE */}
-              {(activeTab === 'results' || activeTab === 'history') && (
+              {activeTab === 'results' && (
                 <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/60 dark:border-slate-800">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
