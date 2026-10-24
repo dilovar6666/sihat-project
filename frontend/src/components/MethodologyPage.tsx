@@ -12,6 +12,7 @@ import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import type { Language } from '../i18n'
 import type { TestItem } from '../types'
+import { getTestCover, getTestAlt, getTestPhotoCredit } from '../lib/testImages'
 
 interface MethodologyPageProps {
   tests: TestItem[]
@@ -217,31 +218,47 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
             return (
               <div
                 key={test.id || test.slug}
-                className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between transition-all hover:border-[#17A884]/50 hover:shadow-2xl"
+                className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between transition-all hover:border-[#17A884]/50 hover:shadow-2xl overflow-hidden group"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-[11px] font-mono font-bold text-[#17A884] px-2 py-0.5 rounded-md bg-[#17A884]/10">
-                      v{passport?.version || '1.0.0'}
-                    </span>
-                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 text-[10px]">
-                      {passport?.evidence_status === 'validated' ? 'ISO Class A' : 'Evidence-Based'}
-                    </Badge>
+                  <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden mb-4 bg-slate-900 shadow-inner">
+                    <img
+                      src={getTestCover(test.slug)}
+                      alt={getTestAlt(test.slug, lang)}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <Badge variant="outline" className="border-emerald-400 text-emerald-300 bg-emerald-950/60 backdrop-blur-md text-[10px]">
+                        {passport?.evidence_status === 'validated' ? 'ISO Class A' : 'Evidence-Based'}
+                      </Badge>
+                    </div>
+                    <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[10px] text-white/80">
+                      <span className="font-mono text-[#2EC4A7] font-bold">
+                        v{passport?.version || '1.0.0'}
+                      </span>
+                      {getTestPhotoCredit(test.slug) && (
+                        <span className="truncate max-w-[120px] text-white/60 font-mono text-[9px]">
+                          © {getTestPhotoCredit(test.slug)?.author}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-snug mb-2">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-snug mb-1.5 group-hover:text-[#17A884] transition-colors">
                     {title}
                   </h3>
 
-                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3 mb-4 leading-relaxed">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-4 leading-relaxed">
                     {loc?.description || ''}
                   </p>
 
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 mb-6 space-y-1 text-[11px]">
-                    <div className="text-slate-500">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 mb-4 space-y-1 text-[11px]">
+                    <div className="text-slate-500 truncate">
                       Стандарт: <strong className="text-slate-700 dark:text-slate-300">{passport?.name || title}</strong>
                     </div>
-                    <div className="text-slate-500 line-clamp-1">
+                    <div className="text-slate-500 truncate">
                       Базис: <span className="italic">{passport?.source || 'Open Science'}</span>
                     </div>
                   </div>
@@ -310,10 +327,15 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
         </div>
       </div>
 
-      {/* Header Banner */}
-      <div className="bg-gradient-to-br from-[#103D35] to-[#17A884] rounded-3xl p-8 sm:p-12 text-white shadow-2xl relative overflow-hidden mb-8">
-        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 max-w-3xl">
+      {/* Header Banner with Rich Thematic Image Backdrop */}
+      <div className="relative rounded-3xl overflow-hidden shadow-2xl mb-8 min-h-[320px] flex items-center bg-slate-900 border border-slate-200/50 dark:border-slate-800">
+        <img
+          src={getTestCover(activeTest.slug)}
+          alt={getTestAlt(activeTest.slug, lang)}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#103D35]/95 via-[#103D35]/85 to-[#17A884]/70 backdrop-blur-xs" />
+        <div className="relative z-10 p-8 sm:p-12 text-white max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold mb-3 border border-white/20">
             <BookOpen className="w-3.5 h-3.5 text-[#2EC4A7]" />
             <span>Официальный паспорт клинической методики</span>
@@ -335,6 +357,11 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
             >
               {t.backCatalog}
             </Button>
+            {getTestPhotoCredit(activeTest.slug) && (
+              <span className="text-[10px] text-white/60 font-mono self-center ml-2">
+                Фото: {getTestPhotoCredit(activeTest.slug)?.author} (Unsplash)
+              </span>
+            )}
           </div>
         </div>
       </div>

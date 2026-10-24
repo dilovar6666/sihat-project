@@ -155,22 +155,73 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
         </Card>
 
         {/* Card 3: 1 column */}
-        <Card className="p-8 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-300 group">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
-            <Cpu className="w-6 h-6" />
+        <Card className="p-8 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-300 group flex flex-col justify-between">
+          <div>
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400 mb-6 group-hover:scale-110 transition-transform">
+              <Cpu className="w-6 h-6" />
+            </div>
+            <Badge variant="cyan" className="mb-3">
+              16 Скринингов
+            </Badge>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-3">
+              {content.card3Title}
+            </h3>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
+              {content.card3Desc}
+            </p>
+
+            {/* Mini Visual Showcase */}
+            <div className="grid grid-cols-2 gap-2 my-4">
+              <div className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20">
+                <img
+                  src="/images/tests/attention-concentration.webp"
+                  alt="Schulte"
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <div className="absolute inset-0 bg-slate-950/40 flex items-end p-1.5 text-[9px] text-white font-bold">
+                  Шульте
+                </div>
+              </div>
+              <div className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20">
+                <img
+                  src="/images/tests/contrast-sensitivity.webp"
+                  alt="Contrast"
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <div className="absolute inset-0 bg-slate-950/40 flex items-end p-1.5 text-[9px] text-white font-bold">
+                  Контраст
+                </div>
+              </div>
+              <div className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20">
+                <img
+                  src="/images/tests/sound-discrimination.webp"
+                  alt="Sound"
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <div className="absolute inset-0 bg-slate-950/40 flex items-end p-1.5 text-[9px] text-white font-bold">
+                  Слух
+                </div>
+              </div>
+              <div className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20">
+                <img
+                  src="/images/tests/cursor-path.webp"
+                  alt="Steering Path"
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                />
+                <div className="absolute inset-0 bg-slate-950/40 flex items-end p-1.5 text-[9px] text-white font-bold">
+                  Моторика
+                </div>
+              </div>
+            </div>
           </div>
-          <Badge variant="cyan" className="mb-3">
-            {content.card3Badge}
-          </Badge>
-          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-3">
-            {content.card3Title}
-          </h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            {content.card3Desc}
-          </p>
+
           <button
             onClick={onOpenCatalog}
-            className="mt-6 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+            className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
           >
             <span>{content.card3Btn}</span>
           </button>

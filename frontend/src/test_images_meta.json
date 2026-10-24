@@ -1,0 +1,194 @@
+[
+  {
+    "slug": "attention-concentration",
+    "photo_id": "photo-1509228468518-180dd4864904",
+    "author": "Roman Mager",
+    "author_url": "https://unsplash.com/@roman_lazygeek",
+    "unsplash_url": "https://unsplash.com/photos/1509228468518-180dd4864904",
+    "alt": {
+      "ru": "Таблицы Шульте: числовая матрица и высокая концентрация внимания",
+      "tj": "Ҷадвалҳои Шулте: тамаркузи баланди зеҳнӣ ва ҷустуҷӯи рақамҳо",
+      "en": "Schulte tables: numeric matrix and high visual concentration focus"
+    }
+  },
+  {
+    "slug": "attention-switching",
+    "photo_id": "photo-1558494949-ef010cbdcc31",
+    "author": "Alina Grubnyak",
+    "author_url": "https://unsplash.com/@alinnnaaaa",
+    "unsplash_url": "https://unsplash.com/photos/1558494949-ef010cbdcc31",
+    "alt": {
+      "ru": "Переключение внимания: гибкость мышления и взаимосвязанные узлы",
+      "tj": "Гузариши диққат: чандирии зеҳнӣ ва робитаи гиреҳҳо",
+      "en": "Attention switching: cognitive flexibility and connected pathways"
+    }
+  },
+  {
+    "slug": "visual-memory",
+    "photo_id": "photo-1618005182384-a83a8bd57fbe",
+    "author": "Milad Fakurian",
+    "author_url": "https://unsplash.com/@fakurian",
+    "unsplash_url": "https://unsplash.com/photos/1618005182384-a83a8bd57fbe",
+    "alt": {
+      "ru": "Блоки Корси: пространственная рабочая память и объём воспроизведения",
+      "tj": "Блокҳои Корси: хотираи фазоӣ ва барқароркунии пайдарпай",
+      "en": "Corsi blocks: visual-spatial working memory and span capacity"
+    }
+  },
+  {
+    "slug": "short-term-memory",
+    "photo_id": "photo-1526374965328-7f61d4dc18c5",
+    "author": "Markus Spiske",
+    "author_url": "https://unsplash.com/@markusspiske",
+    "unsplash_url": "https://unsplash.com/photos/1526374965328-7f61d4dc18c5",
+    "alt": {
+      "ru": "Память на цифры: кратковременное удержание числовых последовательностей",
+      "tj": "Хотираи рақамӣ: нигоҳдории кӯтоҳмуддати пайдарпайии рақамҳо",
+      "en": "Digit span: short-term numerical sequence retention"
+    }
+  },
+  {
+    "slug": "information-processing-speed",
+    "photo_id": "photo-1550751827-4bd374c3f58b",
+    "author": "Pawel Czerwinski",
+    "author_url": "https://unsplash.com/@pawel_czerwinski",
+    "unsplash_url": "https://unsplash.com/photos/1550751827-4bd374c3f58b",
+    "alt": {
+      "ru": "Скорость обработки информации: сопоставление символов и цифр",
+      "tj": "Суръати коркарди маълумот: муқоисаи аломатҳо ва рақамҳо",
+      "en": "Information processing speed: symbol-digit matching and mental tempo"
+    }
+  },
+  {
+    "slug": "contrast-sensitivity",
+    "photo_id": "photo-1509198397868-475647b2a1e5",
+    "author": "Scott Webb",
+    "author_url": "https://unsplash.com/@scottwebb",
+    "unsplash_url": "https://unsplash.com/photos/1509198397868-475647b2a1e5",
+    "alt": {
+      "ru": "Контрастная чувствительность: восприятие градиентов яркости",
+      "tj": "Ҳассосияти контрастӣ: дарки фарқияти равшании рӯшноӣ",
+      "en": "Contrast sensitivity: visual luminance gradient perception"
+    }
+  },
+  {
+    "slug": "visual-pairs",
+    "photo_id": "photo-1518895949257-7621c3c786d7",
+    "author": "Ksenia Chernaya",
+    "author_url": "https://unsplash.com/@kseniachernaya",
+    "unsplash_url": "https://unsplash.com/photos/1518895949257-7621c3c786d7",
+    "alt": {
+      "ru": "Визуальные пары: ассоциативная память и поиск парных паттернов",
+      "tj": "Ҷуфтҳои визуалӣ: хотираи ассоциативӣ ва пайдо кардани ҷуфтҳо",
+      "en": "Visual pairs: associative memory and matching pattern recall"
+    }
+  },
+  {
+    "slug": "path-memory",
+    "photo_id": "photo-1519501025264-65ba15a82390",
+    "author": "Mitchell Luo",
+    "author_url": "https://unsplash.com/@mitchel3uo",
+    "unsplash_url": "https://unsplash.com/photos/1519501025264-65ba15a82390",
+    "alt": {
+      "ru": "Запомни маршрут: пространственная навигация в лабиринте",
+      "tj": "Масирро дар хотир гир: паймоиши фазоӣ дар лабиринт",
+      "en": "Path memory: spatial navigation and route retention"
+    }
+  },
+  {
+    "slug": "pattern-matrix",
+    "photo_id": "photo-1600585154340-be6161a56a0c",
+    "author": "Google DeepMind",
+    "author_url": "https://unsplash.com/@deepmind",
+    "unsplash_url": "https://unsplash.com/photos/1600585154340-be6161a56a0c",
+    "alt": {
+      "ru": "Продолжи последовательность: геометрические матрицы и логика",
+      "tj": "Пайдарпайиро давом деҳ: мантиқи геометрӣ ва қонуниятҳо",
+      "en": "Pattern matrix: geometric sequence progression and abstract reasoning"
+    }
+  },
+  {
+    "slug": "sound-discrimination",
+    "photo_id": "photo-1505740420928-5e560c06d30e",
+    "author": "C-Carey",
+    "author_url": "https://unsplash.com/@c_carey",
+    "unsplash_url": "https://unsplash.com/photos/1505740420928-5e560c06d30e",
+    "alt": {
+      "ru": "Сравнение звуков: тонкое различение высоты и частоты звуковых тонов",
+      "tj": "Муқоисаи овозҳо: фарқкунии дақиқи басомад ва баландии садо",
+      "en": "Sound discrimination: fine pitch and audio frequency differentiation"
+    }
+  },
+  {
+    "slug": "speech-in-noise",
+    "photo_id": "photo-1598488035139-bdbb2231ce04",
+    "author": "Soundtrap",
+    "author_url": "https://unsplash.com/@soundtrap",
+    "unsplash_url": "https://unsplash.com/photos/1598488035139-bdbb2231ce04",
+    "alt": {
+      "ru": "Речь в шуме: разборчивость речевых сигналов при фоновом шуме",
+      "tj": "Нутқ дар садои баланд: фаҳмиши сухан дар шароити халалдоршавӣ",
+      "en": "Speech in noise: auditory speech perception and signal-to-noise recognition"
+    }
+  },
+  {
+    "slug": "reaction-speed",
+    "photo_id": "photo-1517420704952-d9f39e95b43e",
+    "author": "Hal Gatewood",
+    "author_url": "https://unsplash.com/@halgatewood",
+    "unsplash_url": "https://unsplash.com/photos/1517420704952-d9f39e95b43e",
+    "alt": {
+      "ru": "Скорость реакции: сенсомоторная латентность и быстрота отклика",
+      "tj": "Суръати вокуниш: таъхири сенсомоторӣ ва тезии вокуниш",
+      "en": "Reaction speed: sensorimotor latency and response speed"
+    }
+  },
+  {
+    "slug": "go-no-go",
+    "photo_id": "photo-1526778548025-fa2f459cd5c1",
+    "author": "Steve Johnson",
+    "author_url": "https://unsplash.com/@steve_j",
+    "unsplash_url": "https://unsplash.com/photos/1526778548025-fa2f459cd5c1",
+    "alt": {
+      "ru": "Торможение импульса (Go/No-Go): контроль произвольного торможения",
+      "tj": "Боздории импулс (Go/No-Go): идораи боздории ҳаракат",
+      "en": "Go/No-Go: inhibitory control and executive motor suppression"
+    }
+  },
+  {
+    "slug": "mouse-eye-coordination",
+    "photo_id": "photo-1518709268805-4e9042af9f23",
+    "author": "Jason Leung",
+    "author_url": "https://unsplash.com/@ninjason",
+    "unsplash_url": "https://unsplash.com/photos/1518709268805-4e9042af9f23",
+    "alt": {
+      "ru": "Слежение за целью (Pursuit Rotor): зрительно-моторная координация",
+      "tj": "Пайгирии ҳадаф: ҳамоҳангии чашму даст дар ҳаракати пайваста",
+      "en": "Pursuit tracking: smooth eye-hand motor coordination"
+    }
+  },
+  {
+    "slug": "cursor-path",
+    "photo_id": "photo-1513694203232-719a280e022f",
+    "author": "Alex Perez",
+    "author_url": "https://unsplash.com/@a2ephotos",
+    "unsplash_url": "https://unsplash.com/photos/1513694203232-719a280e022f",
+    "alt": {
+      "ru": "Удержание траектории: моторная точность в узком коридоре",
+      "tj": "Идораи траектория: дақиқии моторӣ дар роҳрави танг",
+      "en": "Steering corridor: precision motor control along boundaries"
+    }
+  },
+  {
+    "slug": "anxiety",
+    "photo_id": "photo-1506126613408-eca07ce68773",
+    "author": "Jared Rice",
+    "author_url": "https://unsplash.com/@jareddrice",
+    "unsplash_url": "https://unsplash.com/photos/1506126613408-eca07ce68773",
+    "alt": {
+      "ru": "Шкала тревожности GAD-7: оценка эмоционального фона и баланса",
+      "tj": "Миқёси изтироби GAD-7: баҳодиҳии ҳолати эмотсионалӣ ва оромиш",
+      "en": "GAD-7 anxiety scale: emotional balance and serenity self-assessment"
+    }
+  }
+]

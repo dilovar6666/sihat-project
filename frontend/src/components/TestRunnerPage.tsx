@@ -22,6 +22,7 @@ import { Card } from './ui/Card'
 import type { Language } from '../i18n'
 import type { TestItem } from '../types'
 import { apiRequest } from '../api'
+import { getTestCover, getTestAlt, getTestPhotoCredit } from '../lib/testImages'
 
 // Import all 16 approved test engines
 import { SchulteTableEngine } from './test-engines/SchulteTableEngine'
@@ -485,9 +486,14 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
         ) : (
           /* Redesigned Premium Results Stage */
           <div className="max-w-3xl mx-auto space-y-6 animate-in zoom-in-95 duration-200">
-            {/* Header Hero Card */}
-            <div className="bg-gradient-to-br from-[#103D35] to-[#17A884] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
-              <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            {/* Header Hero Card with Thematic Cover Overlay */}
+            <div className="relative rounded-3xl p-8 text-white shadow-2xl overflow-hidden bg-slate-900 border border-slate-200/50 dark:border-slate-800">
+              <img
+                src={getTestCover(slug)}
+                alt={getTestAlt(slug, lang)}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#103D35]/95 via-[#103D35]/85 to-[#17A884]/70" />
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold mb-3 border border-white/20">
@@ -496,6 +502,11 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{title}</h2>
                   <p className="text-sm text-white/80 mt-1 max-w-md">{completedData.summary}</p>
+                  {getTestPhotoCredit(slug) && (
+                    <div className="text-[10px] text-white/50 font-mono mt-2">
+                      Фото: {getTestPhotoCredit(slug)?.author}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex sm:flex-col items-center sm:items-end justify-between border-t sm:border-t-0 sm:border-l border-white/20 pt-4 sm:pt-0 sm:pl-6">
