@@ -38,6 +38,12 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       card4Title: 'Навигатор с этическими рамками',
       card4Desc: 'Умный помощник подсказывает подходящие скрининги по возрасту и запросу, объясняет методику понятным языком и строго защищён от постановки медицинских диагнозов.',
       card4Btn: 'Задать вопрос AI-помощнику →',
+      aiTag1: 'Нейросети',
+      aiTag2: 'Клинический триаж',
+      aiTag3: 'Стандарты ISO',
+      aiTag4: 'Zero-Retention',
+      aiChip1: 'Без диагнозов',
+      aiChip2: 'Zero-Retention приватность',
     },
     tj: {
       badge: 'Меъмории боварӣ',
@@ -58,6 +64,12 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       card4Title: 'Роҳнамои боэътимод бе ташхиси бардурӯғ',
       card4Desc: 'Ёвари интеллектуалӣ скринингҳои мувофиқро тавсия медиҳад, методологияро шарҳ медиҳад ва бидуни гузоштани ташхис машварат медиҳад.',
       card4Btn: 'Савол додан ба ёвари AI →',
+      aiTag1: 'Нейрошабака',
+      aiTag2: 'Триажи клиникӣ',
+      aiTag3: 'Стандартҳои ISO',
+      aiTag4: 'Zero-Retention',
+      aiChip1: 'Бе ташхиси тиббӣ',
+      aiChip2: 'Махфияти комил',
     },
     en: {
       badge: 'Architecture of Trust',
@@ -78,6 +90,12 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       card4Title: 'Navigation With Ethical Boundaries',
       card4Desc: 'An intelligent companion guiding you toward age-appropriate checks, explaining methodology plainly, strictly bounded against diagnosing.',
       card4Btn: 'Ask AI Navigator →',
+      aiTag1: 'Neural Core',
+      aiTag2: 'Clinical Triage',
+      aiTag3: 'ISO Standards',
+      aiTag4: 'Zero-Retention',
+      aiChip1: 'No Medical Diagnosis',
+      aiChip2: 'Zero-Retention Privacy',
     },
   }[lang] || {
     badge: 'Architecture of Trust',
@@ -229,24 +247,109 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
 
         {/* Card 4: 2 columns wide */}
         <Card className="md:col-span-2 p-8 hover:border-emerald-500/50 hover:shadow-lg transition-all duration-300 relative overflow-hidden group">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-6 group-hover:scale-110 transition-transform">
-            <Sparkles className="w-6 h-6" />
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+            {/* Left Content */}
+            <div className="flex-1 max-w-xl">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-6 group-hover:scale-110 transition-transform">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <Badge variant="emerald" className="mb-3">
+                {content.card4Badge}
+              </Badge>
+              <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-3">
+                {content.card4Title}
+              </h3>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed mb-6">
+                {content.card4Desc}
+              </p>
+
+              <div className="flex items-center gap-2 mb-6 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {content.aiChip1}
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                  {content.aiChip2}
+                </span>
+              </div>
+
+              <button
+                onClick={onOpenAssistant}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+              >
+                <span>{content.card4Btn}</span>
+              </button>
+            </div>
+
+            {/* Right Showcase: Visual AI Images Grid */}
+            <div className="w-full lg:w-[380px] shrink-0">
+              <div className="grid grid-cols-2 gap-2.5">
+                {/* 1. Neural Core */}
+                <div
+                  onClick={onOpenAssistant}
+                  className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20 dark:border-zinc-800 cursor-pointer group/ai"
+                >
+                  <img
+                    src="/images/ai/ai-neural-core.webp"
+                    alt={content.aiTag1}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover/ai:scale-110 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent flex items-end p-2 text-[10px] text-white font-bold">
+                    <span className="truncate">{content.aiTag1}</span>
+                  </div>
+                </div>
+
+                {/* 2. Medical Triage */}
+                <div
+                  onClick={onOpenAssistant}
+                  className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20 dark:border-zinc-800 cursor-pointer group/ai"
+                >
+                  <img
+                    src="/images/ai/ai-medical-triage.webp"
+                    alt={content.aiTag2}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover/ai:scale-110 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent flex items-end p-2 text-[10px] text-white font-bold">
+                    <span className="truncate">{content.aiTag2}</span>
+                  </div>
+                </div>
+
+                {/* 3. Research Lab */}
+                <div
+                  onClick={onOpenAssistant}
+                  className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20 dark:border-zinc-800 cursor-pointer group/ai"
+                >
+                  <img
+                    src="/images/ai/ai-research-lab.webp"
+                    alt={content.aiTag3}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover/ai:scale-110 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent flex items-end p-2 text-[10px] text-white font-bold">
+                    <span className="truncate">{content.aiTag3}</span>
+                  </div>
+                </div>
+
+                {/* 4. Security & Privacy */}
+                <div
+                  onClick={onOpenAssistant}
+                  className="relative aspect-[16/10] rounded-xl overflow-hidden shadow-xs border border-white/20 dark:border-zinc-800 cursor-pointer group/ai"
+                >
+                  <img
+                    src="/images/ai/ai-security-privacy.webp"
+                    alt={content.aiTag4}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover/ai:scale-110 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent flex items-end p-2 text-[10px] text-white font-bold">
+                    <span className="truncate">{content.aiTag4}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <Badge variant="emerald" className="mb-3">
-            {content.card4Badge}
-          </Badge>
-          <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-3">
-            {content.card4Title}
-          </h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-xl mb-6">
-            {content.card4Desc}
-          </p>
-          <button
-            onClick={onOpenAssistant}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-          >
-            <span>{content.card4Btn}</span>
-          </button>
         </Card>
       </div>
     </section>
