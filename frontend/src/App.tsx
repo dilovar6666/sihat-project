@@ -16,6 +16,7 @@ import { AssistantPage } from './components/AssistantPage'
 import { AssistantDrawer } from './components/AssistantDrawer'
 import { FloatingAiButton } from './components/FloatingAiButton'
 import { ProfileDrawer } from './components/ProfileDrawer'
+import { NotificationsDrawer, type NotificationItem } from './components/NotificationsDrawer'
 import { Footer } from './components/Footer'
 import { translations } from './i18n'
 import type { Language } from './i18n'
@@ -188,6 +189,34 @@ export default function App() {
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false)
 
+  // Persistent Notification Center & Ephemeral Toast Stack
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('sihat_notifications')
+      return saved
+        ? JSON.parse(saved)
+        : [
+            {
+              id: 'init-1',
+              message: 'Добро пожаловать на доказательную платформу SIHAT!',
+              type: 'success',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              read: false,
+            },
+            {
+              id: 'init-2',
+              message: 'Архитектура Zero-Retention активна: персональные данные защищены.',
+              type: 'info',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              read: false,
+            },
+          ]
+    } catch {
+      return []
+    }
+  })
+
   // Auto-Dismissing Toast Notifications System
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
@@ -196,7 +225,27 @@ export default function App() {
       const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
       const newToast: ToastItem = { id, message, type }
 
+      // 1. Show floating toast in the bottom right corner
       setToasts((prev) => [...prev, newToast])
+
+      // 2. Also log every notification into the site Notification Center
+      setNotifications((prev) => {
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        const updated: NotificationItem[] = [
+          {
+            id: `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            message,
+            type,
+            timestamp: timeStr,
+            read: false,
+          },
+          ...prev.slice(0, 49),
+        ]
+        try {
+          localStorage.setItem('sihat_notifications', JSON.stringify(updated))
+        } catch {}
+        return updated
+      })
 
       // Auto-dismiss timeouts based on specification:
       // Success: 4000ms, Info: 5000ms, Warning: 7000ms, Error: 8000ms
@@ -209,6 +258,43 @@ export default function App() {
     },
     []
   )
+
+  const handleMarkAllNotificationsRead = () => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }))
+      try {
+        localStorage.setItem('sihat_notifications', JSON.stringify(updated))
+      } catch {}
+      return updated
+    })
+  }
+
+  const handleClearAllNotifications = () => {
+    setNotifications([])
+    try {
+      localStorage.removeItem('sihat_notifications')
+    } catch {}
+  }
+
+  const handleMarkOneNotificationRead = (id: string) => {
+    setNotifications((prev) => {
+      const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      try {
+        localStorage.setItem('sihat_notifications', JSON.stringify(updated))
+      } catch {}
+      return updated
+    })
+  }
+
+  const handleDeleteOneNotification = (id: string) => {
+    setNotifications((prev) => {
+      const updated = prev.filter((n) => n.id !== id)
+      try {
+        localStorage.setItem('sihat_notifications', JSON.stringify(updated))
+      } catch {}
+      return updated
+    })
+  }
 
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
@@ -434,6 +520,8 @@ export default function App() {
         currentSection={currentPage}
         onOpenAssistant={() => setAssistantOpen(true)}
         onOpenProfile={() => setProfileDrawerOpen(true)}
+        onToggleNotifications={() => setNotificationsOpen((prev) => !prev)}
+        unreadNotificationsCount={notifications.filter((n) => !n.read).length}
       />
 
       {/* Main Content Pages (Separated by Route) */}
@@ -549,6 +637,8 @@ export default function App() {
             onNavigate={handleNavigate}
             onNotify={(msg) => addToast(msg, 'info')}
             onLogout={handleLogout}
+            onOpenNotifications={() => setNotificationsOpen(true)}
+            unreadNotificationsCount={notifications.filter((n) => !n.read).length}
           />
         )}
 
@@ -636,6 +726,18 @@ export default function App() {
         }}
         onOpenAssistant={() => setAssistantOpen(true)}
         currentSection={currentPage}
+      />
+
+      {/* Notifications Drawer Center */}
+      <NotificationsDrawer
+        isOpen={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        notifications={notifications}
+        onMarkAllAsRead={handleMarkAllNotificationsRead}
+        onClearAll={handleClearAllNotifications}
+        onMarkOneRead={handleMarkOneNotificationRead}
+        onDeleteOne={handleDeleteOneNotification}
+        lang={lang}
       />
 
       {/* Auto-Dismissing Toast Notifications Stack */}

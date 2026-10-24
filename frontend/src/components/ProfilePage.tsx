@@ -52,6 +52,8 @@ interface ProfilePageProps {
   onNavigate: (pageId: string) => void
   onNotify: (msg: string) => void
   onLogout?: () => void
+  onOpenNotifications?: () => void
+  unreadNotificationsCount?: number
 }
 
 type ProfileTab =
@@ -75,6 +77,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onNavigate,
   onNotify,
   onLogout,
+  onOpenNotifications,
+  unreadNotificationsCount = 0,
 }) => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
   const [results, setResults] = useState<SavedResult[]>(propResults || [])
@@ -583,12 +587,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           <div className="flex items-center gap-3 self-end sm:self-auto">
             <button
               type="button"
-              onClick={() => onNotify(t.notificationsRead)}
+              onClick={onOpenNotifications || (() => onNotify(t.notificationsRead))}
               className="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center text-slate-500 hover:text-[#17A884] shadow-xs hover:shadow-md transition-all cursor-pointer relative"
               title="Уведомления"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#17A884]" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute top-2 right-2 min-w-[16px] h-4 px-1 rounded-full bg-[#17A884] text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
             </button>
 
             <div

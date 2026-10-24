@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Globe, Moon, Sun, ShieldAlert, LogIn } from 'lucide-react'
+import { Globe, Moon, Sun, ShieldAlert, LogIn, Bell } from 'lucide-react'
 import type { Language, Translations } from '../i18n'
 import type { UserProfile } from '../types'
 import { UserAvatar } from './UserAvatar'
@@ -17,6 +17,8 @@ interface NavbarProps {
   currentSection: string
   onOpenAssistant: () => void
   onOpenProfile: () => void
+  onToggleNotifications?: () => void
+  unreadNotificationsCount?: number
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -28,6 +30,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   user,
   onNavigate,
   currentSection,
+  onToggleNotifications,
+  unreadNotificationsCount = 0,
 }) => {
   const [langMenuOpen, setLangMenuOpen] = useState(false)
   const langRef = useRef<HTMLDivElement>(null)
@@ -155,6 +159,23 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
+
+          {/* Notifications Center Toggle */}
+          {onToggleNotifications && (
+            <button
+              onClick={onToggleNotifications}
+              className="relative w-9 h-9 rounded-full liquid-glass-pill hover:border-[#17A884]/40 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all hover:text-[#17A884] cursor-pointer"
+              aria-label="Центр уведомлений"
+              title="Уведомления"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#17A884] text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Theme Toggle Button */}
           <button
