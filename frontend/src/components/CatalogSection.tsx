@@ -1,5 +1,16 @@
-import React, { useState, useMemo } from 'react'
-import { Search, Eye, Volume2, Brain, Zap, Clock, UserCheck, ChevronRight, FileText } from 'lucide-react'
+import React, { useState, useMemo, useCallback } from 'react'
+import {
+  Search,
+  Eye,
+  Volume2,
+  Brain,
+  Zap,
+  Clock,
+  UserCheck,
+  ChevronRight,
+  FileText,
+  HeartPulse,
+} from 'lucide-react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
@@ -11,7 +22,7 @@ interface CatalogSectionProps {
   t: Translations
   lang: Language
   tests: TestItem[]
-  categories: Category[]
+  categories?: Category[]
   onSelectTest: (test: TestItem) => void
   onStartAttempt: (test: TestItem) => void
 }
@@ -20,23 +31,130 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
   t,
   lang,
   tests,
+  categories = [],
   onSelectTest,
   onStartAttempt,
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCat, setSelectedCat] = useState<string>('all')
 
-  const categoryChips = [
-    { id: 'all', label: lang === 'ru' ? 'Все тесты' : lang === 'tj' ? 'Ҳамаи санҷишҳо' : 'All Screenings', icon: Zap },
-    { id: 'vision', label: lang === 'ru' ? 'Зрение' : lang === 'tj' ? 'Биноӣ' : 'Vision', icon: Eye },
-    { id: 'hearing', label: lang === 'ru' ? 'Слух' : lang === 'tj' ? 'Шунавоӣ' : 'Hearing', icon: Volume2 },
-    { id: 'cognitive', label: lang === 'ru' ? 'Внимание и память' : lang === 'tj' ? 'Таваҷҷуҳ ва хотира' : 'Attention & Memory', icon: Brain },
-  ]
+  // Map category UUIDs to category slugs for reliable filtering
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>()
+    categories.forEach((cat) => {
+      map.set(cat.id, cat.slug)
+    })
+    return map
+  }, [categories])
 
   // Filter out any unpublished / draft tests safely
   const publishedTests = useMemo(() => {
     return tests.filter((item) => item.status !== 'draft')
   }, [tests])
+
+  // Category matching helper
+  const matchesCategory = useCallback((item: TestItem, catId: string): boolean => {
+    if (catId === 'all') return true
+
+    const slug = item.slug.toLowerCase()
+    const backendCatSlug = (categoryMap.get(item.category_id) || '').toLowerCase()
+
+    if (catId === 'vision') {
+      return (
+        backendCatSlug === 'vision' ||
+        slug.includes('contrast') ||
+        slug.includes('visual-pairs') ||
+        slug.includes('color') ||
+        slug.includes('acuity') ||
+        slug.includes('eye') ||
+        slug.includes('perception')
+      )
+    }
+
+    if (catId === 'hearing') {
+      return (
+        backendCatSlug === 'hearing' ||
+        slug.includes('sound') ||
+        slug.includes('audio') ||
+        slug.includes('noise') ||
+        slug.includes('speech-in-noise') ||
+        slug.includes('hearing') ||
+        slug.includes('ear')
+      )
+    }
+
+    if (catId === 'cognitive') {
+      return (
+        backendCatSlug === 'memory-attention' ||
+        backendCatSlug === 'cognitive-skills' ||
+        slug.includes('attention') ||
+        slug.includes('memory') ||
+        slug.includes('reaction') ||
+        slug.includes('speed') ||
+        slug.includes('path') ||
+        slug.includes('matrix') ||
+        slug.includes('pattern') ||
+        slug.includes('go-no-go') ||
+        slug.includes('coordination') ||
+        slug.includes('cursor') ||
+        slug.includes('switching') ||
+        slug.includes('concentration')
+      )
+    }
+
+    if (catId === 'wellbeing') {
+      return (
+        backendCatSlug === 'mental-wellbeing' ||
+        backendCatSlug === 'general-wellbeing' ||
+        backendCatSlug === 'sleep' ||
+        backendCatSlug === 'phobias' ||
+        slug.includes('anxiety') ||
+        slug.includes('stress') ||
+        slug.includes('sleep') ||
+        slug.includes('mood') ||
+        slug.includes('wellbeing')
+      )
+    }
+
+    return (
+      backendCatSlug === catId.toLowerCase() ||
+      slug.includes(catId.toLowerCase())
+    )
+  }, [categoryMap])
+
+  // Category Chips with dynamic counts
+  const categoryChips = useMemo(() => [
+    {
+      id: 'all',
+      label: lang === 'ru' ? 'Все тесты' : lang === 'tj' ? 'Ҳамаи санҷишҳо' : 'All Screenings',
+      icon: Zap,
+      count: publishedTests.length,
+    },
+    {
+      id: 'vision',
+      label: lang === 'ru' ? 'Зрение' : lang === 'tj' ? 'Биноӣ' : 'Vision',
+      icon: Eye,
+      count: publishedTests.filter((t) => matchesCategory(t, 'vision')).length,
+    },
+    {
+      id: 'hearing',
+      label: lang === 'ru' ? 'Слух' : lang === 'tj' ? 'Шунавоӣ' : 'Hearing',
+      icon: Volume2,
+      count: publishedTests.filter((t) => matchesCategory(t, 'hearing')).length,
+    },
+    {
+      id: 'cognitive',
+      label: lang === 'ru' ? 'Внимание и память' : lang === 'tj' ? 'Таваҷҷуҳ ва хотира' : 'Attention & Memory',
+      icon: Brain,
+      count: publishedTests.filter((t) => matchesCategory(t, 'cognitive')).length,
+    },
+    {
+      id: 'wellbeing',
+      label: lang === 'ru' ? 'Самочувствие' : lang === 'tj' ? 'Ҳолати рӯҳӣ' : 'Wellbeing',
+      icon: HeartPulse,
+      count: publishedTests.filter((t) => matchesCategory(t, 'wellbeing')).length,
+    },
+  ], [lang, publishedTests, matchesCategory])
 
   const filteredTests = useMemo(() => {
     return publishedTests.filter((item) => {
@@ -48,14 +166,11 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
         desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.slug.toLowerCase().includes(searchQuery.toLowerCase())
 
-      const matchesCat =
-        selectedCat === 'all' ||
-        item.category_id.toLowerCase().includes(selectedCat.toLowerCase()) ||
-        item.slug.toLowerCase().includes(selectedCat.toLowerCase())
+      const matchesCat = matchesCategory(item, selectedCat)
 
       return matchesSearch && matchesCat
     })
-  }, [publishedTests, searchQuery, selectedCat, lang])
+  }, [publishedTests, searchQuery, selectedCat, lang, matchesCategory])
 
   return (
     <section id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 animate-in fade-in duration-300">
@@ -107,6 +222,15 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{chip.label}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  isActive
+                    ? 'bg-white/20 text-white'
+                    : 'bg-zinc-200/70 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                }`}
+              >
+                {chip.count}
+              </span>
             </button>
           )
         })}
