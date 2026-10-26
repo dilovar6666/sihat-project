@@ -1,4 +1,11 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000'
+const defaultBaseUrl =
+  typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? '/api'
+    : 'http://127.0.0.1:8000'
+
+const BASE_URL = import.meta.env.VITE_API_URL || defaultBaseUrl
 
 let authToken: string = ''
 let refreshToken: string = ''
