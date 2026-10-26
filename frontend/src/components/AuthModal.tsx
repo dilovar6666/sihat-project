@@ -422,6 +422,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
           </div>
         </div>
+
+        {/* Quick Dev Login button */}
+        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-850">
+          <button
+            type="button"
+            onClick={handleDevLogin}
+            disabled={loading}
+            className="w-full py-2.5 px-3 rounded-xl border border-dashed border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            {labels.devLoginBtn}
+          </button>
+        </div>
       </div>
     </Modal>
   )

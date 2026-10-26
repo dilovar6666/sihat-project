@@ -65,7 +65,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
       {isCustomImage ? (
         <img
           src={avatarUrl}
-          alt={user.full_name || user.email}
+          alt={user.full_name || user.email || 'User'}
           className={`${dimension} rounded-2xl object-cover border-2 border-emerald-500/30 shadow-md ${className}`}
         />
       ) : matchedPreset ? (
@@ -78,7 +78,13 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
         <div
           className={`${dimension} rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-600/25 border-2 border-white/20 select-none ${className}`}
         >
-          {user.full_name ? user.full_name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+          {user.full_name
+            ? user.full_name.charAt(0).toUpperCase()
+            : user.email
+            ? user.email.charAt(0).toUpperCase()
+            : user.phone
+            ? user.phone.slice(-2)
+            : 'U'}
         </div>
       )}
 

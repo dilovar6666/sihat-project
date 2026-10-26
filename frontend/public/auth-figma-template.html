@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Website Sign Up & Login — Pixel Perfect</title>
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ==========================================================================
+       1. CSS VARIABLES (DESIGN TOKENS FROM FIGMA SPEC)
+       ========================================================================== */
+    :root {
+      /* Brand Palette */
+      --primary-500: #38bdf8;
+      --primary-600: #0284c7;
+      --primary-gradient: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+      --primary-hover: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      --primary-glow: rgba(56, 189, 248, 0.35);
+
+      /* Neutral Palette */
+      --bg-page: #f0f4f9;
+      --surface-card: #ffffff;
+      --text-main: #0f172a;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border-subtle: #e2e8f0;
+      --border-focus: #38bdf8;
+
+      /* UI Metrics */
+      --radius-container: 28px;
+      --radius-inner: 16px;
+      --radius-btn: 12px;
+      --radius-input: 10px;
+
+      /* Shadows */
+      --shadow-ambient: 0 24px 64px -12px rgba(15, 23, 42, 0.08), 0 8px 24px -4px rgba(15, 23, 42, 0.04);
+      --shadow-btn: 0 10px 20px -5px rgba(14, 165, 233, 0.38);
+      --shadow-input-focus: 0 0 0 3px rgba(56, 189, 248, 0.18);
+
+      /* Transitions */
+      --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Base Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-page);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ==========================================================================
+       2. AUTH CARD MASTER WRAPPER
+       ========================================================================== */
+    .auth-card {
+      width: 100%;
+      max-width: 960px;
+      background: var(--surface-card);
+      border-radius: var(--radius-container);
+      box-shadow: var(--shadow-ambient);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      position: relative;
+    }
+
+    /* ==========================================================================
+       3. LEFT HERO VISUAL BANNER
+       ========================================================================== */
+    .hero-banner {
+      position: relative;
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 36px 32px;
+      min-height: 580px;
+    }
+
+    /* Futuristic 3D Render Canvas / Image Overlay */
+    .hero-banner__bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      filter: contrast(1.05) brightness(0.95);
+      transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .hero-banner:hover .hero-banner__bg {
+      transform: scale(1.04);
+    }
+
+    /* Ambient Cyan/White Studio Light Beams */
+    .hero-banner__glow {
+      position: absolute;
+      top: -15%;
+      right: -15%;
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, transparent 70%);
+      filter: blur(50px);
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    /* Frosted Glass Floating Card */
+    .hero-glass-card {
+      position: relative;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.22);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: var(--radius-inner);
+      padding: 24px 28px;
+      text-align: center;
+      color: #ffffff;
+      box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    .hero-glass-card__title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-glass-card__desc {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.88);
+      margin-bottom: 18px;
+      font-weight: 500;
+    }
+
+    /* Pagination Indicator Dots */
+    .hero-dots {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .hero-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.45);
+      transition: var(--transition-smooth);
+      cursor: pointer;
+    }
+
+    .hero-dot.is-active {
+      width: 22px;
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+    }
+
+    /* ==========================================================================
+       4. RIGHT AUTH FORM CONTAINER
+       ========================================================================== */
+    .auth-form-panel {
+      padding: 48px 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-title {
+      font-size: 1.7rem;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.025em;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    /* Pill / Underline Method Switcher (E-mail vs Mobile) */
+    .tab-switch {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      margin-bottom: 28px;
+      position: relative;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding-bottom: 8px;
+      position: relative;
+      transition: var(--transition-smooth);
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.is-active {
+      color: var(--text-main);
+    }
+
+    .tab-btn.is-active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 10%;
+      right: 10%;
+      height: 2.5px;
+      background: var(--primary-500);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px var(--primary-glow);
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 14px;
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      pointer-events: none;
+      transition: var(--transition-smooth);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 13px 14px 13px 42px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--text-main);
+      background: #f8fafc;
+      border: 1.5px solid var(--border-subtle);
+      border-radius: var(--radius-input);
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .form-input:focus {
+      background: #ffffff;
+      border-color: var(--border-focus);
+      box-shadow: var(--shadow-input-focus);
+    }
+
+    .form-input:focus + .input-icon,
+    .form-input:focus ~ .input-icon {
+      color: var(--primary-600);
+    }
+
+    .pwd-toggle-btn {
+      position: absolute;
+      right: 14px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      transition: var(--transition-smooth);
+    }
+
+    .pwd-toggle-btn:hover {
+      color: var(--text-main);
+    }
+
+    /* Forgot Password Link */
+    .form-auxiliary {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: -10px;
+      margin-bottom: 22px;
+    }
+
+    .forgot-link {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: var(--transition-smooth);
+    }
+
+    .forgot-link:hover {
+      color: var(--primary-600);
+    }
+
+    /* Submit CTA Button */
+    .submit-btn {
+      width: 100%;
+      padding: 13px 20px;
+      background: var(--primary-gradient);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-btn);
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      box-shadow: var(--shadow-btn);
+      transition: var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .submit-btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 24px -4px rgba(14, 165, 233, 0.45);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    /* Social Auth Divider */
+    .social-divider {
+      position: relative;
+      text-align: center;
+      margin: 28px 0 20px 0;
+    }
+
+    .social-divider::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .social-divider__text {
+      position: relative;
+      display: inline-block;
+      padding: 0 14px;
+      background: var(--surface-card);
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: capitalize;
+    }
+
+    /* Social Buttons Row */
+    .social-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 26px;
+    }
+
+    .social-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #f8fafc;
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .social-btn:hover {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px -3px rgba(0, 0, 0, 0.07);
+    }
+
+    .social-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Footer Switch Link */
+    .auth-footer {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .auth-toggle-link {
+      color: var(--primary-600);
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      margin-left: 4px;
+      transition: var(--transition-smooth);
+    }
+
+    .auth-toggle-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Hide helper */
+    .is-hidden {
+      display: none !important;
+    }
+
+    /* ==========================================================================
+       5. RESPONSIVE MEDIA QUERIES (MOBILE FIRST COMPLIANCE)
+       ========================================================================== */
+    @media (max-width: 820px) {
+      .auth-card {
+        grid-template-columns: 1fr;
+        max-width: 480px;
+      }
+
+      .hero-banner {
+        min-height: 240px;
+        padding: 24px;
+        justify-content: center;
+      }
+
+      .hero-glass-card {
+        padding: 16px 20px;
+      }
+
+      .hero-glass-card__title {
+        font-size: 1rem;
+      }
+
+      .hero-glass-card__desc {
+        font-size: 0.8rem;
+        margin-bottom: 12px;
+      }
+
+      .auth-form-panel {
+        padding: 36px 28px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+
+      .auth-card {
+        border-radius: 20px;
+      }
+
+      .auth-form-panel {
+        padding: 28px 18px;
+      }
+
+      .auth-title {
+        font-size: 1.45rem;
+        margin-bottom: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MASTER AUTHENTICATION CONTAINER -->
+  <main class="auth-card" role="main">
+
+    <!-- 1. LEFT HERO PANEL (3D Minimalist Graphic + Glassmorphism Card) -->
+    <section class="hero-banner" aria-label="Welcome Visual Presentation">
+      <!-- High Quality Abstract 3D Architecture Visual -->
+      <img
+        class="hero-banner__bg"
+        src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80"
+        alt="Futuristic 3D sphere and architecture"
+      />
+      <div class="hero-banner__glow" aria-hidden="true"></div>
+
+      <!-- Overlaid Frosted Glass Card -->
+      <div class="hero-glass-card">
+        <h2 class="hero-glass-card__title" id="sliderTitle">Welcome to the Community</h2>
+        <p class="hero-glass-card__desc" id="sliderDesc">Login to explore exclusive health insights</p>
+
+        <!-- Slider Pagination Dots -->
+        <div class="hero-dots" role="tablist" aria-label="Slide indicators">
+          <span class="hero-dot is-active" data-slide="0" role="tab" aria-selected="true" aria-label="Slide 1"></span>
+          <span class="hero-dot" data-slide="1" role="tab" aria-selected="false" aria-label="Slide 2"></span>
+          <span class="hero-dot" data-slide="2" role="tab" aria-selected="false" aria-label="Slide 3"></span>
+          <span class="hero-dot" data-slide="3" role="tab" aria-selected="false" aria-label="Slide 4"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. RIGHT AUTHENTICATION FORM PANEL -->
+    <section class="auth-form-panel" aria-label="Authentication Form">
+
+      <!-- Dynamic Header Title -->
+      <h1 class="auth-title" id="formHeader">Login your account!</h1>
+
+      <!-- Method Switch Tabs (E-mail vs Mobile) -->
+      <div class="tab-switch" id="methodTabs" role="tablist">
+        <button type="button" class="tab-btn is-active" id="tabEmail" role="tab" aria-selected="true">
+          E-mail
+        </button>
+        <button type="button" class="tab-btn" id="tabMobile" role="tab" aria-selected="false">
+          Mobile number
+        </button>
+      </div>
+
+      <!-- Core Form -->
+      <form id="authForm" novalidate>
+
+        <!-- Extra Sign Up field: Full Name -->
+        <div class="form-group is-hidden" id="nameFieldGroup">
+          <label for="userName" class="visually-hidden" style="display:none">Full Name</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <input
+              type="text"
+              id="userName"
+              class="form-input"
+              placeholder="Your full name"
+              autocomplete="name"
+            />
+          </div>
+        </div>
+
+        <!-- Primary Identifier Field: Email (Default) -->
+        <div class="form-group" id="emailFieldGroup">
+          <label for="userEmail" class="visually-hidden" style="display:none">Email Address</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+            </svg>
+            <input
+              type="email"
+              id="userEmail"
+              class="form-input"
+              placeholder="Email"
+              autocomplete="email"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Secondary Identifier Field: Phone (Shown when Mobile Tab active) -->
+        <div class="form-group is-hidden" id="phoneFieldGroup">
+          <label for="userPhone" class="visually-hidden" style="display:none">Mobile Number</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+              <line x1="12" y1="18" x2="12.01" y2="18"></line>
+            </svg>
+            <input
+              type="tel"
+              id="userPhone"
+              class="form-input"
+              placeholder="Mobile number (e.g. +1 555 019 283)"
+              autocomplete="tel"
+            />
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="form-group">
+          <label for="userPassword" class="visually-hidden" style="display:none">Password</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <input
+              type="password"
+              id="userPassword"
+              class="form-input"
+              placeholder="Password"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              id="pwdToggleBtn"
+              class="pwd-toggle-btn"
+              aria-label="Toggle password visibility"
+            >
+              <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Forgot Password Action -->
+        <div class="form-auxiliary" id="forgotPwdContainer">
+          <a href="#forgot" class="forgot-link">Forgot password?</a>
+        </div>
+
+        <!-- Primary CTA Submit Button -->
+        <button type="submit" class="submit-btn" id="submitBtn">
+          Continue
+        </button>
+      </form>
+
+      <!-- Social Auth Divider -->
+      <div class="social-divider">
+        <span class="social-divider__text">Sign in with</span>
+      </div>
+
+      <!-- Social Login Buttons Row -->
+      <div class="social-row" aria-label="Social media login options">
+        <!-- Facebook -->
+        <button type="button" class="social-btn" aria-label="Sign in with Facebook">
+          <svg viewBox="0 0 24 24" fill="#1877F2">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+        </button>
+
+        <!-- Google -->
+        <button type="button" class="social-btn" aria-label="Sign in with Google">
+          <svg viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+        </button>
+
+        <!-- Apple -->
+        <button type="button" class="social-btn" aria-label="Sign in with Apple">
+          <svg viewBox="0 0 24 24" fill="#000000">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.87c.66-.82 1.11-1.96.99-3.1-.96.04-2.12.64-2.8 1.44-.6.69-1.12 1.82-.98 2.93 1.07.08 2.15-.49 2.79-1.27z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Auth Switcher Footer (Login <-> Sign up) -->
+      <footer class="auth-footer">
+        <span id="footerPrompt">Don't have an account?</span>
+        <a class="auth-toggle-link" id="authModeToggle">Sign up</a>
+      </footer>
+
+    </section>
+
+  </main>
+
+  <!-- ==========================================================================
+       6. VANILLA JAVASCRIPT LOGIC
+       ========================================================================== -->
+  <script>
+    (function () {
+      // Elements
+      const tabEmail = document.getElementById('tabEmail');
+      const tabMobile = document.getElementById('tabMobile');
+      const emailFieldGroup = document.getElementById('emailFieldGroup');
+      const phoneFieldGroup = document.getElementById('phoneFieldGroup');
+      const userEmail = document.getElementById('userEmail');
+      const userPhone = document.getElementById('userPhone');
+
+      const nameFieldGroup = document.getElementById('nameFieldGroup');
+      const forgotPwdContainer = document.getElementById('forgotPwdContainer');
+      const formHeader = document.getElementById('formHeader');
+      const submitBtn = document.getElementById('submitBtn');
+      const footerPrompt = document.getElementById('footerPrompt');
+      const authModeToggle = document.getElementById('authModeToggle');
+      const authForm = document.getElementById('authForm');
+
+      const pwdToggleBtn = document.getElementById('pwdToggleBtn');
+      const userPassword = document.getElementById('userPassword');
+      const eyeIcon = document.getElementById('eyeIcon');
+
+      // State
+      let isSignUp = false;
+      let activeMethod = 'email'; // 'email' | 'mobile'
+
+      // Switch between Email and Mobile Number tabs
+      function setAuthMethod(method) {
+        activeMethod = method;
+        if (method === 'email') {
+          tabEmail.classList.add('is-active');
+          tabEmail.setAttribute('aria-selected', 'true');
+          tabMobile.classList.remove('is-active');
+          tabMobile.setAttribute('aria-selected', 'false');
+
+          emailFieldGroup.classList.remove('is-hidden');
+          phoneFieldGroup.classList.add('is-hidden');
+          userEmail.setAttribute('required', 'true');
+          userPhone.removeAttribute('required');
+        } else {
+          tabMobile.classList.add('is-active');
+          tabMobile.setAttribute('aria-selected', 'true');
+          tabEmail.classList.remove('is-active');
+          tabEmail.setAttribute('aria-selected', 'false');
+
+          phoneFieldGroup.classList.remove('is-hidden');
+          emailFieldGroup.classList.add('is-hidden');
+          userPhone.setAttribute('required', 'true');
+          userEmail.removeAttribute('required');
+        }
+      }
+
+      tabEmail.addEventListener('click', () => setAuthMethod('email'));
+      tabMobile.addEventListener('click', () => setAuthMethod('mobile'));
+
+      // Switch between Login and Sign Up modes
+      authModeToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        isSignUp = !isSignUp;
+
+        if (isSignUp) {
+          formHeader.textContent = 'Create your account!';
+          submitBtn.textContent = 'Sign Up';
+          footerPrompt.textContent = 'Already have an account?';
+          authModeToggle.textContent = 'Log in';
+          nameFieldGroup.classList.remove('is-hidden');
+          forgotPwdContainer.classList.add('is-hidden');
+        } else {
+          formHeader.textContent = 'Login your account!';
+          submitBtn.textContent = 'Continue';
+          footerPrompt.textContent = "Don't have an account?";
+          authModeToggle.textContent = 'Sign up';
+          nameFieldGroup.classList.add('is-hidden');
+          forgotPwdContainer.classList.remove('is-hidden');
+        }
+      });
+
+      // Show / Hide Password toggle
+      let pwdVisible = false;
+      pwdToggleBtn.addEventListener('click', () => {
+        pwdVisible = !pwdVisible;
+        userPassword.type = pwdVisible ? 'text' : 'password';
+        eyeIcon.innerHTML = pwdVisible
+          ? '<path d="m3 3 18 18"></path><path d="M10.584 10.587a2 2 0 0 0 2.828 2.83"></path><path d="M9.363 5.365A9.466 9.466 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.674 2.682"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>'
+          : '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle>';
+      });
+
+      // Hero Slider Dots
+      const dots = document.querySelectorAll('.hero-dot');
+      const sliderTitle = document.getElementById('sliderTitle');
+      const sliderDesc = document.getElementById('sliderDesc');
+
+      const slides = [
+        { title: 'Welcome to the Community', desc: 'Login to explore exclusive health insights' },
+        { title: 'Fast & Secure Screening', desc: 'Clinical validation with zero-retention privacy' },
+        { title: 'Smart Sensor Metrics', desc: 'Measure reaction, vision & cognitive precision' },
+        { title: 'Tailored Medical Reports', desc: 'Download accredited doctor-ready PDF summaries' },
+      ];
+
+      dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => {
+          dots.forEach((d) => {
+            d.classList.remove('is-active');
+            d.setAttribute('aria-selected', 'false');
+          });
+          dot.classList.add('is-active');
+          dot.setAttribute('aria-selected', 'true');
+
+          sliderTitle.textContent = slides[index].title;
+          sliderDesc.textContent = slides[index].desc;
+        });
+      });
+
+      // Submit form action
+      authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const identifier = activeMethod === 'email' ? userEmail.value : userPhone.value;
+        const pass = userPassword.value;
+        
+        if (!identifier || !pass) {
+          alert('Please fill in all required fields');
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+
+        setTimeout(() => {
+          alert((isSignUp ? 'Registration successful for: ' : 'Logged in as: ') + identifier);
+          submitBtn.disabled = false;
+          submitBtn.textContent = isSignUp ? 'Sign Up' : 'Continue';
+        }, 800);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -24,7 +24,6 @@ import type { TestItem } from '../types'
 import { apiRequest } from '../api'
 import { getTestCover, getTestAlt, getTestPhotoCredit } from '../lib/testImages'
 
-// Import all 16 approved test engines
 import { SchulteTableEngine } from './test-engines/SchulteTableEngine'
 import { TrailMakingEngine } from './test-engines/TrailMakingEngine'
 import { CorsiBlocksEngine } from './test-engines/CorsiBlocksEngine'
@@ -34,13 +33,17 @@ import { ContrastSensitivityEngine } from './test-engines/ContrastSensitivityEng
 import { VisualPairsEngine } from './test-engines/VisualPairsEngine'
 import { PathMemoryEngine } from './test-engines/PathMemoryEngine'
 import { PatternMatrixEngine } from './test-engines/PatternMatrixEngine'
-import { SoundComparisonEngine } from './test-engines/SoundComparisonEngine'
 import { SpeechInNoiseEngine } from './test-engines/SpeechInNoiseEngine'
 import { ReactionSpeedEngine } from './test-engines/ReactionSpeedEngine'
 import { GoNoGoEngine } from './test-engines/GoNoGoEngine'
 import { PursuitTrackingEngine } from './test-engines/PursuitTrackingEngine'
 import { CursorPathEngine } from './test-engines/CursorPathEngine'
 import { Gad7Engine } from './test-engines/Gad7Engine'
+import { EmotionalAffectEngine } from './test-engines/EmotionalAffectEngine'
+import { CircadianClockEngine } from './test-engines/CircadianClockEngine'
+import { ColorHueEngine } from './test-engines/ColorHueEngine'
+import { LandoltVisionEngine } from './test-engines/LandoltVisionEngine'
+import { TonalAudiometryEngine } from './test-engines/TonalAudiometryEngine'
 
 interface TestRunnerPageProps {
   slug: string
@@ -364,7 +367,7 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
     }
   }
 
-  // Render the appropriate engine component out of the 16 approved modules
+  // Render the appropriate engine component matching the test methodology
   const renderEngine = () => {
     switch (slug) {
       case 'attention-concentration':
@@ -379,28 +382,41 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
         return <SymbolDigitEngine lang={lang} onComplete={handleTestComplete} />
       case 'contrast-sensitivity':
         return <ContrastSensitivityEngine lang={lang} onComplete={handleTestComplete} />
+      case 'color-hue-discrimination':
+      case 'color-perception':
+        return <ColorHueEngine lang={lang} onComplete={handleTestComplete} />
+      case 'visual-perception':
+        return <LandoltVisionEngine lang={lang} onComplete={handleTestComplete} />
+      case 'sound-discrimination':
+        return <TonalAudiometryEngine lang={lang} onComplete={handleTestComplete} />
+      case 'speech-in-noise':
+        return <SpeechInNoiseEngine lang={lang} onComplete={handleTestComplete} />
+      case 'reaction-speed':
+        return <ReactionSpeedEngine lang={lang} onComplete={handleTestComplete} />
+      case 'mouse-eye-coordination':
+        return <PursuitTrackingEngine lang={lang} onComplete={handleTestComplete} />
+      case 'anxiety':
+        return <Gad7Engine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
+      case 'mood':
+        return <EmotionalAffectEngine lang={lang} onComplete={handleTestComplete} />
+      case 'sleep-quality':
+        return <CircadianClockEngine lang={lang} onComplete={handleTestComplete} />
       case 'visual-pairs':
         return <VisualPairsEngine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
       case 'path-memory':
         return <PathMemoryEngine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
       case 'pattern-matrix':
         return <PatternMatrixEngine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
-      case 'sound-discrimination':
-        return <SoundComparisonEngine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
-      case 'speech-in-noise':
-        return <SpeechInNoiseEngine lang={lang} onComplete={handleTestComplete} />
-      case 'reaction-speed':
-        return <ReactionSpeedEngine lang={lang} onComplete={handleTestComplete} />
       case 'go-no-go':
         return <GoNoGoEngine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
-      case 'mouse-eye-coordination':
-        return <PursuitTrackingEngine lang={lang} onComplete={handleTestComplete} />
       case 'cursor-path':
         return <CursorPathEngine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
-      case 'anxiety':
-        return <Gad7Engine lang={lang} challenge={attemptChallenge} onComplete={handleTestComplete} />
       default:
-        return <ReactionSpeedEngine lang={lang} onComplete={handleTestComplete} />
+        return (
+          <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
+            <p className="text-sm text-slate-500">Методика находится на калибровке доказательного ядра.</p>
+          </div>
+        )
     }
   }
 

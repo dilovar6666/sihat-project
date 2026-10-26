@@ -17,6 +17,7 @@ import { Button } from './ui/Button'
 import type { Language, Translations } from '../i18n'
 import type { TestItem, Category } from '../types'
 import { getTestCover, getTestAlt, getTestPhotoCredit } from '../lib/testImages'
+import { useLiquidPill } from '../hooks/useLiquidPill'
 
 interface CatalogSectionProps {
   t: Translations
@@ -37,6 +38,10 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCat, setSelectedCat] = useState<string>('all')
+  const { containerRef: catContainerRef, pillRef: catPillRef, itemRefs: catItemRefs } = useLiquidPill(
+    selectedCat,
+    { orientation: 'horizontal' }
+  )
 
   // Map category UUIDs to category slugs for reliable filtering
   const categoryMap = useMemo(() => {
@@ -47,10 +52,35 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
     return map
   }, [categories])
 
-  // Filter out any unpublished / draft tests safely
+  // Ready interactive clinical engines with proven exercises
+  const VERIFIED_READY_SLUGS = useMemo(
+    () =>
+      new Set([
+        'attention-concentration',
+        'attention-switching',
+        'visual-memory',
+        'short-term-memory',
+        'information-processing-speed',
+        'contrast-sensitivity',
+        'color-hue-discrimination',
+        'visual-perception',
+        'sound-discrimination',
+        'speech-in-noise',
+        'reaction-speed',
+        'mouse-eye-coordination',
+        'anxiety',
+        'mood',
+        'sleep-quality',
+      ]),
+    []
+  )
+
+  // Filter out any unpublished / draft tests or tests without ready engines
   const publishedTests = useMemo(() => {
-    return tests.filter((item) => item.status !== 'draft')
-  }, [tests])
+    return tests.filter(
+      (item) => item.status !== 'draft' && VERIFIED_READY_SLUGS.has(item.slug)
+    )
+  }, [tests, VERIFIED_READY_SLUGS])
 
   // Category matching helper
   const matchesCategory = useCallback((item: TestItem, catId: string): boolean => {
@@ -205,19 +235,26 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
         </div>
       </div>
 
-      {/* Category Filter Pills */}
-      <div className="flex flex-wrap gap-2 mb-8">
+      {/* Category Filter Pills with iOS Liquid Glass Transition */}
+      <div
+        ref={catContainerRef}
+        className="flex flex-wrap gap-2 mb-8 relative p-1.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.03] dark:border-white/[0.04]"
+      >
+        <div ref={catPillRef} className="liquid-glass-active-pill rounded-2xl" />
         {categoryChips.map((chip) => {
           const Icon = chip.icon
           const isActive = selectedCat === chip.id
           return (
             <button
               key={chip.id}
+              ref={(el) => {
+                catItemRefs.current[chip.id] = el
+              }}
               onClick={() => setSelectedCat(chip.id)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold transition-colors cursor-pointer relative z-10 ${
                 isActive
-                  ? 'bg-[#103D35] text-white shadow-md font-bold'
-                  : 'liquid-glass-pill text-zinc-600 dark:text-zinc-400 hover:border-[#17A884]/50 hover:text-zinc-900 dark:hover:text-zinc-100'
+                  ? 'text-[#103D35] dark:text-[#2EC4A7] font-bold'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -225,7 +262,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
               <span
                 className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                   isActive
-                    ? 'bg-white/20 text-white'
+                    ? 'bg-[#103D35]/15 dark:bg-[#2EC4A7]/20 text-[#103D35] dark:text-[#2EC4A7]'
                     : 'bg-zinc-200/70 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
                 }`}
               >

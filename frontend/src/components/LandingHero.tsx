@@ -15,12 +15,16 @@ import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import { Card } from './ui/Card'
 import type { Language, Translations } from '../i18n'
+import type { TestItem } from '../types'
+import { TestMarquee } from './TestMarquee'
 
 interface LandingHeroProps {
   t: Translations
   lang: Language
+  tests?: TestItem[]
   onOpenCatalog: () => void
   onOpenMethodology: () => void
+  onSelectTest?: (test: TestItem) => void
   onStartScreening: (slug: string) => void
 }
 
@@ -179,8 +183,10 @@ const IshiharaPlateCanvas: React.FC<{ plate: PlateDefinition }> = ({ plate }) =>
 export const LandingHero: React.FC<LandingHeroProps> = ({
   t,
   lang,
+  tests = [],
   onOpenCatalog,
   onOpenMethodology,
+  onSelectTest,
   onStartScreening,
 }) => {
   // Mini-screening for Color Blindness (Ishihara / Rabkin) state
@@ -571,6 +577,21 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
 
             </div>
           </Card>
+
+          {/* Continuous Infinite Marquee Ribbon of All Available Protocols */}
+          <TestMarquee
+            tests={tests}
+            lang={lang}
+            onOpenCatalog={onOpenCatalog}
+            onSelectTest={(test) => {
+              if (onSelectTest) {
+                onSelectTest(test)
+              } else {
+                onStartScreening(test.slug)
+              }
+            }}
+            onStartAttempt={(test) => onStartScreening(test.slug)}
+          />
         </div>
       </div>
     </section>

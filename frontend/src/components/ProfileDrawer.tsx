@@ -112,7 +112,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
 
       {/* Slide-over Drawer Panel */}
       <aside
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-sm sm:max-w-md liquid-glass border-l border-white/20 dark:border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
+        className="!fixed inset-y-0 right-0 z-50 w-full max-w-sm sm:max-w-md liquid-glass border-l border-white/20 dark:border-white/10 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300"
         role="dialog"
         aria-modal="true"
         aria-label={t.title}
@@ -147,7 +147,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">
-                      {user.full_name || user.email.split('@')[0]}
+                      {user.full_name || (user.email ? user.email.split('@')[0] : user.phone || 'Пользователь')}
                     </span>
                     {user.role === 'admin' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
@@ -161,7 +161,9 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">{user.email}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                    {user.email || user.phone || ''}
+                  </p>
                 </div>
               </div>
               <Button

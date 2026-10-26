@@ -393,7 +393,10 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
         </div>
 
         {/* Suggestion Chips */}
-        <div className="px-6 py-2 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-950/40 flex gap-2 overflow-x-auto text-xs no-scrollbar">
+        <div
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="px-6 py-2 border-t border-zinc-100 dark:border-zinc-900 bg-zinc-50/50 dark:bg-zinc-950/40 flex gap-2 overflow-x-auto text-xs no-scrollbar"
+        >
           {quickPrompts.map((p, pIdx) => (
             <button
               key={pIdx}

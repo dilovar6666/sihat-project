@@ -13,19 +13,27 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "test_attempts", sa.Column("definition_version", sa.String(length=80), nullable=True)
-    )
-    op.add_column("test_attempts", sa.Column("definition_snapshot", sa.JSON(), nullable=True))
-    op.add_column(
-        "test_attempts", sa.Column("current_question_id", sa.String(length=120), nullable=True)
-    )
-    op.execute(
-        "UPDATE test_attempts SET definition_version = questionnaire_version WHERE definition_version IS NULL"
-    )
-    op.execute(
-        "UPDATE test_attempts SET definition_snapshot = snapshot WHERE definition_snapshot IS NULL"
-    )
+    conn = op.get_bind()
+    insp = sa.inspect(conn)
+    cols = [c["name"] for c in insp.get_columns("test_attempts")]
+    if "definition_version" not in cols:
+        op.add_column(
+            "test_attempts", sa.Column("definition_version", sa.String(length=80), nullable=True)
+        )
+    if "definition_snapshot" not in cols:
+        op.add_column("test_attempts", sa.Column("definition_snapshot", sa.JSON(), nullable=True))
+    if "current_question_id" not in cols:
+        op.add_column(
+            "test_attempts", sa.Column("current_question_id", sa.String(length=120), nullable=True)
+        )
+    if "questionnaire_version" in cols:
+        op.execute(
+            "UPDATE test_attempts SET definition_version = questionnaire_version WHERE definition_version IS NULL"
+        )
+    if "snapshot" in cols:
+        op.execute(
+            "UPDATE test_attempts SET definition_snapshot = snapshot WHERE definition_snapshot IS NULL"
+        )
 
 
 def downgrade() -> None:

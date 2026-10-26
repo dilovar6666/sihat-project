@@ -1,20 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
-  ShieldCheck,
   Mail,
   Lock,
   User,
   ArrowLeft,
   KeyRound,
   CheckCircle2,
-  Activity,
   HeartPulse,
-  AlertTriangle,
+  Phone,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
-import { Button } from './ui/Button'
 import { apiRequest, setApiToken, setRefreshToken } from '../api'
 import type { Language } from '../i18n'
 import type { UserProfile } from '../types'
+
+/* ==========================================================================
+   SVG SOCIAL ICONS (Google, Facebook, Apple)
+   ========================================================================== */
 
 const GoogleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -37,19 +40,27 @@ const GoogleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' })
   </svg>
 )
 
+const FacebookIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="#1877F2" aria-hidden="true">
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+  </svg>
+)
+
+const AppleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.87c.66-.82 1.11-1.96.99-3.1-.96.04-2.12.64-2.8 1.44-.6.69-1.12 1.82-.98 2.93 1.07.08 2.15-.49 2.79-1.27z" />
+  </svg>
+)
+
+/* ==========================================================================
+   GOOGLE GSI INTEGRATION
+   ========================================================================== */
+
 interface GoogleAuthButtonProps {
   mode: 'login' | 'register'
   ageGroup: string
   lang: Language
-  labels: {
-    orDivider: string
-    googleBtn: string
-    googleLoginBtn: string
-    googleRegisterBtn: string
-    googleSuccess: string
-    googleHelpToggle: string
-    googleOriginNotice: string
-  }
+  labels: Record<string, string>
   onSuccess: (user: UserProfile, token: string) => void
   onNotify: (msg: string) => void
   onNavigate: (pageId: string) => void
@@ -57,197 +68,136 @@ interface GoogleAuthButtonProps {
 }
 
 const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
-  mode,
   ageGroup,
-  lang,
   labels,
   onSuccess,
   onNotify,
   onNavigate,
   disabled = false,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [showHelp, setShowHelp] = useState(false)
-  const [googleReady, setGoogleReady] = useState(false)
   const [loading, setLoading] = useState(false)
-
-  const handleCredentialResponse = async (response: any) => {
-    if (!response?.credential) return
-    setLoading(true)
-    try {
-      const data = await apiRequest<{
-        access_token: string
-        refresh_token: string
-        user: UserProfile
-      }>('/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({
-          id_token: response.credential,
-          age_group: ageGroup,
-        }),
-      })
-      setApiToken(data.access_token)
-      setRefreshToken(data.refresh_token)
-      onSuccess(data.user, data.access_token)
-      onNotify(labels.googleSuccess)
-      onNavigate('profile')
-    } catch (err: unknown) {
-      onNotify(err instanceof Error ? err.message : 'Google OAuth Error')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const gsiContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    let rawClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (rawClientId) {
-      rawClientId = rawClientId.replace(/^https?:\/\//, '').trim()
+    let unmounted = false
+    const win = window as any
+    let clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '26582096896-d1k7bij57g2cekc2k7u41pba24gdp4t1.apps.googleusercontent.com'
+    if (clientId) {
+      clientId = clientId.replace(/^https?:\/\//, '').trim()
     }
-    if (!rawClientId) return
 
-    let cancelled = false
-    let attempts = 0
-
-    const renderGsi = () => {
-      const win = window as any
-      if (!win.google?.accounts?.id || !containerRef.current || cancelled) return
-
+    const initGsi = () => {
+      if (unmounted || !win.google?.accounts?.id || !clientId) return
       try {
         win.google.accounts.id.initialize({
-          client_id: rawClientId,
-          callback: handleCredentialResponse,
-          auto_select: false,
-          cancel_on_tap_outside: true,
+          client_id: clientId,
+          callback: async (response: any) => {
+            if (!response?.credential) return
+            setLoading(true)
+            try {
+              const data = await apiRequest<{
+                access_token: string
+                refresh_token: string
+                user: UserProfile
+              }>('/auth/google', {
+                method: 'POST',
+                body: JSON.stringify({
+                  id_token: response.credential,
+                  age_group: ageGroup,
+                }),
+              })
+              setApiToken(data.access_token)
+              setRefreshToken(data.refresh_token)
+              onSuccess(data.user, data.access_token)
+              onNotify(labels.googleSuccess || 'Вход через Google успешен!')
+              onNavigate('profile')
+            } catch (err: unknown) {
+              onNotify(err instanceof Error ? err.message : 'Ошибка авторизации Google')
+            } finally {
+              setLoading(false)
+            }
+          },
         })
 
-        if (containerRef.current) {
-          containerRef.current.innerHTML = ''
-          const isDark = document.documentElement.classList.contains('dark')
-          const containerWidth = Math.min(
-            Math.max(containerRef.current.offsetWidth || 340, 240),
-            400
-          )
-
-          win.google.accounts.id.renderButton(containerRef.current, {
-            type: 'standard',
-            theme: isDark ? 'filled_black' : 'outline',
+        if (gsiContainerRef.current) {
+          gsiContainerRef.current.innerHTML = ''
+          win.google.accounts.id.renderButton(gsiContainerRef.current, {
+            type: 'icon',
+            shape: 'circle',
+            theme: 'outline',
             size: 'large',
-            text: mode === 'register' ? 'signup_with' : 'continue_with',
-            shape: 'rectangular',
-            logo_alignment: 'left',
-            width: containerWidth,
-            locale: lang === 'tj' ? 'ru' : lang,
           })
-          setGoogleReady(true)
         }
-      } catch (err) {
-        console.warn('Google GSI render error:', err)
+      } catch (e) {
+        console.warn('GSI init error:', e)
       }
     }
 
-    if ((window as any).google?.accounts?.id) {
-      renderGsi()
+    if (win.google?.accounts?.id) {
+      initGsi()
     } else {
-      const timer = setInterval(() => {
-        attempts++
-        if ((window as any).google?.accounts?.id) {
-          clearInterval(timer)
-          renderGsi()
-        } else if (attempts >= 15) {
-          clearInterval(timer)
+      const interval = setInterval(() => {
+        if (win.google?.accounts?.id) {
+          clearInterval(interval)
+          initGsi()
         }
-      }, 200)
+      }, 250)
       return () => {
-        cancelled = true
-        clearInterval(timer)
+        unmounted = true
+        clearInterval(interval)
       }
     }
 
     return () => {
-      cancelled = true
+      unmounted = true
     }
-  }, [mode, ageGroup, lang])
+  }, [ageGroup, labels.googleSuccess, onNavigate, onNotify, onSuccess])
 
-  const handleCustomTrigger = () => {
+  const handleClick = () => {
     const win = window as any
     if (win.google?.accounts?.id) {
-      win.google.accounts.id.prompt()
+      win.google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
+          const innerBtn = gsiContainerRef.current?.querySelector('div[role="button"]') as HTMLElement
+          if (innerBtn) innerBtn.click()
+        }
+      })
+      const innerBtn = gsiContainerRef.current?.querySelector('div[role="button"]') as HTMLElement
+      if (innerBtn) innerBtn.click()
     } else {
-      onNotify('Google Identity Services загружается. Пожалуйста, подождите или проверьте соединение.')
+      onNotify('Сервис Google загружается... Попробуйте через секунду')
     }
   }
 
   return (
-    <div className="w-full mt-4">
-      {/* Divider */}
-      <div className="relative my-4">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200 dark:border-slate-800" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white dark:bg-slate-900 px-3 text-slate-400 font-bold tracking-wider">
-            {labels.orDivider}
-          </span>
-        </div>
-      </div>
+    <div
+      onClick={handleClick}
+      className={`relative w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center cursor-pointer transition-all hover:bg-white dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 overflow-hidden ${
+        disabled || loading ? 'opacity-50 pointer-events-none' : ''
+      }`}
+      aria-label="Sign in with Google"
+      title="Sign in with Google"
+    >
+      <GoogleIcon className="w-5 h-5 pointer-events-none z-10" />
 
-      {/* Google Button in SIHAT Signature styling */}
-      <div className="w-full flex flex-col items-center gap-2">
-        <div className="w-full flex justify-center items-center min-h-[44px] rounded-xl border border-slate-200/90 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 hover:border-[#17A884] dark:hover:border-[#2EC4A7] hover:shadow-md hover:shadow-[#17A884]/10 transition-all p-0.5">
-          <div ref={containerRef} className="w-full flex justify-center items-center" />
-          {!googleReady && (
-            <button
-              type="button"
-              disabled={disabled || loading}
-              onClick={handleCustomTrigger}
-              className="w-full flex items-center justify-center gap-3 py-2.5 px-4 text-slate-700 dark:text-slate-200 font-bold text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750 rounded-lg transition-colors"
-            >
-              <GoogleIcon className="w-4 h-4 shrink-0" />
-              <span>{mode === 'register' ? labels.googleRegisterBtn : labels.googleLoginBtn}</span>
-            </button>
-          )}
-        </div>
+      {/* Invisible overlay of Google's rendered circular button directly under cursor */}
+      <div
+        ref={gsiContainerRef}
+        className="absolute inset-0 opacity-0 overflow-hidden flex items-center justify-center cursor-pointer z-20 scale-125"
+      />
 
-        {/* Diagnostic info toggle */}
-        <div className="w-full text-center mt-0.5">
-          <button
-            type="button"
-            onClick={() => setShowHelp(!showHelp)}
-            className="text-[11px] text-slate-400 hover:text-[#17A884] transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
-            <span>{labels.googleHelpToggle}</span>
-          </button>
-
-          {showHelp && (
-            <div className="mt-2 p-3 text-left bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 space-y-2 leading-relaxed shadow-xs">
-              <p className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#17A884]" />
-                <span>{labels.googleOriginNotice}</span>
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Авторизация осуществляется через официальный Google Identity Services (GSI) по безопасному протоколу OAuth 2.0.
-              </p>
-              <div className="text-[11px] bg-white dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 space-y-1">
-                <div className="font-semibold text-slate-700 dark:text-slate-300">
-                  Разрешённые Origins в Google Cloud Console:
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  <code className="bg-slate-100 dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded font-mono text-[10px]">
-                    http://127.0.0.1:5173
-                  </code>
-                  <code className="bg-slate-100 dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded font-mono text-[10px]">
-                    http://localhost:5173
-                  </code>
-                </div>
-              </div>
-            </div>
-          )}
+      {loading && (
+        <div className="absolute inset-0 bg-white/70 dark:bg-zinc-800/70 flex items-center justify-center z-30">
+          <span className="w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      </div>
+      )}
     </div>
   )
 }
+
+/* ==========================================================================
+   MAIN AUTH PAGE COMPONENT
+   ========================================================================== */
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register' | 'forgot-password' | 'reset-password'
@@ -267,8 +217,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [mode, setMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>(
     initialMode
   )
+  const [authMethod, setAuthMethod] = useState<'email' | 'mobile'>('email')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [ageGroup, setAgeGroup] = useState('18_plus')
   const [resetToken, setResetToken] = useState('')
@@ -276,163 +229,150 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [loading, setLoading] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
 
+  // Hero Slider State (Dots on left frosted glass card)
+  const [activeSlide, setActiveSlide] = useState(0)
+
+  // Auto-switch banner cards every 5 seconds with smooth fade transition
+  useEffect(() => {
+    const count = 4 // Total slider cards per locale
+    const timer = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % count)
+    }, 5000)
+
+    return () => clearInterval(timer)
+  }, [])
+
   useEffect(() => {
     setMode(initialMode)
   }, [initialMode])
 
   const t = {
     ru: {
-      loginTitle: 'Вход в аккаунт SIHAT',
-      loginSubtitle: 'Войдите для доступа к личному архиву скринингов и динамике показателей.',
-      registerTitle: 'Создать личный профиль',
-      registerSubtitle: 'Приватное и безопасное пространство для контроля вашего здоровья.',
+      loginTitle: 'Войдите в аккаунт!',
+      loginSubtitle: 'Добро пожаловать в доказательную цифровую медицину SIHAT.',
+      registerTitle: 'Создайте аккаунт!',
+      registerSubtitle: 'Приватное пространство для контроля и скрининга функций здоровья.',
       forgotTitle: 'Восстановление пароля',
-      forgotSubtitle: 'Введите адрес электронной почты для получения ссылки сброса.',
-      resetTitle: 'Установка нового пароля',
+      forgotSubtitle: 'Введите email для получения ссылки сброса доступа.',
+      resetTitle: 'Новый пароль',
       resetSubtitle: 'Введите полученный токен и новый безопасный пароль.',
-      emailLabel: 'Электронная почта (Email)',
-      emailPlaceholder: 'name@example.com',
-      passwordLabel: 'Пароль',
-      passwordPlaceholder: 'Минимум 8 символов',
-      fullNameLabel: 'Ваше имя или псевдоним',
-      fullNamePlaceholder: 'Иван Петров',
-      ageLabel: 'Возрастная категория',
-      age18: '18 лет и старше (Взрослый контур)',
-      age1617: '16–17 лет (Юношеский контур)',
-      tokenLabel: 'Токен сброса пароля',
-      tokenPlaceholder: 'Вставьте токен из письма',
-      newPasswordLabel: 'Новый пароль',
-      newPasswordPlaceholder: 'Минимум 8 символов',
-      loginBtn: 'Войти в систему',
+      tabEmail: 'E-mail',
+      tabMobile: 'Номер телефона',
+      emailPlaceholder: 'Email (например: name@example.com)',
+      phonePlaceholder: 'Номер телефона (например: +992 90 000 0000)',
+      passwordPlaceholder: 'Пароль (минимум 8 символов)',
+      fullNamePlaceholder: 'Ваше имя или псевдоним',
+      continueBtn: 'Продолжить',
       registerBtn: 'Зарегистрироваться',
+      signInWith: 'Войти через',
+      noAccount: 'Еще нет аккаунта?',
+      hasAccount: 'Уже есть аккаунт?',
+      signUpLink: 'Зарегистрироваться',
+      loginLink: 'Войти',
+      forgotPassLink: 'Забыли пароль?',
+      backToHome: 'На главную',
+      backToLogin: 'Вернуться ко входу',
       sendResetBtn: 'Отправить ссылку для сброса',
       setNewPasswordBtn: 'Сохранить новый пароль',
-      orDivider: 'или',
-      googleBtn: 'Продолжить с Google',
-      googleLoginBtn: 'Войти через Google',
-      googleRegisterBtn: 'Регистрация через Google',
-      googleSuccess: 'Успешный вход через Google',
-      googleHelpToggle: 'Инструкция по настройке Google входа',
-      googleOriginNotice: 'Для работы Google авторизации домен должен быть разрешён в Google Cloud Console.',
-      noAccount: 'Ещё нет аккаунта?',
-      hasAccount: 'Уже есть профиль?',
-      forgotPassLink: 'Забыли пароль?',
-      backToLogin: 'Вернуться ко входу',
-      backToHome: 'На главную',
-      privacyNote: 'Ваши данные защищены сквозным шифрованием. Мы не передаем биометрические маркеры третьим лицам.',
-      resetSentMsg: 'Если указанный адрес зарегистрирован, письмо с инструкцией отправлено.',
+      resetSentMsg: 'Инструкция для сброса пароля отправлена на указанную почту.',
       resetSuccessMsg: 'Пароль успешно обновлен. Теперь вы можете войти.',
-      brandTitle: 'SIHAT — UNDERSTAND YOUR HEALTH',
-      brandDesc: 'Премиальная цифровая психофизиология и доказательный скрининг когнитивно-моторных функций.',
-      badgeIso: 'ISO 8596 & Open Science',
-      badgePrivacy: 'Zero-Retention Architecture',
+      sliderCards: [
+        { title: 'Добро пожаловать в SIHAT', desc: 'Единая платформа скрининга и доказательной медицины' },
+        { title: 'Научная калибровка ISO 8596', desc: 'Высокоточная проверка остроты зрения и контрастности' },
+        { title: 'Аудиометрия и Струп-тест', desc: 'Оценка частотного порога слуха и когнитивного контроля' },
+        { title: 'Строгая приватность данных', desc: 'Zero-Retention архитектура без передачи биометрии третьим лицам' },
+      ],
     },
     tj: {
-      loginTitle: 'Воридшавӣ ба ҳисоби SIHAT',
-      loginSubtitle: 'Барои дастрасӣ ба бойгонии шахсии скринингҳо ва динамикаи нишондиҳандаҳо ворид шавед.',
-      registerTitle: 'Эҷоди профили шахсӣ',
+      loginTitle: 'Ба ҳисоби худ ворид шавед!',
+      loginSubtitle: 'Ба платформаи ташхис ва тибби исботшудаи SIHAT хуш омадед.',
+      registerTitle: 'Ҳисоби нав эҷод кунед!',
       registerSubtitle: 'Муҳити амн ва маҳрамона барои назорати саломатии шумо.',
       forgotTitle: 'Барқароркунии рамз',
-      forgotSubtitle: 'Почтаи электрониро барои гирифтани пайванди барқароркунӣ ворид намоед.',
-      resetTitle: 'Муқаррар кардани рамзи нав',
-      resetSubtitle: 'Токени гирифташуда ва рамзи навро ворид намоед.',
-      emailLabel: 'Почтаи электронӣ (Email)',
-      emailPlaceholder: 'name@example.com',
-      passwordLabel: 'Рамз',
-      passwordPlaceholder: 'Ҳадди ақал 8 аломат',
-      fullNameLabel: 'Ному насаб ё тахаллус',
-      fullNamePlaceholder: 'Дилшод Раҳимов',
-      ageLabel: 'Гурӯҳи синну сол',
-      age18: '18 сола ва калонтар',
-      age1617: '16–17 сола',
-      tokenLabel: 'Токени барқароркунӣ',
-      tokenPlaceholder: 'Токенро аз мактуб гузоред',
-      newPasswordLabel: 'Рамзи нав',
-      newPasswordPlaceholder: 'Ҳадди ақал 8 аломат',
-      loginBtn: 'Воридшавӣ ба система',
+      forgotSubtitle: 'Почтаи электрониро барои гирифтани пайванд ворид намоед.',
+      resetTitle: 'Рамзи нав',
+      resetSubtitle: 'Токени гирифташуда ва рамзи навро ворид кунед.',
+      tabEmail: 'E-mail',
+      tabMobile: 'Рақами телефон',
+      emailPlaceholder: 'Email (масалан: name@example.com)',
+      phonePlaceholder: 'Рақами телефон (масалан: +992 90 000 0000)',
+      passwordPlaceholder: 'Рамз (ҳадди ақал 8 аломат)',
+      fullNamePlaceholder: 'Ному насаби шумо',
+      continueBtn: 'Идома додан',
       registerBtn: 'Бақайдгирӣ',
-      sendResetBtn: 'Ирсоли пайванд',
-      setNewPasswordBtn: 'Сабти рамзи нав',
-      orDivider: 'ё',
-      googleBtn: 'Идома додан бо Google',
-      googleLoginBtn: 'Воридшавӣ тавассути Google',
-      googleRegisterBtn: 'Бақайдгирӣ тавассути Google',
-      googleSuccess: 'Воридшавии бомуваффақият тавассути Google',
-      googleHelpToggle: 'Дастури танзими воридшавии Google',
-      googleOriginNotice: 'Барои кори воридшавии Google суроғаи сайт бояд дар Google Cloud иҷозат дода шавад.',
+      signInWith: 'Воридшавӣ тавассути',
       noAccount: 'Ҳанӯз ҳисоб надоред?',
       hasAccount: 'Аллакай ҳисоб доред?',
+      signUpLink: 'Бақайдгирӣ',
+      loginLink: 'Воридшавӣ',
       forgotPassLink: 'Рамзро фаромӯш кардед?',
-      backToLogin: 'Бозгашт ба воридшавӣ',
       backToHome: 'Ба саҳифаи асосӣ',
-      privacyNote: 'Маълумоти шумо таҳти ҳимояи махфӣ қарор дорад.',
-      resetSentMsg: 'Мактуб барои барқароркунии рамз ирсол шуд.',
-      resetSuccessMsg: 'Рамз нав карда шуд. Акнун ворид шавед.',
-      brandTitle: 'SIHAT — UNDERSTAND YOUR HEALTH',
-      brandDesc: 'Скрининги исботшудаи когнитивӣ ва мотории саломатӣ.',
-      badgeIso: 'ISO 8596 & Open Science',
-      badgePrivacy: 'Zero-Retention Architecture',
+      backToLogin: 'Бозгашт ба воридшавӣ',
+      sendResetBtn: 'Ирсоли пайванд',
+      setNewPasswordBtn: 'Сабти рамзи нав',
+      resetSentMsg: 'Дастурамали барқароркунӣ фиристода шуд.',
+      resetSuccessMsg: 'Рамз нав шуд. Акнун ворид шавед.',
+      sliderCards: [
+        { title: 'Ба ҷомеаи SIHAT хуш омадед', desc: 'Платформаи ягонаи скрининг ва назорати саломатӣ' },
+        { title: 'Калибровкаи стандартии ISO 8596', desc: 'Санҷиши дақиқи биноӣ ва ҳассосияти контраст' },
+        { title: 'Аудиометрия ва тести Струп', desc: 'Санҷиши шунавоӣ ва диққати когнитивӣ' },
+        { title: 'Махфияти пурраи маълумот', desc: 'Ҳифзи пурраи маълумоти тиббии шумо' },
+      ],
     },
     en: {
-      loginTitle: 'Sign In to SIHAT',
-      loginSubtitle: 'Access your private screening archive and cognitive biomarker history.',
-      registerTitle: 'Create Private Profile',
-      registerSubtitle: 'Confidential and evidence-based self-monitoring platform.',
-      forgotTitle: 'Password Recovery',
-      forgotSubtitle: 'Enter your email address to receive password reset instructions.',
-      resetTitle: 'Set New Password',
-      resetSubtitle: 'Enter your recovery token and new secure password.',
-      emailLabel: 'Email Address',
-      emailPlaceholder: 'name@example.com',
-      passwordLabel: 'Password',
-      passwordPlaceholder: 'Minimum 8 characters',
-      fullNameLabel: 'Full Name or Alias',
-      fullNamePlaceholder: 'John Doe',
-      ageLabel: 'Age Group',
-      age18: '18+ years (Adult protocol)',
-      age1617: '16–17 years (Adolescent protocol)',
-      tokenLabel: 'Reset Token',
-      tokenPlaceholder: 'Paste token from email',
-      newPasswordLabel: 'New Password',
-      newPasswordPlaceholder: 'Minimum 8 characters',
-      loginBtn: 'Sign In',
-      registerBtn: 'Create Account',
+      loginTitle: 'Login your account!',
+      loginSubtitle: 'Welcome to evidence-based sensory screening and health insights.',
+      registerTitle: 'Create your account!',
+      registerSubtitle: 'Confidential space to track cognitive and sensory markers.',
+      forgotTitle: 'Reset Password',
+      forgotSubtitle: 'Enter your email to receive recovery instructions.',
+      resetTitle: 'New Password',
+      resetSubtitle: 'Enter the recovery token and choose a new password.',
+      tabEmail: 'E-mail',
+      tabMobile: 'Mobile number',
+      emailPlaceholder: 'Email address',
+      phonePlaceholder: 'Mobile number (e.g. +1 555 019 283)',
+      passwordPlaceholder: 'Password (min. 8 characters)',
+      fullNamePlaceholder: 'Your full name',
+      continueBtn: 'Continue',
+      registerBtn: 'Sign Up',
+      signInWith: 'Sign in with',
+      noAccount: "Don't have an account?",
+      hasAccount: 'Already have an account?',
+      signUpLink: 'Sign up',
+      loginLink: 'Log in',
+      forgotPassLink: 'Forgot password?',
+      backToHome: 'Back to Home',
+      backToLogin: 'Back to Sign In',
       sendResetBtn: 'Send Reset Link',
       setNewPasswordBtn: 'Save New Password',
-      orDivider: 'or',
-      googleBtn: 'Continue with Google',
-      googleLoginBtn: 'Continue with Google',
-      googleRegisterBtn: 'Sign up with Google',
-      googleSuccess: 'Google Sign-In successful',
-      googleHelpToggle: 'Google Sign-In Setup Guide',
-      googleOriginNotice: 'For Google Sign-In, ensure the domain is authorized in Google Cloud Console.',
-      noAccount: "Don't have an account?",
-      hasAccount: 'Already have a profile?',
-      forgotPassLink: 'Forgot password?',
-      backToLogin: 'Back to Sign In',
-      backToHome: 'Back to Home',
-      privacyNote: 'Your health data is protected with end-to-end security and zero-retention defaults.',
-      resetSentMsg: 'If that email exists, reset instructions have been dispatched.',
+      resetSentMsg: 'Password reset instructions have been dispatched.',
       resetSuccessMsg: 'Password updated successfully. You can now sign in.',
-      brandTitle: 'SIHAT — UNDERSTAND YOUR HEALTH',
-      brandDesc: 'Premium psychophysiological screening and open scientific methodologies.',
-      badgeIso: 'ISO 8596 & Open Science',
-      badgePrivacy: 'Zero-Retention Architecture',
+      sliderCards: [
+        { title: 'Welcome to the Community', desc: 'Login to explore exclusive health insights' },
+        { title: 'ISO 8596 Clinical Calibration', desc: 'Precision sensory vision & contrast metrics' },
+        { title: 'Pure Audiometry & Stroop Test', desc: 'Validated frequency hearing & executive focus' },
+        { title: 'Zero-Retention Privacy', desc: 'End-to-end encrypted local health evaluation' },
+      ],
     },
   }[lang]
 
+  /* Form Submission Handlers */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) return
+    const isMobile = authMethod === 'mobile'
+    const identifier = isMobile ? phone.trim() : email.trim()
+    if (!identifier || !password) return
     setLoading(true)
     try {
+      const payload = isMobile ? { phone: identifier, password } : { email: identifier, password }
       const data = await apiRequest<{
         access_token: string
         refresh_token: string
         user: UserProfile
       }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
       })
       setApiToken(data.access_token)
       setRefreshToken(data.refresh_token)
@@ -448,27 +388,39 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password || !fullName) return
+    const isMobile = authMethod === 'mobile'
+    const identifier = isMobile ? phone.trim() : email.trim()
+    if (!identifier || !password || !fullName) return
     setLoading(true)
     try {
+      const regPayload = isMobile
+        ? {
+            phone: identifier,
+            password,
+            full_name: fullName.trim(),
+            age_group: ageGroup,
+          }
+        : {
+            email: identifier,
+            password,
+            full_name: fullName.trim(),
+            age_group: ageGroup,
+          }
+
       await apiRequest('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({
-          email,
-          password,
-          full_name: fullName,
-          age_group: ageGroup,
-        }),
+        body: JSON.stringify(regPayload),
       })
 
-      // Auto-login after registration
+      // Auto login after registration
+      const loginPayload = isMobile ? { phone: identifier, password } : { email: identifier, password }
       const data = await apiRequest<{
         access_token: string
         refresh_token: string
         user: UserProfile
       }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(loginPayload),
       })
       setApiToken(data.access_token)
       setRefreshToken(data.refresh_token)
@@ -518,323 +470,301 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     }
   }
 
+  const currentSlide = t.sliderCards[activeSlide] || t.sliderCards[0]
+
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden">
-        {/* Left Side: Brand & Visual Heritage */}
-        <div className="lg:col-span-5 bg-gradient-to-br from-[#103D35] via-[#124d43] to-[#17A884] p-8 sm:p-12 text-white flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute -right-16 -top-16 w-64 h-64 bg-[#2EC4A7]/20 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -left-16 -bottom-16 w-64 h-64 bg-[#103D35]/80 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-[88vh] flex items-center justify-center py-10 px-4 sm:px-6">
+      {/* MASTER AUTHENTICATION CARD (Figma Pixel-Perfect Replica) */}
+      <main
+        role="main"
+        className="w-full max-w-[960px] bg-white dark:bg-zinc-900 rounded-[28px] shadow-2xl border border-slate-200/90 dark:border-zinc-800 grid grid-cols-1 lg:grid-cols-2 overflow-hidden transition-all duration-300 relative"
+      >
+        {/* ==========================================================================
+            1. LEFT HERO PANEL (3D Minimalist Graphic + Glassmorphism Card)
+            ========================================================================== */}
+        <section
+          className="relative bg-gradient-to-br from-slate-900 via-slate-850 to-zinc-950 p-6 sm:p-9 min-h-[320px] lg:min-h-[620px] flex flex-col justify-end overflow-hidden group"
+          aria-label="Welcome Visual Presentation"
+        >
+          {/* Futuristic 3D Architecture Visual */}
+          <img
+            src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80"
+            alt="Futuristic 3D sphere and architecture"
+            className="absolute inset-0 w-full h-full object-cover object-center filter contrast-105 brightness-95 transition-transform duration-1000 group-hover:scale-105 pointer-events-none"
+          />
 
-          <div className="relative z-10">
-            {/* Logo */}
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shadow-lg">
-                <HeartPulse className="w-7 h-7 text-[#2EC4A7]" />
-              </div>
-              <div>
-                <span className="text-xl font-black tracking-widest text-white uppercase block">
-                  SIHAT
-                </span>
-                <span className="text-[10px] tracking-widest text-[#DDF5EB] uppercase font-bold">
-                  UNDERSTAND YOUR HEALTH
-                </span>
+          {/* Ambient Cyan / Neon Studio Glow */}
+          <div
+            className="absolute -top-12 -right-12 w-80 h-80 bg-sky-400/30 dark:bg-emerald-400/25 blur-3xl pointer-events-none mix-blend-screen"
+            aria-hidden="true"
+          />
+
+          {/* Top Brand Tag inside visual banner */}
+          <div className="absolute top-6 left-6 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white text-xs font-bold tracking-wider uppercase">
+            <HeartPulse className="w-3.5 h-3.5 text-sky-400" />
+            <span>SIHAT • Clarity</span>
+          </div>
+
+          {/* Overlaid Frosted Glass Card with Smooth Auto-Fade Slider */}
+          <div className="relative z-10 bg-white/20 dark:bg-black/35 backdrop-blur-xl border border-white/35 dark:border-white/15 rounded-2xl p-5 sm:p-6 text-center text-white shadow-2xl transition-all">
+            <div className="min-h-[76px] sm:min-h-[82px] flex flex-col justify-center mb-3 overflow-hidden">
+              <div
+                key={activeSlide}
+                className="animate-in fade-in zoom-in-95 duration-500 ease-out"
+              >
+                <h2 className="text-base sm:text-lg font-bold tracking-tight mb-1 text-white drop-shadow-sm line-clamp-1">
+                  {currentSlide.title}
+                </h2>
+                <p className="text-xs sm:text-sm text-white/85 leading-relaxed font-medium line-clamp-2">
+                  {currentSlide.desc}
+                </p>
               </div>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-snug mb-4">
-              {mode === 'register' ? t.registerTitle : t.brandTitle}
-            </h2>
-            <p className="text-sm text-white/80 leading-relaxed mb-6">{t.brandDesc}</p>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-xs border border-white/15 text-xs font-semibold">
-                <ShieldCheck className="w-4 h-4 text-[#2EC4A7] shrink-0" />
-                <span>{t.badgeIso}</span>
-              </div>
-              <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-xs border border-white/15 text-xs font-semibold">
-                <Activity className="w-4 h-4 text-[#2EC4A7] shrink-0" />
-                <span>{t.badgePrivacy}</span>
-              </div>
+            {/* Slider Pagination Dots */}
+            <div className="flex items-center justify-center gap-1.5" role="tablist" aria-label="Slide indicators">
+              {t.sliderCards.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setActiveSlide(idx)}
+                  className={`h-2 transition-all duration-500 rounded-full cursor-pointer ${
+                    activeSlide === idx
+                      ? 'w-6 bg-white shadow-md shadow-white/60'
+                      : 'w-2 bg-white/40 hover:bg-white/70'
+                  }`}
+                  aria-label={`Slide ${idx + 1}`}
+                  aria-selected={activeSlide === idx}
+                />
+              ))}
             </div>
           </div>
+        </section>
 
-          <div className="relative z-10 pt-8 border-t border-white/15 mt-8">
-            <p className="text-xs text-white/70 leading-relaxed">{t.privacyNote}</p>
-          </div>
-        </div>
-
-        {/* Right Side: Form Card */}
-        <div className="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-center">
-          <div className="flex items-center justify-between mb-8">
+        {/* ==========================================================================
+            2. RIGHT AUTHENTICATION FORM PANEL
+            ========================================================================== */}
+        <section
+          className="p-6 sm:p-10 lg:p-12 flex flex-col justify-center bg-white dark:bg-zinc-900"
+          aria-label="Authentication Form"
+        >
+          {/* Top Breadcrumb & Back to Home */}
+          <div className="flex items-center justify-between mb-6">
             <button
+              type="button"
               onClick={() => onNavigate('home')}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#17A884] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-sky-600 dark:hover:text-sky-400 transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>{t.backToHome}</span>
             </button>
 
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setMode('login')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  mode === 'login'
-                    ? 'bg-[#17A884]/15 text-[#103D35] dark:text-[#2EC4A7]'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                Вход
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('register')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  mode === 'register'
-                    ? 'bg-[#17A884]/15 text-[#103D35] dark:text-[#2EC4A7]'
-                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                Регистрация
-              </button>
-            </div>
+            {/* Sub-mode tag */}
+            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
+              {mode === 'register' ? 'Sign Up' : mode === 'login' ? 'Sign In' : 'Account Recovery'}
+            </span>
           </div>
 
-          {/* Mode 1: LOGIN */}
-          {mode === 'login' && (
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-1">
-                {t.loginTitle}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">{t.loginSubtitle}</p>
+          {/* Main Title */}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight text-center mb-1">
+            {mode === 'register'
+              ? t.registerTitle
+              : mode === 'forgot-password'
+              ? t.forgotTitle
+              : mode === 'reset-password'
+              ? t.resetTitle
+              : t.loginTitle}
+          </h1>
 
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    {t.emailLabel}
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={t.emailPlaceholder}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
-                    />
-                  </div>
-                </div>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 text-center mb-6 leading-relaxed">
+            {mode === 'register'
+              ? t.registerSubtitle
+              : mode === 'forgot-password'
+              ? t.forgotSubtitle
+              : mode === 'reset-password'
+              ? t.resetSubtitle
+              : t.loginSubtitle}
+          </p>
 
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                      {t.passwordLabel}
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setMode('forgot-password')}
-                      className="text-xs text-[#17A884] hover:underline cursor-pointer"
-                    >
-                      {t.forgotPassLink}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={t.passwordPlaceholder}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
-                    />
-                  </div>
-                </div>
+          {/* Method Switcher Tabs (E-mail vs Mobile number) - Available for Login & Register */}
+          {(mode === 'login' || mode === 'register') && (
+            <div className="flex items-center justify-center gap-8 mb-6 border-b border-slate-100 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setAuthMethod('email')}
+                className={`pb-2.5 text-xs sm:text-sm font-semibold transition-all relative cursor-pointer ${
+                  authMethod === 'email'
+                    ? 'text-slate-900 dark:text-white'
+                    : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'
+                }`}
+              >
+                <span>{t.tabEmail}</span>
+                {authMethod === 'email' && (
+                  <span className="absolute bottom-0 left-2 right-2 h-[2.5px] bg-sky-500 dark:bg-sky-400 rounded-full shadow-sm shadow-sky-500/50" />
+                )}
+              </button>
 
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#103D35] hover:bg-[#17A884] text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-[#17A884]/20 transition-all mt-2 cursor-pointer"
-                >
-                  {loading ? '...' : t.loginBtn}
-                </Button>
-              </form>
-
-              {/* Google Sign-In */}
-              <GoogleAuthButton
-                mode="login"
-                ageGroup={ageGroup}
-                lang={lang}
-                labels={t}
-                onSuccess={onSuccess}
-                onNotify={onNotify}
-                onNavigate={onNavigate}
-                disabled={loading}
-              />
-
-              <div className="mt-8 text-center">
-                <span className="text-xs text-slate-500">{t.noAccount} </span>
-                <button
-                  type="button"
-                  onClick={() => setMode('register')}
-                  className="text-xs font-bold text-[#17A884] hover:underline cursor-pointer"
-                >
-                  {t.registerBtn}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setAuthMethod('mobile')}
+                className={`pb-2.5 text-xs sm:text-sm font-semibold transition-all relative cursor-pointer ${
+                  authMethod === 'mobile'
+                    ? 'text-slate-900 dark:text-white'
+                    : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'
+                }`}
+              >
+                <span>{t.tabMobile}</span>
+                {authMethod === 'mobile' && (
+                  <span className="absolute bottom-0 left-2 right-2 h-[2.5px] bg-sky-500 dark:bg-sky-400 rounded-full shadow-sm shadow-sky-500/50" />
+                )}
+              </button>
             </div>
           )}
 
-          {/* Mode 2: REGISTER */}
-          {mode === 'register' && (
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-1">
-                {t.registerTitle}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">{t.registerSubtitle}</p>
-
-              <form onSubmit={handleRegister} className="space-y-4">
+          {/* ==========================================================================
+              FORM 1 & 2: LOGIN OR REGISTER
+              ========================================================================== */}
+          {(mode === 'login' || mode === 'register') && (
+            <form onSubmit={mode === 'register' ? handleRegister : handleLogin} className="space-y-4">
+              {/* Full Name Field (Register Mode Only) */}
+              {mode === 'register' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    {t.fullNameLabel}
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <div className="relative flex items-center">
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder={t.fullNamePlaceholder}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-white text-xs sm:text-sm outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-sky-500 focus:ring-3 focus:ring-sky-500/20 transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>
+              )}
 
+              {/* Email or Phone Input Field */}
+              {authMethod === 'email' ? (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    {t.emailLabel}
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <div className="relative flex items-center">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={t.emailPlaceholder}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-white text-xs sm:text-sm outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-sky-500 focus:ring-3 focus:ring-sky-500/20 transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>
-
+              ) : (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    {t.passwordLabel}
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <div className="relative flex items-center">
+                    <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
                     <input
-                      type="password"
+                      type="tel"
                       required
-                      minLength={8}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={t.passwordPlaceholder}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder={t.phonePlaceholder}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-white text-xs sm:text-sm outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-sky-500 focus:ring-3 focus:ring-sky-500/20 transition-all placeholder:text-slate-400"
                     />
                   </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    {t.ageLabel}
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label
-                      className={`p-3 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-between transition-all ${
+              {/* Password Field */}
+              <div>
+                <div className="relative flex items-center">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={t.passwordPlaceholder}
+                    className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-white text-xs sm:text-sm outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-sky-500 focus:ring-3 focus:ring-sky-500/20 transition-all placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 cursor-pointer p-1"
+                    aria-label="Toggle password visibility"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Forgot Password Link (Login Mode Only) */}
+              {mode === 'login' && (
+                <div className="flex justify-end pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setMode('forgot-password')}
+                    className="text-xs font-semibold text-slate-500 hover:text-sky-600 dark:text-zinc-400 dark:hover:text-sky-400 transition-colors cursor-pointer"
+                  >
+                    {t.forgotPassLink}
+                  </button>
+                </div>
+              )}
+
+              {/* Age Group Selector (Register Mode Only) */}
+              {mode === 'register' && (
+                <div className="pt-1">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setAgeGroup('18_plus')}
+                      className={`p-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-left ${
                         ageGroup === '18_plus'
-                          ? 'border-[#17A884] bg-[#17A884]/10 text-[#103D35] dark:text-[#2EC4A7]'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                          : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400'
                       }`}
                     >
-                      <span>{t.age18}</span>
-                      <input
-                        type="radio"
-                        name="age"
-                        value="18_plus"
-                        checked={ageGroup === '18_plus'}
-                        onChange={(e) => setAgeGroup(e.target.value)}
-                        className="hidden"
-                      />
-                    </label>
-
-                    <label
-                      className={`p-3 rounded-xl border text-xs font-semibold cursor-pointer flex items-center justify-between transition-all ${
+                      18+ (Взрослый контур)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAgeGroup('16_17')}
+                      className={`p-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer text-left ${
                         ageGroup === '16_17'
-                          ? 'border-[#17A884] bg-[#17A884]/10 text-[#103D35] dark:text-[#2EC4A7]'
-                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                          : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400'
                       }`}
                     >
-                      <span>{t.age1617}</span>
-                      <input
-                        type="radio"
-                        name="age"
-                        value="16_17"
-                        checked={ageGroup === '16_17'}
-                        onChange={(e) => setAgeGroup(e.target.value)}
-                        className="hidden"
-                      />
-                    </label>
+                      16–17 (Юношеский)
+                    </button>
                   </div>
                 </div>
+              )}
 
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#103D35] hover:bg-[#17A884] text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-[#17A884]/20 transition-all mt-2 cursor-pointer"
-                >
-                  {loading ? '...' : t.registerBtn}
-                </Button>
-              </form>
-
-              {/* Google Sign-Up */}
-              <GoogleAuthButton
-                mode="register"
-                ageGroup={ageGroup}
-                lang={lang}
-                labels={t}
-                onSuccess={onSuccess}
-                onNotify={onNotify}
-                onNavigate={onNavigate}
+              {/* Primary Vibrant Submit Button */}
+              <button
+                type="submit"
                 disabled={loading}
-              />
-
-              <div className="mt-8 text-center">
-                <span className="text-xs text-slate-500">{t.hasAccount} </span>
-                <button
-                  type="button"
-                  onClick={() => setMode('login')}
-                  className="text-xs font-bold text-[#17A884] hover:underline cursor-pointer"
-                >
-                  {t.loginBtn}
-                </button>
-              </div>
-            </div>
+                className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-sky-400 via-sky-500 to-blue-600 hover:from-sky-500 hover:to-blue-700 text-white font-bold text-sm tracking-wide shadow-lg shadow-sky-500/30 hover:shadow-sky-500/50 hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : mode === 'register' ? (
+                  t.registerBtn
+                ) : (
+                  t.continueBtn
+                )}
+              </button>
+            </form>
           )}
 
-          {/* Mode 3: FORGOT PASSWORD */}
+          {/* ==========================================================================
+              FORM 3: FORGOT PASSWORD
+              ========================================================================== */}
           {mode === 'forgot-password' && (
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-1">
-                {t.forgotTitle}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">{t.forgotSubtitle}</p>
-
+            <div className="space-y-4">
               {forgotSent ? (
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-sm mb-6 flex items-start gap-3">
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold mb-1">{t.resetSentMsg}</p>
@@ -849,38 +779,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 </div>
               ) : (
                 <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                      {t.emailLabel}
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder={t.emailPlaceholder}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
-                      />
-                    </div>
+                  <div className="relative flex items-center">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={t.emailPlaceholder}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-white text-xs sm:text-sm outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-sky-500 focus:ring-3 focus:ring-sky-500/20 transition-all placeholder:text-slate-400"
+                    />
                   </div>
-
-                  <Button
+                  <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-[#103D35] hover:bg-[#17A884] text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-[#17A884]/20 transition-all mt-2 cursor-pointer"
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-400 via-sky-500 to-blue-600 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
                   >
                     {loading ? '...' : t.sendResetBtn}
-                  </Button>
+                  </button>
                 </form>
               )}
 
-              <div className="mt-8 text-center">
+              <div className="text-center pt-2">
                 <button
                   type="button"
                   onClick={() => setMode('login')}
-                  className="text-xs font-bold text-[#17A884] hover:underline cursor-pointer"
+                  className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
                 >
                   ← {t.backToLogin}
                 </button>
@@ -888,72 +812,123 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </div>
           )}
 
-          {/* Mode 4: RESET PASSWORD */}
+          {/* ==========================================================================
+              FORM 4: RESET PASSWORD
+              ========================================================================== */}
           {mode === 'reset-password' && (
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-1">
-                {t.resetTitle}
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">{t.resetSubtitle}</p>
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="relative flex items-center">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  value={resetToken}
+                  onChange={(e) => setResetToken(e.target.value)}
+                  placeholder="Токен сброса из письма"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-white text-xs sm:text-sm outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-sky-500 focus:ring-3 focus:ring-sky-500/20 transition-all"
+                />
+              </div>
 
-              <form onSubmit={handleResetPassword} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    {t.tokenLabel}
-                  </label>
-                  <div className="relative">
-                    <KeyRound className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                    <input
-                      type="text"
-                      required
-                      value={resetToken}
-                      onChange={(e) => setResetToken(e.target.value)}
-                      placeholder={t.tokenPlaceholder}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
-                    />
-                  </div>
-                </div>
+              <div className="relative flex items-center">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Новый пароль"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 text-slate-900 dark:text-white text-xs sm:text-sm outline-none focus:bg-white dark:focus:bg-zinc-800 focus:border-sky-500 focus:ring-3 focus:ring-sky-500/20 transition-all"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    {t.newPasswordLabel}
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-                    <input
-                      type="password"
-                      required
-                      minLength={8}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder={t.newPasswordPlaceholder}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 text-sm focus:outline-hidden focus:border-[#17A884] focus:ring-2 focus:ring-[#17A884]/20 transition-all"
-                    />
-                  </div>
-                </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-400 via-sky-500 to-blue-600 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
+              >
+                {loading ? '...' : t.setNewPasswordBtn}
+              </button>
 
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#103D35] hover:bg-[#17A884] text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-[#17A884]/20 transition-all mt-2 cursor-pointer"
-                >
-                  {loading ? '...' : t.setNewPasswordBtn}
-                </Button>
-              </form>
-
-              <div className="mt-8 text-center">
+              <div className="text-center pt-2">
                 <button
                   type="button"
                   onClick={() => setMode('login')}
-                  className="text-xs font-bold text-[#17A884] hover:underline cursor-pointer"
+                  className="text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
                 >
                   ← {t.backToLogin}
                 </button>
               </div>
-            </div>
+            </form>
           )}
-        </div>
-      </div>
+
+          {/* ==========================================================================
+              SOCIAL SIGN-IN SECTION (Figma Circular Buttons Row)
+              ========================================================================== */}
+          {(mode === 'login' || mode === 'register') && (
+            <>
+              {/* Divider */}
+              <div className="relative text-center my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200 dark:border-zinc-800" />
+                </div>
+                <span className="relative px-3 bg-white dark:bg-zinc-900 text-[11px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                  {t.signInWith}
+                </span>
+              </div>
+
+              {/* Social Buttons Row (Facebook, Google, Apple) */}
+              <div className="flex items-center justify-center gap-4 mb-6">
+                {/* Facebook */}
+                <button
+                  type="button"
+                  onClick={() => onNotify('Авторизация через Facebook скоро будет доступна')}
+                  className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center cursor-pointer transition-all hover:bg-white dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                  aria-label="Sign in with Facebook"
+                  title="Sign in with Facebook"
+                >
+                  <FacebookIcon className="w-5 h-5" />
+                </button>
+
+                {/* Google with Official GSI */}
+                <GoogleAuthButton
+                  mode={mode as 'login' | 'register'}
+                  ageGroup={ageGroup}
+                  lang={lang}
+                  labels={t as any}
+                  onSuccess={onSuccess}
+                  onNotify={onNotify}
+                  onNavigate={onNavigate}
+                  disabled={loading}
+                />
+
+                {/* Apple */}
+                <button
+                  type="button"
+                  onClick={() => onNotify('Авторизация через Apple скоро будет доступна')}
+                  className="w-11 h-11 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white flex items-center justify-center cursor-pointer transition-all hover:bg-white dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                  aria-label="Sign in with Apple"
+                  title="Sign in with Apple"
+                >
+                  <AppleIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Footer Switcher (Login <-> Sign Up) */}
+              <footer className="text-center text-xs text-slate-500 dark:text-zinc-400">
+                <span>{mode === 'register' ? t.hasAccount : t.noAccount}</span>{' '}
+                <button
+                  type="button"
+                  onClick={() => setMode(mode === 'register' ? 'login' : 'register')}
+                  className="font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                >
+                  {mode === 'register' ? t.loginLink : t.signUpLink}
+                </button>
+              </footer>
+            </>
+          )}
+        </section>
+      </main>
     </div>
   )
 }

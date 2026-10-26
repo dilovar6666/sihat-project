@@ -48,6 +48,7 @@ def _admin_user_output(u: User) -> AdminUserOutput:
     return AdminUserOutput(
         id=u.id,
         email=u.email,
+        phone=u.phone,
         full_name=u.full_name,
         role=u.role,
         age_group=u.age_group,
@@ -174,7 +175,11 @@ def list_users(
     if search:
         term = f"%{search.strip().lower()}%"
         stmt = stmt.where(
-            or_(func.lower(User.email).like(term), func.lower(User.full_name).like(term))
+            or_(
+                func.lower(User.email).like(term),
+                func.lower(User.phone).like(term),
+                func.lower(User.full_name).like(term),
+            )
         )
     users = db.scalars(stmt).all()
     return [_admin_user_output(u) for u in users]

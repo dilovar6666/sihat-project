@@ -15,7 +15,8 @@ class User(Base):
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(320), unique=True, index=True, nullable=True, default=None)
+    phone: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True, default=None)
     full_name: Mapped[str] = mapped_column(String(120))
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[str] = mapped_column(String(16), default="user", server_default="user")

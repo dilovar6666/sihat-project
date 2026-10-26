@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -6,6 +7,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from sihat.auth_schemas import (
+    AttachEmailInput,
     AuthTokensOutput,
     ForgotPasswordInput,
     GoogleTokenInput,
@@ -81,10 +83,23 @@ def verify_google_id_token(id_token: str, settings: Settings) -> dict[str, str]:
     }
 
 
+def normalize_phone(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    raw = raw.strip()
+    digits = re.sub(r"[^\d]", "", raw)
+    if not digits:
+        return None
+    if raw.startswith("+"):
+        return f"+{digits}"
+    return f"+{digits}" if len(digits) >= 11 else digits
+
+
 def user_output(user: User) -> UserOutput:
     return UserOutput(
         id=user.id,
         email=user.email,
+        phone=getattr(user, "phone", None),
         full_name=user.full_name,
         role=user.role,
         age_group=user.age_group,
@@ -115,16 +130,26 @@ def register(
     request: Request,
     db: Session = Depends(get_db_session),
 ) -> UserOutput:
-    email = normalize_email(str(payload.email))
-    enforce_auth_rate_limit(request, "register", email)
-    if db.scalar(select(User.id).where(User.email == email)):
+    email = normalize_email(str(payload.email)) if payload.email else None
+    phone = normalize_phone(payload.phone)
+
+    rate_key = email or phone or "anonymous"
+    enforce_auth_rate_limit(request, "register", rate_key)
+
+    if email and db.scalar(select(User.id).where(User.email == email)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email is already registered",
         )
+    if phone and db.scalar(select(User.id).where(User.phone == phone)):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Phone number is already registered",
+        )
 
     user = User(
         email=email,
+        phone=phone,
         full_name=payload.full_name.strip(),
         password_hash=hash_password(payload.password),
         age_group=payload.age_group,
@@ -143,12 +168,28 @@ def login(
     db: Session = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> AuthTokensOutput:
-    enforce_auth_rate_limit(request, "login", str(payload.email))
-    user = db.scalar(select(User).where(User.email == normalize_email(str(payload.email))))
+    identifier = (payload.email or payload.phone or "").strip()
+    enforce_auth_rate_limit(request, "login", identifier)
+
+    user = None
+    if payload.email:
+        cand = payload.email.strip()
+        if "@" in cand:
+            user = db.scalar(select(User).where(User.email == normalize_email(cand)))
+        else:
+            cand_phone = normalize_phone(cand)
+            if cand_phone:
+                user = db.scalar(select(User).where(User.phone == cand_phone))
+
+    if not user and payload.phone:
+        cand_phone = normalize_phone(payload.phone)
+        if cand_phone:
+            user = db.scalar(select(User).where(User.phone == cand_phone))
+
     if not user or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            detail="Invalid credentials",
         )
     return create_tokens(db, user, settings)
 
@@ -402,6 +443,25 @@ def dev_login(
     return create_tokens(db, admin_user, settings)
 
 
+@router.post("/attach-email", response_model=UserOutput)
+def attach_email(
+    payload: AttachEmailInput,
+    db: Session = Depends(get_db_session),
+    user: User = Depends(get_current_user),
+) -> UserOutput:
+    norm_email = normalize_email(str(payload.email))
+    existing = db.scalar(select(User).where(User.email == norm_email))
+    if existing and existing.id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Этот адрес электронной почты уже используется другим пользователем",
+        )
+    user.email = norm_email
+    db.commit()
+    db.refresh(user)
+    return user_output(user)
+
+
 @router.get("/me", response_model=UserOutput)
 def get_me(user: User = Depends(get_current_user)) -> UserOutput:
     return user_output(user)
@@ -415,6 +475,24 @@ def update_profile(
 ) -> UserOutput:
     if payload.full_name is not None and payload.full_name.strip():
         user.full_name = payload.full_name.strip()
+    if payload.email is not None and str(payload.email).strip():
+        norm_email = normalize_email(str(payload.email))
+        existing_email = db.scalar(select(User).where(User.email == norm_email))
+        if existing_email and existing_email.id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email is already used by another account",
+            )
+        user.email = norm_email
+    if payload.phone is not None and payload.phone.strip():
+        norm_phone = normalize_phone(payload.phone)
+        existing_phone = db.scalar(select(User).where(User.phone == norm_phone))
+        if existing_phone and existing_phone.id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Phone number is already used by another account",
+            )
+        user.phone = norm_phone
     if payload.age_group is not None:
         user.age_group = payload.age_group
     if payload.avatar_url is not None:

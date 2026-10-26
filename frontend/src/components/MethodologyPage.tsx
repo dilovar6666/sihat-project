@@ -11,11 +11,12 @@ import {
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import type { Language } from '../i18n'
-import type { TestItem } from '../types'
+import type { TestItem, Category } from '../types'
 import { getTestCover, getTestAlt, getTestPhotoCredit } from '../lib/testImages'
 
 interface MethodologyPageProps {
   tests: TestItem[]
+  categories?: Category[]
   currentSlug: string | null
   lang: Language
   token: string
@@ -26,6 +27,7 @@ interface MethodologyPageProps {
 
 export const MethodologyPage: React.FC<MethodologyPageProps> = ({
   tests,
+  categories = [],
   currentSlug,
   lang,
   onNavigate,
@@ -34,11 +36,51 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
+  const getCategoryName = (catId: string) => {
+    const found = categories.find((c) => c.id === catId || c.slug === catId)
+    if (found) {
+      const loc = found.localizations?.[lang] || found.localizations?.ru || found.localizations?.en
+      if (loc?.title) return loc.title
+      if (found.slug) return found.slug
+    }
+    const fallbackMap: Record<Language, Record<string, string>> = {
+      ru: {
+        'vision': 'Зрение',
+        'hearing': 'Слух',
+        'cognitive': 'Когнитивные функции',
+        'motor': 'Моторика',
+        'attention-concentration': 'Внимание и память',
+        'psychophysiology': 'Психофизиология',
+        'sleep': 'Сон',
+      },
+      tj: {
+        'vision': 'Биниш',
+        'hearing': 'Шунавоӣ',
+        'cognitive': 'Функсияҳои маърифатӣ',
+        'motor': 'Моторика',
+        'attention-concentration': 'Диққат ва хотира',
+        'psychophysiology': 'Психофизиология',
+        'sleep': 'Хоб',
+      },
+      en: {
+        'vision': 'Vision',
+        'hearing': 'Hearing',
+        'cognitive': 'Cognitive Functions',
+        'motor': 'Motor Skills',
+        'attention-concentration': 'Attention & Memory',
+        'psychophysiology': 'Psychophysiology',
+        'sleep': 'Sleep',
+      },
+    }
+    return fallbackMap[lang]?.[catId] || fallbackMap.ru[catId] || catId
+  }
+
   // Filter only published / valid tests
   const approvedTests = tests.filter((t) => t.status !== 'draft')
 
   const t = {
     ru: {
+      badge16: '16 Утверждённых Паспортов Методик',
       libraryTitle: 'Библиотека паспортов методик SIHAT',
       librarySubtitle: 'Полный реестр открытых научно-обоснованных спецификаций, психофизиологических калибровок и ограничений всех 16 утверждённых скринингов.',
       searchPlaceholder: 'Поиск по названию методики или стандарту...',
@@ -54,7 +96,12 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
       version: 'Версия протокола',
       validatedBadge: 'Доказательная медицина • Класс A (ISO / WHO)',
       digitalBadge: 'Цифровой психофизиологический скрининг',
+      officialPassportBadge: 'Официальный паспорт клинической методики',
       evidenceTitle: 'Научная база, доказательность и стандартизация',
+      protocolStandardLabel: 'Стандарт протокола:',
+      scientificSourceLabel: 'Научный первоисточник:',
+      standardLabel: 'Стандарт:',
+      basisLabel: 'Базис:',
       licenseTitle: 'Лицензирование и открытый доступ:',
       licenseDesc: 'Creative Commons CC BY-NC-SA 4.0 • Открытый протокол доказательного самоконтроля.',
       conditionsTitle: 'Протокол калибровки оборудования и внешних условий',
@@ -71,6 +118,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
       footerNotice: 'Все результаты обрабатываются строго локально с вашим правом на немедленное удаление (Zero-retention).',
     },
     tj: {
+      badge16: '16 Шиносномаи тасдиқшудаи методӣ',
       libraryTitle: 'Осорхонаи шиносномаҳои методии SIHAT',
       librarySubtitle: 'Феҳристи пурраи методологияҳои исботшудаи илмӣ ва меъёрҳои калибровка барои 16 санҷиши тасдиқшуда.',
       searchPlaceholder: 'Ҷустуҷӯи метод...',
@@ -86,7 +134,12 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
       version: 'Версияи протокол',
       validatedBadge: 'Тибби исботшуда • Синфи А (ISO / WHO)',
       digitalBadge: 'Скрининги рақамии психофизиологӣ',
+      officialPassportBadge: 'Шиносномаи расмии методикаи клиникӣ',
       evidenceTitle: 'Пойгоҳи илмӣ ва стандартизатсия',
+      protocolStandardLabel: 'Меъёри протокол:',
+      scientificSourceLabel: 'Сарчашмаи илмӣ:',
+      standardLabel: 'Меъёр:',
+      basisLabel: 'Асос:',
       licenseTitle: 'Иҷозатнома ва дастрасии кушода:',
       licenseDesc: 'Creative Commons CC BY-NC-SA 4.0 • Протоколи кушодаи илмӣ.',
       conditionsTitle: 'Протоколи калибровка ва шароити беруна',
@@ -103,6 +156,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
       footerNotice: 'Ҳамаи натиҷаҳо таҳти низоми Zero-retention коркард мешаванд.',
     },
     en: {
+      badge16: '16 Approved Methodology Passports',
       libraryTitle: 'SIHAT Methodology Passports Library',
       librarySubtitle: 'Complete evidence-based repository of psychophysiological standards, calibration specifications, and clinical limitations across all 16 approved screenings.',
       searchPlaceholder: 'Search by methodology name or standard...',
@@ -118,7 +172,12 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
       version: 'Protocol Version',
       validatedBadge: 'Evidence-Based • Class A (ISO / WHO)',
       digitalBadge: 'Digital Psychophysiological Screening',
+      officialPassportBadge: 'Official Clinical Methodology Passport',
       evidenceTitle: 'Scientific Foundation & Standardization',
+      protocolStandardLabel: 'Protocol Standard:',
+      scientificSourceLabel: 'Scientific Source:',
+      standardLabel: 'Standard:',
+      basisLabel: 'Basis:',
       licenseTitle: 'Licensing & Open Access:',
       licenseDesc: 'Creative Commons CC BY-NC-SA 4.0 • Open science self-monitoring protocol.',
       conditionsTitle: 'Hardware Calibration & Environmental Conditions',
@@ -138,7 +197,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
 
   // If NO individual slug is selected, render the Library Catalog View
   if (!currentSlug) {
-    const categories = Array.from(new Set(approvedTests.map((t) => t.category_id).filter(Boolean)))
+    const availableCategoryIds = Array.from(new Set(approvedTests.map((t) => t.category_id).filter(Boolean)))
     const filteredTests = approvedTests.filter((test) => {
       const loc = test.localizations?.[lang] || test.localizations?.ru || test.localizations?.en
       const title = loc?.title || test.slug
@@ -157,7 +216,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#17A884]/15 border border-[#17A884]/30 text-xs font-bold text-[#103D35] dark:text-[#2EC4A7] mb-4">
             <BookOpen className="w-4 h-4" />
-            <span>16 Утверждённых Паспортов Методик</span>
+            <span>{t.badge16}</span>
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-[#103D35] dark:text-white tracking-tight mb-4">
             {t.libraryTitle}
@@ -176,7 +235,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-sm focus:outline-hidden focus:border-[#17A884] shadow-xs"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-[#1E302B] bg-white dark:bg-[#0E1715] text-sm focus:outline-hidden focus:border-[#17A884] shadow-xs"
             />
           </div>
 
@@ -187,23 +246,23 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 categoryFilter === 'all'
                   ? 'bg-[#103D35] text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-[#17A884]/40'
+                  : 'bg-white dark:bg-[#0E1715] border border-slate-200 dark:border-[#1E302B] text-slate-600 dark:text-slate-400 hover:border-[#17A884]/40'
               }`}
             >
               {t.allCategories}
             </button>
-            {categories.map((cat) => (
+            {availableCategoryIds.map((catId) => (
               <button
-                key={cat}
+                key={catId}
                 type="button"
-                onClick={() => setCategoryFilter(cat)}
+                onClick={() => setCategoryFilter(catId)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  categoryFilter === cat
+                  categoryFilter === catId
                     ? 'bg-[#103D35] text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-[#17A884]/40'
+                    : 'bg-white dark:bg-[#0E1715] border border-slate-200 dark:border-[#1E302B] text-slate-600 dark:text-slate-400 hover:border-[#17A884]/40'
                 }`}
               >
-                {cat}
+                {getCategoryName(catId)}
               </button>
             ))}
           </div>
@@ -218,7 +277,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
             return (
               <div
                 key={test.id || test.slug}
-                className="bg-white dark:bg-slate-900 rounded-3xl p-5 shadow-xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between transition-all hover:border-[#17A884]/50 hover:shadow-2xl overflow-hidden group"
+                className="bg-white dark:bg-[#0E1715] rounded-3xl p-5 shadow-xl border border-slate-200/80 dark:border-[#1E302B] flex flex-col justify-between transition-all hover:border-[#17A884]/50 hover:shadow-2xl overflow-hidden group"
               >
                 <div>
                   <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden mb-4 bg-slate-900 shadow-inner">
@@ -254,17 +313,17 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
                     {loc?.description || ''}
                   </p>
 
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 mb-4 space-y-1 text-[11px]">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/60 dark:border-[#1E302B] mb-4 space-y-1 text-[11px]">
                     <div className="text-slate-500 truncate">
-                      Стандарт: <strong className="text-slate-700 dark:text-slate-300">{passport?.name || title}</strong>
+                      {t.standardLabel} <strong className="text-slate-700 dark:text-slate-300">{passport?.name || title}</strong>
                     </div>
                     <div className="text-slate-500 truncate">
-                      Базис: <span className="italic">{passport?.source || 'Open Science'}</span>
+                      {t.basisLabel} <span className="italic">{passport?.source || 'Open Science'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-[#1E302B]">
                   <Button
                     variant="outline"
                     size="sm"
@@ -328,7 +387,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
       </div>
 
       {/* Header Banner with Rich Thematic Image Backdrop */}
-      <div className="relative rounded-3xl overflow-hidden shadow-2xl mb-8 min-h-[320px] flex items-center bg-slate-900 border border-slate-200/50 dark:border-slate-800">
+      <div className="relative rounded-3xl overflow-hidden shadow-2xl mb-8 min-h-[320px] flex items-center bg-[#0E1715] border border-slate-200/50 dark:border-[#1E302B]">
         <img
           src={getTestCover(activeTest.slug)}
           alt={getTestAlt(activeTest.slug, lang)}
@@ -338,7 +397,7 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
         <div className="relative z-10 p-8 sm:p-12 text-white max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm text-xs font-semibold mb-3 border border-white/20">
             <BookOpen className="w-3.5 h-3.5 text-[#2EC4A7]" />
-            <span>Официальный паспорт клинической методики</span>
+            <span>{t.officialPassportBadge}</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">{title}</h1>
           <p className="text-sm sm:text-base text-white/85 leading-relaxed mb-6">{desc}</p>
@@ -369,58 +428,58 @@ export const MethodologyPage: React.FC<MethodologyPageProps> = ({
       {/* Detailed Specifications Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         {/* Evidence & Standard */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-[#1E302B] space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-[#1E302B]">
             <Award className="w-5 h-5 text-[#17A884]" />
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
               {t.evidenceTitle}
             </h3>
           </div>
           <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/60 dark:border-[#1E302B]">
               <span className="font-bold text-slate-900 dark:text-white block mb-1">
-                Стандарт протокола:
+                {t.protocolStandardLabel}
               </span>
               <span>{methodology?.name || title} (v{methodology?.version || '1.0.0'})</span>
             </div>
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/60 dark:border-[#1E302B]">
               <span className="font-bold text-slate-900 dark:text-white block mb-1">
-                Научный первоисточник:
+                {t.scientificSourceLabel}
               </span>
-              <span>{methodology?.source || 'Открытые рецензируемые спецификации психофизиологии'}</span>
+              <span>{methodology?.source || 'Open science peer-reviewed protocol'}</span>
             </div>
             <p className="text-[11px] text-slate-400 italic pt-2">{t.licenseDesc}</p>
           </div>
         </div>
 
         {/* Environmental Conditions */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-[#1E302B] space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-[#1E302B]">
             <Sliders className="w-5 h-5 text-[#17A884]" />
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
               {t.conditionsTitle}
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/60 dark:border-[#1E302B]">
               <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
                 {t.condLightTitle}
               </span>
               <span className="text-slate-500 text-[11px]">{t.condLightDesc}</span>
             </div>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/60 dark:border-[#1E302B]">
               <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
                 {t.condDistanceTitle}
               </span>
               <span className="text-slate-500 text-[11px]">{t.condDistanceDesc}</span>
             </div>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/60 dark:border-[#1E302B]">
               <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
                 {t.condDisplayTitle}
               </span>
               <span className="text-slate-500 text-[11px]">{t.condDisplayDesc}</span>
             </div>
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/60 dark:border-[#1E302B]">
               <span className="font-bold text-slate-900 dark:text-white block mb-0.5">
                 {t.condAcousticTitle}
               </span>

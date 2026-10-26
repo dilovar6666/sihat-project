@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Globe, Moon, Sun, ShieldAlert, LogIn, Bell } from 'lucide-react'
+import { Globe, ShieldAlert, LogIn, Bell } from 'lucide-react'
 import type { Language, Translations } from '../i18n'
 import type { UserProfile } from '../types'
 import { UserAvatar } from './UserAvatar'
+import { StarThemeToggle } from './StarThemeToggle'
+import { useLiquidPill } from '../hooks/useLiquidPill'
 
 interface NavbarProps {
   t: Translations
   lang: Language
-  onSelectLang: (lang: Language) => void
+  onSelectLang: (lang: Language, e?: React.MouseEvent<HTMLElement>) => void
   theme: 'light' | 'dark'
-  onToggleTheme: () => void
+  onToggleTheme: (e?: React.MouseEvent<HTMLElement>) => void
   user: UserProfile | null
   onOpenAuth: () => void
   onLogout: () => void
@@ -49,11 +51,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   // Core navigation links
   const navLinks = [
-    { id: 'home', label: t.nav?.home || (lang === 'tj' ? 'Асосӣ' : lang === 'en' ? 'Home' : 'Главная') },
     { id: 'catalog', label: t.nav?.catalog || (lang === 'tj' ? 'Феҳрист' : lang === 'en' ? 'Catalog' : 'Каталог') },
     { id: 'methodologies', label: lang === 'tj' ? 'Методология' : lang === 'en' ? 'Methodology' : 'Методология' },
     { id: 'faq', label: t.nav?.faq || (lang === 'tj' ? 'Пойгоҳи дониш' : lang === 'en' ? 'Knowledge' : 'База знаний') },
   ]
+
+  const activeNavId =
+    currentSection === 'passport' || currentSection === 'methodologies'
+      ? 'methodologies'
+      : navLinks.some((l) => l.id === currentSection)
+      ? currentSection
+      : null
+
+  const { containerRef: navContainerRef, pillRef: navPillRef, itemRefs: navItemRefs } = useLiquidPill(
+    activeNavId,
+    { orientation: 'horizontal' }
+  )
 
   const handleNavClick = (id: string) => {
     onNavigate(id)
@@ -75,21 +88,27 @@ export const Navbar: React.FC<NavbarProps> = ({
           />
         </button>
 
-        {/* Center: Core Floating Pill Links */}
-        <nav className="hidden md:flex items-center gap-1 liquid-glass-pill p-1 rounded-full shadow-xs">
+        {/* Center: Core Floating Pill Links with iOS Liquid Glass Transition */}
+        <nav
+          ref={navContainerRef}
+          className="hidden md:flex items-center gap-1 p-1 rounded-full bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.03] dark:border-white/[0.05] relative shadow-inner"
+        >
+          {/* Fluid Liquid Glass Pill Indicator */}
+          <div ref={navPillRef} className="liquid-glass-active-pill" />
+
           {navLinks.map((link) => {
-            const isActive =
-              currentSection === link.id ||
-              (link.id === 'methodologies' &&
-                (currentSection === 'passport' || currentSection === 'methodologies'))
+            const isActive = activeNavId === link.id
             return (
               <button
                 key={link.id}
+                ref={(el) => {
+                  navItemRefs.current[link.id] = el
+                }}
                 onClick={() => handleNavClick(link.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer relative z-10 ${
                   isActive
-                    ? 'liquid-glass text-[#17A884] dark:text-[#2EC4A7] shadow-xs font-bold border-[#17A884]/40'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/40 dark:hover:bg-slate-800/40'
+                    ? 'text-[#103D35] dark:text-[#2EC4A7] font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
               >
                 {link.label}
@@ -104,24 +123,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="relative" ref={langRef}>
             <button
               onClick={() => setLangMenuOpen(!langMenuOpen)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full liquid-glass-pill hover:border-[#17A884]/40 text-slate-700 dark:text-slate-300 text-xs font-bold uppercase transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full liquid-glass-pill text-slate-700 dark:text-slate-300 text-xs font-bold uppercase transition-all duration-200 active:scale-95 hover:scale-105 hover:text-[#17A884] dark:hover:text-[#2EC4A7] cursor-pointer"
               aria-label="Выбрать язык"
               aria-expanded={langMenuOpen}
             >
-              <Globe className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              <span>{lang}</span>
+              <Globe className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 relative z-10 transition-transform duration-300 group-hover:rotate-12" />
+              <span className="relative z-10">{lang}</span>
             </button>
 
             {langMenuOpen && (
-              <div className="absolute right-0 mt-2 w-36 rounded-2xl liquid-glass shadow-xl py-1.5 z-50 text-xs animate-in fade-in-50 zoom-in-95 duration-150">
+              <div className="absolute right-0 mt-2.5 w-40 rounded-2xl bg-white/95 dark:bg-[#0E1715]/95 backdrop-blur-xl border border-slate-200/90 dark:border-[#1E302B] shadow-2xl py-1.5 z-50 text-xs origin-top-right transition-all duration-250 ease-out animate-in fade-in zoom-in-90 slide-in-from-top-2 overflow-hidden">
                 <button
-                  onClick={() => {
-                    onSelectLang('ru')
+                  onClick={(e) => {
+                    onSelectLang('ru', e)
                     setLangMenuOpen(false)
                   }}
-                  className={`w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-[#131C1A] flex items-center justify-between transition-colors cursor-pointer ${
                     lang === 'ru'
-                      ? 'font-bold text-[#17A884] dark:text-[#2EC4A7]'
+                      ? 'font-bold text-[#17A884] dark:text-[#2EC4A7] bg-[#17A884]/10 dark:bg-[#17A884]/15'
                       : 'text-slate-700 dark:text-slate-300'
                   }`}
                 >
@@ -129,13 +148,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-[10px] text-slate-400 font-mono">RU</span>
                 </button>
                 <button
-                  onClick={() => {
-                    onSelectLang('tj')
+                  onClick={(e) => {
+                    onSelectLang('tj', e)
                     setLangMenuOpen(false)
                   }}
-                  className={`w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-[#131C1A] flex items-center justify-between transition-colors cursor-pointer ${
                     lang === 'tj'
-                      ? 'font-bold text-[#17A884] dark:text-[#2EC4A7]'
+                      ? 'font-bold text-[#17A884] dark:text-[#2EC4A7] bg-[#17A884]/10 dark:bg-[#17A884]/15'
                       : 'text-slate-700 dark:text-slate-300'
                   }`}
                 >
@@ -143,13 +162,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="text-[10px] text-slate-400 font-mono">TJ</span>
                 </button>
                 <button
-                  onClick={() => {
-                    onSelectLang('en')
+                  onClick={(e) => {
+                    onSelectLang('en', e)
                     setLangMenuOpen(false)
                   }}
-                  className={`w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-[#131C1A] flex items-center justify-between transition-colors cursor-pointer ${
                     lang === 'en'
-                      ? 'font-bold text-[#17A884] dark:text-[#2EC4A7]'
+                      ? 'font-bold text-[#17A884] dark:text-[#2EC4A7] bg-[#17A884]/10 dark:bg-[#17A884]/15'
                       : 'text-slate-700 dark:text-slate-300'
                   }`}
                 >
@@ -164,31 +183,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onToggleNotifications && (
             <button
               onClick={onToggleNotifications}
-              className="relative w-9 h-9 rounded-full liquid-glass-pill hover:border-[#17A884]/40 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all hover:text-[#17A884] cursor-pointer"
+              className="relative w-9 h-9 rounded-full liquid-glass-pill text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all hover:text-[#17A884] cursor-pointer"
               aria-label="Центр уведомлений"
               title="Уведомления"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4 h-4 relative z-10" />
               {unreadNotificationsCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#17A884] text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse">
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#17A884] text-white text-[9px] font-black flex items-center justify-center shadow-xs animate-pulse z-20">
                   {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
                 </span>
               )}
             </button>
           )}
 
-          {/* Theme Toggle Button */}
-          <button
-            onClick={onToggleTheme}
-            className="w-9 h-9 rounded-full liquid-glass-pill hover:border-[#17A884]/40 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all hover:text-[#17A884] cursor-pointer"
-            aria-label="Переключить тему оформления"
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-600" />
-            )}
-          </button>
+          {/* Aaron Iker Animated Star Theme Toggle */}
+          <StarThemeToggle theme={theme} onToggle={onToggleTheme} />
 
           {/* Direct Profile or Login Navigation */}
           {user ? (
@@ -203,11 +212,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               aria-label="Личный кабинет"
             >
               <UserAvatar user={user} size="sm" />
-              <span className="hidden sm:inline-block max-w-[90px] truncate font-bold">
-                {user.full_name || user.email.split('@')[0]}
+              <span className="hidden sm:inline-block max-w-[90px] truncate font-bold relative z-10">
+                {user.full_name || (user.email ? user.email.split('@')[0] : user.phone || 'Профиль')}
               </span>
               {user.role === 'admin' && (
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-500 relative z-10" />
               )}
             </button>
           ) : (
@@ -221,8 +230,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Войти в личный кабинет"
               aria-label="Войти"
             >
-              <LogIn className="w-3.5 h-3.5 text-[#17A884] group-hover:scale-110 transition-transform" />
-              <span>{lang === 'tj' ? 'Воридшавӣ' : lang === 'en' ? 'Sign In' : 'Войти'}</span>
+              <LogIn className="w-3.5 h-3.5 text-[#17A884] group-hover:scale-110 transition-transform relative z-10" />
+              <span className="relative z-10">{lang === 'tj' ? 'Воридшавӣ' : lang === 'en' ? 'Sign In' : 'Войти'}</span>
             </button>
           )}
         </div>

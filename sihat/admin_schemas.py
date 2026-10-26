@@ -10,7 +10,8 @@ DRAFT_NOTE: str = (
 
 class AdminUserOutput(BaseModel):
     id: str
-    email: str
+    email: str | None = None
+    phone: str | None = None
     full_name: str
     role: str
     age_group: str

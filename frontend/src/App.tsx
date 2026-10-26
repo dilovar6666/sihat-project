@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { flushSync } from 'react-dom'
 import { Navbar } from './components/Navbar'
 import { LandingHero } from './components/LandingHero'
 import { BentoFeatures } from './components/BentoFeatures'
@@ -127,7 +128,7 @@ export default function App() {
       const parsed = parseHash()
       setCurrentPage(parsed.page)
       setCurrentTestSlug(parsed.testSlug)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo(0, 0)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
@@ -306,20 +307,144 @@ export default function App() {
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark')
+      document.documentElement.style.colorScheme = 'dark'
     } else {
       document.documentElement.classList.remove('dark')
+      document.documentElement.style.colorScheme = 'light'
     }
     localStorage.setItem('sihat_theme', theme)
   }, [theme])
 
-  // Sync language
-  const handleSelectLang = (newLang: Language) => {
+  // Language ripple wave
+  const [langWave, setLangWave] = useState<{ x: number; y: number } | null>(null)
+
+  // Sync language with wave animation
+  const handleSelectLang = (newLang: Language, e?: React.MouseEvent<HTMLElement>) => {
+    let x = window.innerWidth - 120
+    let y = 30
+    if (e?.currentTarget) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      x = rect.left + rect.width / 2
+      y = rect.top + rect.height / 2
+    }
+    setLangWave({ x, y })
+    setTimeout(() => setLangWave(null), 850)
     setLang(newLang)
     localStorage.setItem('sihat_lang', newLang)
   }
 
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  // Theme transition state for visible shockwave ripple
+  const [themeWave, setThemeWave] = useState<{
+    x: number
+    y: number
+    targetTheme: 'light' | 'dark'
+  } | null>(null)
+
+  // Theme toggle with progressive wave, initial blur and subtle zoom starting from button
+  const toggleTheme = (e?: React.MouseEvent<HTMLElement>) => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+
+    // Determine exact coordinates of the clicked toggle button
+    let x = window.innerWidth / 2
+    let y = 30
+
+    if (e?.currentTarget) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      x = rect.left + rect.width / 2
+      y = rect.top + rect.height / 2
+    } else {
+      const btn = document.getElementById('theme-toggle-btn')
+      if (btn) {
+        const rect = btn.getBoundingClientRect()
+        x = rect.left + rect.width / 2
+        y = rect.top + rect.height / 2
+      }
+    }
+
+    // Trigger visible shockwave ripple ring
+    setThemeWave({ x, y, targetTheme: nextTheme })
+    setTimeout(() => setThemeWave(null), 900)
+
+    const doc = document as any
+    if (
+      typeof document !== 'undefined' &&
+      'startViewTransition' in doc &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      )
+
+      const transition = doc.startViewTransition(() => {
+        flushSync(() => {
+          setTheme(nextTheme)
+          if (nextTheme === 'dark') {
+            document.documentElement.classList.add('dark')
+          } else {
+            document.documentElement.classList.remove('dark')
+          }
+          localStorage.setItem('sihat_theme', nextTheme)
+        })
+      })
+
+      transition.ready
+        .then(() => {
+          // Outgoing view: initial slight zoom and soft blur
+          document.documentElement.animate(
+            [
+              {
+                transform: 'scale(1)',
+                filter: 'blur(0px)',
+              },
+              {
+                transform: 'scale(1.025)',
+                filter: 'blur(5px)',
+              },
+              {
+                transform: 'scale(1.03)',
+                filter: 'blur(8px)',
+              },
+            ],
+            {
+              duration: 380,
+              easing: 'ease-out',
+              pseudoElement: '::view-transition-old(root)',
+            }
+          )
+
+          // Incoming view: expanding circular wave from button with progressive sharpening
+          document.documentElement.animate(
+            [
+              {
+                clipPath: `circle(0px at ${x}px ${y}px)`,
+                transform: 'scale(1.03)',
+                filter: 'blur(8px)',
+              },
+              {
+                clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
+                transform: 'scale(1.015)',
+                filter: 'blur(4px)',
+              },
+              {
+                clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
+                transform: 'scale(1)',
+                filter: 'blur(0px)',
+              },
+            ],
+            {
+              duration: 750,
+              easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+              pseudoElement: '::view-transition-new(root)',
+            }
+          )
+        })
+        .catch(() => {
+          setTheme(nextTheme)
+        })
+    } else {
+      setTheme(nextTheme)
+    }
   }
 
   // Restore authenticated session
@@ -526,13 +651,16 @@ export default function App() {
 
       {/* Main Content Pages (Separated by Route) */}
       <main className="min-h-[75vh] pt-20 sm:pt-24">
-        {currentPage === 'home' && (
+        <div key={currentPage} className="animate-in fade-in-50 duration-200">
+          {currentPage === 'home' && (
           <>
             <LandingHero
               t={t}
               lang={lang}
+              tests={tests}
               onOpenCatalog={() => handleNavigate('catalog')}
               onOpenMethodology={() => handleNavigate('methodologies')}
+              onSelectTest={(item) => handleNavigate(`passport/${item.slug}`)}
               onStartScreening={(slug) => {
                 const found = tests.find((x) => x.slug === slug)
                 if (found) {
@@ -567,6 +695,7 @@ export default function App() {
         {(currentPage === 'passport' || currentPage === 'methodologies') && (
           <MethodologyPage
             tests={tests}
+            categories={categories}
             currentSlug={currentTestSlug}
             lang={lang}
             token={token}
@@ -668,6 +797,7 @@ export default function App() {
             onNavigate={handleNavigate}
           />
         )}
+        </div>
       </main>
 
       {/* Footer */}
@@ -774,6 +904,34 @@ export default function App() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Fluid Theme Wave Shockwave Ring Originating from Button Coordinates */}
+      {themeWave && (
+        <div
+          key={`theme-wave-${themeWave.x}-${themeWave.y}-${Date.now()}`}
+          className={
+            themeWave.targetTheme === 'dark'
+              ? 'theme-ripple-wave-dark'
+              : 'theme-ripple-wave-light'
+          }
+          style={{
+            left: `${themeWave.x}px`,
+            top: `${themeWave.y}px`,
+          }}
+        />
+      )}
+
+      {/* Language Switch Shockwave Wave */}
+      {langWave && (
+        <div
+          key={`lang-wave-${langWave.x}-${langWave.y}-${Date.now()}`}
+          className="lang-ripple-wave"
+          style={{
+            left: `${langWave.x}px`,
+            top: `${langWave.y}px`,
+          }}
+        />
       )}
     </div>
   )

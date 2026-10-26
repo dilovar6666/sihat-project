@@ -44,8 +44,8 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
     lang === 'tj'
       ? 'Салом! Ман ёвари клиникии SIHAT ҳастам. Ба шумо барои интихоби скринингҳои биноӣ, шунавоӣ ё диққат кумак мерасонам ва методологияро шарҳ медиҳам. Платформа ташхиси тиббӣ намегузорад.'
       : lang === 'en'
-      ? 'Hello! I am SIHAT clinical guide. I can help recommend appropriate vision, hearing, or attention screenings, and explain methodology boundaries. The platform does not formulate medical diagnoses.'
-      : 'Здравствуйте! Я клинический навигатор SIHAT. Помогу подобрать скрининг зрения, слуха или внимания, либо объясню условия калибровки и паспорта методик. Платформа не ставит медицинских диагнозов.'
+        ? 'Hello! I am SIHAT clinical guide. I can help recommend appropriate vision, hearing, or attention screenings, and explain methodology boundaries. The platform does not formulate medical diagnoses.'
+        : 'Здравствуйте! Я клинический навигатор SIHAT. Помогу подобрать скрининг зрения, слуха или внимания, либо объясню условия калибровки и паспорта методик. Платформа не ставит медицинских диагнозов.'
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -55,12 +55,15 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  // Auto scroll to bottom of messages
+  // Auto scroll messages container without scrolling window/body
   useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (isOpen && messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      })
     }
   }, [messages, isOpen])
 
@@ -118,8 +121,8 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
             err instanceof Error
               ? err.message
               : lang === 'tj'
-              ? 'Хатогӣ ҳангоми гирифтани посух.'
-              : 'Не удалось получить ответ от ассистента.',
+                ? 'Хатогӣ ҳангоми гирифтани посух.'
+                : 'Не удалось получить ответ от ассистента.',
         },
       ])
     } finally {
@@ -130,19 +133,19 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
   const quickPrompts =
     lang === 'tj'
       ? [
-          '👁 Чӣ тавр биноиро санҷем?',
-          '👂 Чӣ тавр шунавоиро санҷем?',
-          '🧠 Тести Струп чист?',
-          '🛡 Махфияти натиҷаҳо',
-        ]
+        '👁 Чӣ тавр биноиро санҷем?',
+        '👂 Чӣ тавр шунавоиро санҷем?',
+        '🧠 Тести Струп чист?',
+        '🛡 Махфияти натиҷаҳо',
+      ]
       : lang === 'en'
-      ? [
+        ? [
           '👁 How to test vision?',
           '👂 How to test hearing?',
           '🧠 What is Stroop test?',
           '🛡 How is privacy protected?',
         ]
-      : [
+        : [
           '👁 Как проверить зрение?',
           '👂 Как проверить слух?',
           '🧠 Тест Струпа',
@@ -152,7 +155,7 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
   return (
     <aside
       aria-label="Компактное окно ИИ-помощника"
-      className="fixed bottom-20 sm:bottom-24 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] sm:w-[430px] h-[530px] max-h-[78vh] rounded-3xl liquid-glass shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      className="!fixed bottom-20 sm:bottom-24 right-4 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[420px] h-[520px] max-h-[78vh] rounded-3xl liquid-glass shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
     >
       {/* Compact Header */}
       <div className="px-4 py-3 border-b border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-50/70 dark:bg-zinc-900/50">
@@ -210,13 +213,12 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
       </div>
 
       {/* Message History */}
-      <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
         {messages.map((m, idx) => (
           <div
             key={idx}
-            className={`flex gap-2.5 leading-relaxed ${
-              m.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
+            className={`flex gap-2.5 leading-relaxed ${m.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
           >
             {m.role === 'assistant' && (
               <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
@@ -224,11 +226,10 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
               </div>
             )}
             <div
-              className={`p-3 rounded-2xl max-w-[85%] ${
-                m.role === 'user'
+              className={`p-3 rounded-2xl max-w-[85%] ${m.role === 'user'
                   ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-sm shadow-sm'
                   : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-800/80 rounded-tl-sm shadow-xs'
-              }`}
+                }`}
             >
               <p className="whitespace-pre-wrap text-[11.5px] leading-relaxed">{m.content}</p>
 
@@ -247,10 +248,10 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
                         {act.name === 'open_test'
                           ? `Перейти к тесту: ${act.arguments?.slug || ''} →`
                           : lang === 'tj'
-                          ? 'Феҳристи скринингҳо →'
-                          : lang === 'en'
-                          ? 'Open Catalog →'
-                          : 'Открыть каталог →'}
+                            ? 'Феҳристи скринингҳо →'
+                            : lang === 'en'
+                              ? 'Open Catalog →'
+                              : 'Открыть каталог →'}
                       </span>
                     </button>
                   ))}
@@ -265,11 +266,13 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
             {lang === 'tj' ? 'Омодасозии посух...' : lang === 'en' ? 'Formulating response...' : 'Формирование ответа...'}
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Quick Question Pills */}
-      <div className="px-3 py-1.5 border-t border-zinc-200/60 dark:border-zinc-800/60 flex gap-1.5 overflow-x-auto text-[10px] shrink-0 bg-zinc-50/50 dark:bg-zinc-900/30 no-scrollbar">
+      <div
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="px-3 py-1.5 border-t border-zinc-200/60 dark:border-zinc-800/60 flex gap-1.5 overflow-x-auto text-[10px] shrink-0 bg-zinc-50/50 dark:bg-zinc-900/30 no-scrollbar"
+      >
         {quickPrompts.map((p, pIdx) => (
           <button
             key={pIdx}
@@ -297,8 +300,8 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
             lang === 'tj'
               ? 'Дар бораи тестҳо пурсед...'
               : lang === 'en'
-              ? 'Ask about tests or symptoms...'
-              : 'Спросите о тестах или симптомах...'
+                ? 'Ask about tests or symptoms...'
+                : 'Спросите о тестах или симптомах...'
           }
           className="flex-1 px-3.5 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400"
         />
