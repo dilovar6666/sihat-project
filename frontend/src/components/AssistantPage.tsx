@@ -345,26 +345,40 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
                 {/* Interactive Action Buttons if returned by Assistant */}
                 {m.actions && m.actions.length > 0 && (
                   <div className="pt-2.5 border-t border-zinc-200/60 dark:border-zinc-800/60 flex flex-wrap gap-2">
-                    {m.actions.map((act, actIdx) => (
-                      <button
-                        key={actIdx}
-                        onClick={() => {
-                          if (act.name === 'open_test' && act.arguments?.slug) {
-                            onNavigate(`test/${act.arguments.slug}`)
-                          } else {
-                            onNavigate('catalog')
-                          }
-                        }}
-                        className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all flex items-center gap-1.5 shadow-xs"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>
-                          {act.name === 'open_test'
-                            ? `Открыть тест: ${act.arguments?.slug} →`
-                            : 'Перейти в каталог скринингов →'}
-                        </span>
-                      </button>
-                    ))}
+                    {m.actions.map((act, actIdx) => {
+                      const testSlug = act.arguments?.slug || act.arguments?.test_slug
+                      const testTitle = act.arguments?.title
+                      const isTest = act.name === 'open_test' && !!testSlug
+
+                      return (
+                        <button
+                          key={actIdx}
+                          onClick={() => {
+                            if (isTest && testSlug) {
+                              onNavigate(`test/${testSlug}`)
+                            } else {
+                              onNavigate('catalog')
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span>
+                            {isTest
+                              ? (lang === 'tj'
+                                  ? `Гузариш ба санҷиш: ${testTitle || testSlug} →`
+                                  : lang === 'en'
+                                  ? `Start Test: ${testTitle || testSlug} →`
+                                  : `Пройти тест: ${testTitle || testSlug} →`)
+                              : lang === 'tj'
+                                ? 'Феҳристи скринингҳо →'
+                                : lang === 'en'
+                                  ? 'Open Catalog →'
+                                  : 'Открыть каталог →'}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>

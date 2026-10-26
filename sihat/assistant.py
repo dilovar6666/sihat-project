@@ -2,6 +2,7 @@
 
 from collections import defaultdict, deque
 from time import monotonic
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -80,16 +81,30 @@ def _validated_action(action: object, db: Session, user: User | None) -> Assista
     if name not in _ALLOWED_ACTIONS or not isinstance(arguments, dict):
         return None
     if name in {"open_test", "open_test_description", "prepare_test_start"}:
-        slug = arguments.get("slug")
-        if not isinstance(slug, str) or not db.scalar(
-            select(TestDefinition.id).where(
+        slug = arguments.get("slug") or arguments.get("test_slug")
+        if not isinstance(slug, str):
+            return None
+        test = db.scalar(
+            select(TestDefinition).where(
                 TestDefinition.slug == slug, TestDefinition.availability_status == "published"
             )
-        ):
+        )
+        if not test:
             return None
+        title = arguments.get("title")
+        if not title and test.localizations and isinstance(test.localizations, dict):
+            ru_loc = test.localizations.get("ru")
+            en_loc = test.localizations.get("en")
+            if isinstance(ru_loc, dict) and ru_loc.get("title"):
+                title = ru_loc.get("title")
+            elif isinstance(en_loc, dict) and en_loc.get("title"):
+                title = en_loc.get("title")
+        args: dict[str, Any] = {"slug": slug, "test_slug": slug}
+        if title:
+            args["title"] = str(title)
         return AssistantAction(
             name=name,
-            arguments={"slug": slug},
+            arguments=args,
             requires_confirmation=name == "prepare_test_start",
         )
     if name == "show_test_results":
@@ -141,28 +156,37 @@ def _fallback(user_text: str = "") -> AssistantMessageOutput:
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
 
     # 3. Catalog / What tests exist / Capabilities
-    elif any(k in low for k in ["что ты умеешь", "какие тесты", "список", "возможности", "что делать", "помоги выбрать", "тесты", "каталог", "проверк"]):
+    elif any(k in low for k in ["что ты умеешь", "какие тесты", "список", "возможности", "что делать", "помоги выбрать", "тесты", "каталог", "все тесты"]):
         msg = (
-            "В каталоге SIHAT доступны 4 ключевых направления самопроверки:\n"
-            "1. 👁️ Зрение (ISO 8596) — оптотипы Ландольта и контрастная чувствительность.\n"
-            "2. 👂 Слух (ISO 8253-1) — тональная аудиометрия чистых тонов (250–8000 Гц).\n"
-            "3. 🧠 Внимание и память — тест Струпа (задержка когнитивной интерференции).\n"
-            "4. 🌿 Общее самочувствие — интегральная шкала сна, уровня стресса и энергии.\n"
-            "Платформа SIHAT does not diagnose conditions. Нажмите ниже, чтобы открыть каталог."
+            "В каталоге SIHAT доступны ключевые направления самопроверки:\n"
+            "1. 👁️ Зрение (ISO 8596) — оптотипы Ландольта C, контрастная чувствительность (Pelli-Robson), таблицы Рабкина/Ишихары.\n"
+            "2. 👂 Слух (ISO 8253-1) — тональная аудиометрия чистых тонов (250–8000 Гц) и разборчивость речи в шуме.\n"
+            "3. 🧠 Внимание и память — таблицы Шульте 5×5, тест Струпа, блоки Корси и Digit Span.\n"
+            "4. ⚡ Сенсомоторика — измерение скорости простой реакции (Donders A).\n"
+            "Платформа SIHAT does not diagnose conditions. Выберите направление или откройте полный каталог."
         )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
 
-    # 4. Vision / Landolt C
-    elif any(k in low for k in ["зрен", "глаз", "видеть", "vision", "eye", "оптотип", "ландольт", "бино", "чашм", "близорук", "дальнозор"]):
+    # 4. Color blindness / Rabkin & Ishihara plates
+    elif any(k in low for k in ["дальтон", "цвет", "исихар", "рабкин", "color", "ранг", "цветовосприят", "цветоощущ"]):
         msg = (
-            "Для проверки зрительного анализатора доступен скрининг контрастной чувствительности и остроты зрения на базе оптотипов Ландольта (стандарт ISO 8596). "
-            "Перед прохождением теста экран калибруется на расстояние вытянутой руки (~50–60 см). "
-            "При зрительной утомляемости офтальмологи рекомендуют правило 20-20-20: каждые 20 минут смотрите на 20 футов (6 метров) вдаль в течение 20 секунд. "
-            "Напоминаем: SIHAT does not diagnose conditions."
+            "Для проверки цветового зрения доступен полихроматический тест на цветоощущение (таблицы Рабкина и Ишихары). "
+            "Скрининг выявляет признаки протанопии, дейтеранопии (красно-зелёная слепота) и других аномалий цветовосприятия с распознаванием цифр и геометрических фигур. "
+            "Проходите тест при естественном освещении без фильтров защиты глаз и ночного режима экрана. "
+            "SIHAT does not diagnose conditions."
         )
-        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+        actions.append(
+            AssistantAction(
+                name="open_test",
+                arguments={
+                    "slug": "color-perception",
+                    "test_slug": "color-perception",
+                    "title": "Тест на дальтонизм (Рабкин и Ишихара)",
+                },
+            )
+        )
 
-    # 5. Hearing / Audiometry
+    # 5. Hearing / Pure tone audiometry
     elif any(k in low for k in ["слух", "ухо", "слыш", "громк", "hear", "ear", "sound", "аудио", "шунавоӣ", "гӯш", "тиннитус", "шум в ушах"]):
         msg = (
             "Для оценки слухового восприятия в каталоге представлен скрининг порогов слышимости чистых тонов (250–8000 Гц, стандарт ISO 8253-1). "
@@ -170,19 +194,92 @@ def _fallback(user_text: str = "") -> AssistantMessageOutput:
             "Если вас беспокоит постоянный шум или звон в ушах (тиннитус), обратитесь к врачу-сурдологу или оториноларингологу. "
             "SIHAT does not diagnose conditions."
         )
-        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+        actions.append(
+            AssistantAction(
+                name="open_test",
+                arguments={
+                    "slug": "sound-discrimination",
+                    "test_slug": "sound-discrimination",
+                    "title": "Тональная аудиометрия (250–8000 Гц)",
+                },
+            )
+        )
 
-    # 6. Attention / Cognition / Stroop
-    elif any(k in low for k in ["памят", "вниман", "струп", "концентр", "cognit", "memory", "stroop", "мозг", "хотира", "диққат", "устал", "фокус"]):
+    # 6. Contrast Sensitivity (Pelli-Robson)
+    elif any(k in low for k in ["контраст", "пэлли", "робсон", "contrast", "равшанӣ"]):
         msg = (
-            "Для оценки когнитивного контроля и скорости торможения автоматических реакций доступен тест цвето-словесной интерференции Струпа. "
-            "Упражнение измеряет задержку моторного отклика (в миллисекундах) при конфликте между значением слова и цветом его шрифта. "
-            "Помогает объективно оценить ментальную утомляемость и способность к избирательному вниманию. "
+            "Для оценки контрастной чувствительности доступен тест Pelli-Robson. "
+            "Он определяет порог восприятия слабоконтрастных оптотипов при ступенчатом снижении контрастности до 1%, что важно при ночном вождении и раннем зрительном утомлении. "
             "SIHAT does not diagnose conditions."
         )
-        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+        actions.append(
+            AssistantAction(
+                name="open_test",
+                arguments={
+                    "slug": "contrast-sensitivity",
+                    "test_slug": "contrast-sensitivity",
+                    "title": "Контрастная чувствительность (Pelli-Robson)",
+                },
+            )
+        )
 
-    # 7. Sleep / Insomnia
+    # 7. Vision / Landolt C
+    elif any(k in low for k in ["зрен", "глаз", "видеть", "vision", "eye", "оптотип", "ландольт", "бино", "чашм", "близорук", "дальнозор"]):
+        msg = (
+            "Для проверки зрительного анализатора доступен скрининг остроты зрения на базе оптотипов Ландольта C (стандарт ISO 8596). "
+            "Перед прохождением теста экран калибруется на расстояние вытянутой руки (~50–60 см). "
+            "При зрительной утомляемости офтальмологи рекомендуют правило 20-20-20: каждые 20 минут смотрите на 20 футов (6 метров) вдаль в течение 20 секунд. "
+            "Напоминаем: SIHAT does not diagnose conditions."
+        )
+        actions.append(
+            AssistantAction(
+                name="open_test",
+                arguments={
+                    "slug": "visual-perception",
+                    "test_slug": "visual-perception",
+                    "title": "Острота зрения (Кольца Ландольта C)",
+                },
+            )
+        )
+
+    # 8. Attention / Schulte tables / Stroop
+    elif any(k in low for k in ["памят", "вниман", "струп", "шульт", "концентр", "cognit", "memory", "stroop", "мозг", "хотира", "диққат", "устал", "фокус"]):
+        msg = (
+            "Для оценки концентрации, устойчивости внимания и скорости когнитивной обработки доступен скрининг на базе таблиц Шульте (5 × 5). "
+            "Упражнение измеряет темп зрительного поиска, динамику врабатываемости и умственную утомляемость. "
+            "Помогает объективно оценить ментальную устойчивость и способность к фокусировке. "
+            "SIHAT does not diagnose conditions."
+        )
+        actions.append(
+            AssistantAction(
+                name="open_test",
+                arguments={
+                    "slug": "attention-concentration",
+                    "test_slug": "attention-concentration",
+                    "title": "Таблицы Шульте (5 × 5)",
+                },
+            )
+        )
+
+    # 9. Simple Reaction Speed
+    elif any(k in low for k in ["реакц", "скорост", "reaction", "рефлекс", "аксуламал"]):
+        msg = (
+            "Для измерения сенсомоторной реакции на визуальный стимул доступен тест скорости простой реакции (методика Donders A). "
+            "Тест фиксирует латентное время моторного ответа в миллисекундах и стабильность нервных процессов. "
+            "SIHAT does not diagnose conditions."
+        )
+        actions.append(
+            AssistantAction(
+                name="open_test",
+                arguments={
+                    "slug": "reaction-speed",
+                    "test_slug": "reaction-speed",
+                    "title": "Скорость простой реакции",
+                },
+            )
+        )
+
+    # 10. Sleep / Insomnia
     elif any(k in low for k in ["сон", "спать", "бессон", "sleep", "хоб", "засыпа"]):
         msg = (
             "В нашей базе знаний собраны клинические рекомендации по гигиене здорового сна: "
@@ -191,7 +288,7 @@ def _fallback(user_text: str = "") -> AssistantMessageOutput:
         )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/faq"}))
 
-    # 8. Privacy & Data deletion
+    # 11. Privacy & Data deletion
     elif any(k in low for k in ["удал", "приватн", "сохран", "данн", "privacy", "delete", "махфият", "нест"]):
         msg = (
             "Архитектура SIHAT построена по принципу Zero-Retention: "
@@ -201,7 +298,7 @@ def _fallback(user_text: str = "") -> AssistantMessageOutput:
         )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/history"}))
 
-    # 9. Methodology / Standards
+    # 12. Methodology / Standards
     elif any(k in low for k in ["метод", "научн", "стандарт", "iso", "кто создал", "паспорт", "доказатель"]):
         msg = (
             "Каждый модуль на платформе SIHAT имеет открытый паспорт методики: первоисточники в PubMed/ISO, класс доказательности, калибровочные условия и клинические ограничения. "
@@ -210,12 +307,12 @@ def _fallback(user_text: str = "") -> AssistantMessageOutput:
         )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/faq"}))
 
-    # 10. General default
+    # 13. General default
     else:
         msg = (
             "Я клинический навигатор SIHAT. Помогаю выбрать программу скрининга (зрение, слух, внимание), "
             "объясняю условия калибровки и принципы доказательной медицины. "
-            "Вы можете спросить меня: «Как проверить зрение?», «Какие тесты есть?», «Как защищены мои данные?» или перейти сразу в каталог. "
+            "Вы можете спросить меня: «Как проверить слух?», «Как проверить зрение?», «Тест на дальтонизм» или перейти сразу в каталог. "
             "SIHAT does not diagnose conditions or prescribe treatment."
         )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))

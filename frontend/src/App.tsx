@@ -825,6 +825,7 @@ export default function App() {
         isOpen={assistantOpen}
         onClose={() => setAssistantOpen(false)}
         onNavigateToCatalog={() => handleNavigate('catalog')}
+        onNavigateToTest={(slug) => handleNavigate(`test/${slug}`)}
         onOpenDedicated={() => {
           handleNavigate('assistant')
           setAssistantOpen(false)
