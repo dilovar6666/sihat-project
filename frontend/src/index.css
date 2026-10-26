@@ -2,8 +2,8 @@
 
 @font-face {
   font-family: 'Bauhaus 93';
-  src: url('/fonts/Bauhaus93-Cyrillic.ttf') format('truetype'),
-       url('/fonts/Bauhaus93.ttf') format('truetype');
+  src: url('/fonts/Bauhaus93-Cyrillic.ttf?v=2') format('truetype'),
+       url('/fonts/Bauhaus93.ttf?v=2') format('truetype');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
