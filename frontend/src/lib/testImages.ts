@@ -25,6 +25,9 @@ export function getTestCover(slug: string): string {
   if (TEST_IMAGE_METADATA[slug]) {
     return `/images/tests/${slug}.webp`
   }
+  if (slug === 'color-perception' || slug === 'color-hue-discrimination') {
+    return '/images/tests/contrast-sensitivity.webp'
+  }
   return '/hero-bg.jpg'
 }
 

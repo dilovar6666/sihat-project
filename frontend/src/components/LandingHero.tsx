@@ -394,15 +394,15 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                     <span>
                       {isFinished
                         ? (lang === 'tj'
-                            ? 'Дидани натиҷа ва оғози тести пурра'
+                            ? 'Дидани натиҷа ва санҷиши пурра (10 ҷадвал)'
                             : lang === 'en'
-                            ? 'Unlock Result & Launch Full Test'
-                            : 'Посмотреть результат и запустить полный скрининг')
+                            ? 'View Results & Start Full Test (10 Plates)'
+                            : 'Посмотреть результат и пройти полный тест (10 таблиц)')
                         : (lang === 'tj'
-                            ? 'Оғози скрининги комил (15 тест)'
+                            ? 'Оғози санҷиши пурраи дальтонизм (10 ҷадвал)'
                             : lang === 'en'
-                            ? 'Launch Full Screening'
-                            : 'Запустить полный скрининг')}
+                            ? 'Start Full Color Blindness Test (10 Plates)'
+                            : 'Запустить полный тест на дальтонизм (10 таблиц)')}
                     </span>
                     <ArrowRight className="w-4 h-4" />
                   </Button>

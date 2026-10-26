@@ -62,6 +62,7 @@ export const CatalogSection: React.FC<CatalogSectionProps> = ({
         'short-term-memory',
         'information-processing-speed',
         'contrast-sensitivity',
+        'color-perception',
         'color-hue-discrimination',
         'visual-perception',
         'sound-discrimination',
