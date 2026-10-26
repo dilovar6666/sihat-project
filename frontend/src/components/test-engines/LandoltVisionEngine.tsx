@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Eye, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpLeft, ArrowUpRight, ArrowDownLeft, ArrowDownRight, Award, CheckCircle, RotateCcw, Play } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
@@ -95,11 +95,15 @@ export const LandoltVisionEngine: React.FC<LandoltVisionEngineProps> = ({ lang, 
     },
   }[lang]
 
-  const pickRandomOrientation = () => {
-    const pick = ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)]
+  const pickRandomOrientation = useCallback(() => {
+    let pick = ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)]
+    if (pick.id === currentOrientationId && ORIENTATIONS.length > 1) {
+      const remaining = ORIENTATIONS.filter((o) => o.id !== currentOrientationId)
+      pick = remaining[Math.floor(Math.random() * remaining.length)]
+    }
     setCurrentAngle(pick.angle)
     setCurrentOrientationId(pick.id)
-  }
+  }, [currentOrientationId])
 
   const handleStart = () => {
     setLevelIdx(0)
@@ -107,10 +111,12 @@ export const LandoltVisionEngine: React.FC<LandoltVisionEngineProps> = ({ lang, 
     setScoreAcuity(0)
     setIsFinished(false)
     setIsActive(true)
-    pickRandomOrientation()
+    const pick = ORIENTATIONS[Math.floor(Math.random() * ORIENTATIONS.length)]
+    setCurrentAngle(pick.angle)
+    setCurrentOrientationId(pick.id)
   }
 
-  const handleDirectionChoice = (id: string) => {
+  const handleDirectionChoice = useCallback((id: string) => {
     const isCorrect = id === currentOrientationId
     const currentAcuity = ACUITY_LEVELS[levelIdx].acuity
 
@@ -130,7 +136,28 @@ export const LandoltVisionEngine: React.FC<LandoltVisionEngineProps> = ({ lang, 
       setIsActive(false)
       setIsFinished(true)
     }
-  }
+  }, [correctCount, currentOrientationId, levelIdx, pickRandomOrientation, scoreAcuity])
+
+  // Support keyboard arrow keys during active test
+  useEffect(() => {
+    if (!isActive) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      let choiceId: string | null = null
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') choiceId = 'up'
+      else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') choiceId = 'down'
+      else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') choiceId = 'left'
+      else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') choiceId = 'right'
+
+      if (choiceId) {
+        e.preventDefault()
+        handleDirectionChoice(choiceId)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isActive, handleDirectionChoice])
 
   const handleFinish = () => {
     let category = t.statusOpt
@@ -189,23 +216,32 @@ export const LandoltVisionEngine: React.FC<LandoltVisionEngineProps> = ({ lang, 
               width={currentLevel.ringSizePx}
               height={currentLevel.ringSizePx}
               viewBox="0 0 100 100"
-              style={{
-                transform: `rotate(${currentAngle}deg)`,
-                transition: 'transform 0.15s ease-out',
-              }}
+              className="overflow-visible select-none"
             >
-              {/* Landolt C ring with a 45-degree gap on the right */}
-              <circle
-                cx="50"
-                cy="50"
-                r="40"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="20"
-                strokeDasharray="209 42"
-                strokeDashoffset="21"
-                className="text-zinc-900 dark:text-zinc-100"
-              />
+              {/* Rotate around exact circle center (50, 50) */}
+              <g
+                transform={`rotate(${currentAngle}, 50, 50)`}
+                style={{
+                  transformOrigin: '50px 50px',
+                  transition: 'transform 0.15s ease-out',
+                }}
+              >
+                {/* Landolt C ring: center (50, 50), radius 40, strokeWidth 20 */}
+                {/* Stroke perimeter 251.33 px. Gap is 42 px. */}
+                {/* strokeDashoffset="-21" centers the gap at angle 0.00 deg (exact RIGHT / 3 o'clock). */}
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="20"
+                  strokeDasharray="209.33 42"
+                  strokeDashoffset="-21"
+                  strokeLinecap="butt"
+                  className="text-zinc-900 dark:text-zinc-100"
+                />
+              </g>
             </svg>
           </div>
 
@@ -215,52 +251,60 @@ export const LandoltVisionEngine: React.FC<LandoltVisionEngineProps> = ({ lang, 
           <div className="grid grid-cols-3 gap-2 w-52 mb-6">
             <button
               onClick={() => handleDirectionChoice('up-left')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Вверх-влево"
             >
               <ArrowUpLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDirectionChoice('up')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Вверх"
             >
               <ArrowUp className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDirectionChoice('up-right')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Вверх-вправо"
             >
               <ArrowUpRight className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDirectionChoice('left')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Влево"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <div className="flex items-center justify-center text-zinc-400 font-mono text-xs">
+            <div className="flex items-center justify-center text-zinc-400 font-mono text-xs font-bold">
               C
             </div>
             <button
               onClick={() => handleDirectionChoice('right')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Вправо"
             >
               <ArrowRight className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDirectionChoice('down-left')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Вниз-влево"
             >
               <ArrowDownLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDirectionChoice('down')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Вниз"
             >
               <ArrowDown className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleDirectionChoice('down-right')}
-              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300"
+              className="p-3 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors flex items-center justify-center text-zinc-700 dark:text-zinc-300 active:scale-95"
+              title="Вниз-вправо"
             >
               <ArrowDownRight className="w-5 h-5" />
             </button>
