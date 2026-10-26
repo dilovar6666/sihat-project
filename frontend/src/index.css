@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Bauhaus 93';
+  src: url('/fonts/Bauhaus93-Cyrillic.ttf') format('truetype'),
+       url('/fonts/Bauhaus93.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-bauhaus {
+  font-family: 'Bauhaus 93', 'BauhausC', sans-serif !important;
+  font-weight: normal !important;
+  letter-spacing: 0.02em;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
