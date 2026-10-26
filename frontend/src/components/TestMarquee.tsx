@@ -63,22 +63,42 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     },
   },
   {
+    slug: 'color-perception',
+    min_age: 10,
+    type: 'validated_screening',
+    category_id: 'Зрение',
+    localizations: {
+      ru: {
+        title: 'Тест на дальтонизм (Таблицы Рабкина и Ишихары)',
+        description: 'Клинический скрининг красно-зелёного цветовосприятия и спектра колбочек L, M, S с распознаванием цифр и геометрических фигур.',
+      },
+      tj: {
+        title: 'Санҷиши дальтонизм (Ҷадвалҳои Рабкин ва Ишихара)',
+        description: 'Баҳодиҳии клиникии тафриқаи рангҳои сурху сабз ва колбачаҳои биноӣ бо рақамҳо ва шаклҳои геометрӣ.',
+      },
+      en: {
+        title: 'Color Blindness Screening (Rabkin & Ishihara Plates)',
+        description: 'Standardized polychromatic diagnostic screening with numbers and geometric shapes.',
+      },
+    },
+  },
+  {
     slug: 'color-hue-discrimination',
     min_age: 12,
     type: 'validated_screening',
     category_id: 'Зрение',
     localizations: {
       ru: {
-        title: 'Цветоразличение (Матрицы Ишихары и Рабкина)',
-        description: 'Клиническая дифференциация протанопии, дейтеранопии и спектральной чувствительности колбочек.',
+        title: 'Цветоразличение оттенков (Farnsworth D-15)',
+        description: 'Спектральная сортировка цветовых оттенков по кругу Манселла.',
       },
       tj: {
-        title: 'Шинохти рангҳо (Ҷадвалҳои Ишиҳара)',
-        description: 'Санҷиши дақиқи ҳассосияти фоторетсепторҳои чашм ба спектрҳои сурх ва сабз.',
+        title: 'Фарқкунии тобишҳои ранг (Farnsworth D-15)',
+        description: 'Тартибдиҳии спектралии доираҳои ранга дар пайдарпайии ҳамвор.',
       },
       en: {
-        title: 'Color Hue Discrimination (Ishihara)',
-        description: 'Pseudoisochromatic plate screening for congenital and acquired red-green defects.',
+        title: 'Color Hue Discrimination (Farnsworth D-15)',
+        description: 'Spectral hue arrangement across the chromatic circle.',
       },
     },
   },

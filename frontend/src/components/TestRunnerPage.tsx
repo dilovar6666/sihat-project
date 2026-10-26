@@ -42,6 +42,7 @@ import { Gad7Engine } from './test-engines/Gad7Engine'
 import { EmotionalAffectEngine } from './test-engines/EmotionalAffectEngine'
 import { CircadianClockEngine } from './test-engines/CircadianClockEngine'
 import { ColorHueEngine } from './test-engines/ColorHueEngine'
+import { ColorPerceptionEngine } from './test-engines/ColorPerceptionEngine'
 import { LandoltVisionEngine } from './test-engines/LandoltVisionEngine'
 import { TonalAudiometryEngine } from './test-engines/TonalAudiometryEngine'
 
@@ -383,8 +384,9 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
       case 'contrast-sensitivity':
         return <ContrastSensitivityEngine lang={lang} onComplete={handleTestComplete} />
       case 'color-hue-discrimination':
-      case 'color-perception':
         return <ColorHueEngine lang={lang} onComplete={handleTestComplete} />
+      case 'color-perception':
+        return <ColorPerceptionEngine lang={lang} onComplete={handleTestComplete} />
       case 'visual-perception':
         return <LandoltVisionEngine lang={lang} onComplete={handleTestComplete} />
       case 'sound-discrimination':

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   ArrowRight,
   ShieldCheck,
@@ -14,6 +14,7 @@ import {
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import { Card } from './ui/Card'
+import { PseudoisochromaticPlateCanvas, CLINICAL_PLATES } from './test-engines/ColorPerceptionEngine'
 import type { Language, Translations } from '../i18n'
 import type { TestItem } from '../types'
 import { TestMarquee } from './TestMarquee'
@@ -28,157 +29,7 @@ interface LandingHeroProps {
   onStartScreening: (slug: string) => void
 }
 
-interface PlateDefinition {
-  id: number
-  numberStr: string
-  labelRu: string
-  labelTj: string
-  labelEn: string
-  descRu: string
-  descTj: string
-  descEn: string
-  bgColors: string[]
-  fgColors: string[]
-  options: string[]
-  correctValue: string
-}
-
-const ISHIHARA_PLATES: PlateDefinition[] = [
-  {
-    id: 1,
-    numberStr: '12',
-    labelRu: 'Таблица №1 • Демонстрационная',
-    labelTj: 'Ҷадвали №1 • Намоишӣ',
-    labelEn: 'Plate #1 • Demonstration Baseline',
-    descRu: 'Видна как при нормальном зрении, так и при всех формах дальтонизма (калибровочный базис).',
-    descTj: 'Ҳам барои биноии муқаррарӣ ва ҳам барои ҳамаи намудҳои дальтонизм намоён аст.',
-    descEn: 'Visible to normal color vision and all forms of color blindness (calibration baseline).',
-    bgColors: ['#4b8e61', '#5ea574', '#74be8d', '#427f54', '#85cea1', '#539967', '#3c734b'],
-    fgColors: ['#ea583a', '#dd4828', '#f36e4f', '#c93b1e', '#f88366', '#d64426'],
-    options: ['12', '72', '21', 'Ничего'],
-    correctValue: '12',
-  },
-  {
-    id: 2,
-    numberStr: '8',
-    labelRu: 'Таблица №2 • Красно-зелёный спектр',
-    labelTj: 'Ҷадвали №2 • Спектри сурху сабз',
-    labelEn: 'Plate #2 • Red-Green Confusion',
-    descRu: 'Нормальное зрение видит 8. При дейтеранопии/протанопии обычно видят 3 или ничего.',
-    descTj: 'Биноии муқаррарӣ 8-ро мебинад. Ҳангоми дейтеранопия/протанопия 3 ё ҳеҷ чиз дида мешавад.',
-    descEn: 'Normal vision reads 8. Red-green deficiency typically reads 3 or nothing.',
-    bgColors: ['#71937e', '#62836f', '#7fa08d', '#557461', '#8cb09b', '#688975'],
-    fgColors: ['#cb5940', '#b94830', '#d86a51', '#a93a23', '#df7961'],
-    options: ['8', '3', '5', 'Ничего'],
-    correctValue: '8',
-  },
-  {
-    id: 3,
-    numberStr: '29',
-    labelRu: 'Таблица №3 • Дифференциация M/L колбочек',
-    labelTj: 'Ҷадвали №3 • Тафриқаи колбачаҳои M/L',
-    labelEn: 'Plate #3 • M/L Cones Spectral Test',
-    descRu: 'Нормальное зрение видит 29. При нарушениях цветовосприятия видят 70 или испытывают трудности.',
-    descTj: 'Биноии муқаррарӣ 29-ро мебинад. Ҳангоми ихтилоли биноӣ 70 дида мешавад.',
-    descEn: 'Normal color vision reads 29. Individuals with red-green deficiency see 70.',
-    bgColors: ['#dca373', '#cb905e', '#e9b486', '#b97d4c', '#f1c398', '#d69966'],
-    fgColors: ['#2e987c', '#20846a', '#3ea98e', '#177158', '#4ebaa0', '#258d73'],
-    options: ['29', '70', '26', 'Ничего'],
-    correctValue: '29',
-  },
-]
-
-// Canvas component that draws genuine pseudoisochromatic dots
-const IshiharaPlateCanvas: React.FC<{ plate: PlateDefinition }> = ({ plate }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    // 1. Offscreen mask for numeral
-    const off = document.createElement('canvas')
-    off.width = 240
-    off.height = 240
-    const offCtx = off.getContext('2d')
-    if (!offCtx) return
-
-    offCtx.fillStyle = '#ffffff'
-    offCtx.fillRect(0, 0, 240, 240)
-    offCtx.fillStyle = '#000000'
-    offCtx.font = '900 115px "Arial", sans-serif'
-    offCtx.textAlign = 'center'
-    offCtx.textBaseline = 'middle'
-    offCtx.fillText(plate.numberStr, 120, 122)
-
-    const imgData = offCtx.getImageData(0, 0, 240, 240).data
-
-    // 2. High-DPI canvas setup
-    const size = 220
-    const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    canvas.width = size * dpr
-    canvas.height = size * dpr
-    ctx.scale(dpr, dpr)
-    ctx.clearRect(0, 0, size, size)
-
-    const cx = size / 2
-    const cy = size / 2
-    const R = 96
-
-    // Outer circle container
-    ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#0c1010' : '#f4f4f5'
-    ctx.beginPath()
-    ctx.arc(cx, cy, R + 6, 0, Math.PI * 2)
-    ctx.fill()
-
-    // Seeded generator for reproducible pattern
-    let seed = plate.id * 1337 + 42
-    const prng = () => {
-      seed = (seed * 1664525 + 1013904223) % 4294967296
-      return seed / 4294967296
-    }
-
-    const step = 9.4
-    for (let y = -R; y <= R; y += step) {
-      const rowOffset = Math.floor(y / step) % 2 === 0 ? 0 : step / 2
-      for (let x = -R; x <= R; x += step) {
-        const rx = x + rowOffset
-        if (rx * rx + y * y <= R * R) {
-          const jx = rx + (prng() - 0.5) * 3.2
-          const jy = y + (prng() - 0.5) * 3.2
-          const dotX = cx + jx
-          const dotY = cy + jy
-
-          // Map to offscreen 240x240 coordinates
-          const offX = Math.min(239, Math.max(0, Math.round(120 + (jx * 120) / R)))
-          const offY = Math.min(239, Math.max(0, Math.round(120 + (jy * 120) / R)))
-          const pIdx = (offY * 240 + offX) * 4
-          const isFg = imgData[pIdx] < 120
-
-          const palette = isFg ? plate.fgColors : plate.bgColors
-          const color = palette[Math.floor(prng() * palette.length)]
-          const radius = 3.6 + prng() * 3.2
-
-          ctx.fillStyle = color
-          ctx.beginPath()
-          ctx.arc(dotX, dotY, radius, 0, Math.PI * 2)
-          ctx.fill()
-        }
-      }
-    }
-  }, [plate])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: 220, height: 220 }}
-      className="rounded-full shadow-lg border-2 border-emerald-500/20"
-      aria-label={`Таблица Ишихары ${plate.id}`}
-    />
-  )
-}
+const MINI_PLATES = CLINICAL_PLATES.slice(0, 3)
 
 export const LandingHero: React.FC<LandingHeroProps> = ({
   t,
@@ -194,12 +45,12 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
   const [userAnswers, setUserAnswers] = useState<string[]>([])
   const [isFinished, setIsFinished] = useState(false)
 
-  const currentPlate = ISHIHARA_PLATES[currentPlateIdx]
+  const currentPlate = MINI_PLATES[currentPlateIdx]
 
   const handleSelectOption = (opt: string) => {
     const updated = [...userAnswers, opt]
     setUserAnswers(updated)
-    if (currentPlateIdx < ISHIHARA_PLATES.length - 1) {
+    if (currentPlateIdx < MINI_PLATES.length - 1) {
       setCurrentPlateIdx((prev) => prev + 1)
     } else {
       setIsFinished(true)
@@ -382,26 +233,24 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                         </span>
                       </div>
                       <Badge variant="outline" className="text-[10px] font-mono">
-                        {currentPlateIdx + 1} / {ISHIHARA_PLATES.length}
+                        {currentPlateIdx + 1} / {MINI_PLATES.length}
                       </Badge>
                     </div>
 
                     {/* Canvas Plate */}
                     <div className="my-2 transition-transform duration-200 hover:scale-[1.02]">
-                      <IshiharaPlateCanvas plate={currentPlate} />
+                      <PseudoisochromaticPlateCanvas plate={currentPlate} size={230} />
                     </div>
 
                     <div className="text-xs text-zinc-600 dark:text-zinc-400 my-3 font-semibold text-center">
-                      {lang === 'tj'
-                        ? 'Кадом рақамро дар дохили доира мебинед?'
-                        : lang === 'en'
-                        ? 'Which number do you perceive inside the circle?'
-                        : 'Какое число вы видите внутри круга?'}
+                      {currentPlate.type === 'number'
+                        ? (lang === 'tj' ? 'Кадом рақамро дар дохили доира мебинед?' : lang === 'en' ? 'Which number do you perceive inside the circle?' : 'Какое число вы видите внутри круга?')
+                        : (lang === 'tj' ? 'Кадом шаклро дар дохили доира мебинед?' : lang === 'en' ? 'Which shape do you perceive inside the circle?' : 'Какую фигуру вы видите внутри круга?')}
                     </div>
 
                     {/* 4 Interactive Choice Buttons */}
                     <div className="grid grid-cols-4 gap-2 w-full max-w-sm">
-                      {currentPlate.options.map((opt) => (
+                      {(lang === 'tj' ? currentPlate.optionsTj : lang === 'en' ? currentPlate.optionsEn : currentPlate.optionsRu).map((opt) => (
                         <Button
                           key={opt}
                           variant="outline"
@@ -409,13 +258,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                           onClick={() => handleSelectOption(opt)}
                           className="h-9 font-bold text-xs hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 transition-all shadow-xs"
                         >
-                          {opt === 'Ничего'
-                            ? lang === 'tj'
-                              ? 'Ҳеҷ чиз'
-                              : lang === 'en'
-                              ? 'None'
-                              : 'Ничего'
-                            : opt}
+                          {opt}
                         </Button>
                       ))}
                     </div>
@@ -443,10 +286,10 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
 
                     {/* Recorded Answers Status */}
                     <div className="w-full space-y-2 bg-zinc-50 dark:bg-zinc-900/60 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-left text-xs">
-                      {ISHIHARA_PLATES.map((p, idx) => (
+                      {MINI_PLATES.map((p, idx) => (
                         <div key={p.id} className="flex items-center justify-between">
                           <span className="text-zinc-600 dark:text-zinc-400 text-[11px]">
-                            Таблица #{p.id} ({p.numberStr}):
+                            Таблица #{p.id}:
                           </span>
                           <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3" />
@@ -546,7 +389,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                   <Button
                     variant="emerald"
                     className="w-full sm:flex-1 gap-2 shadow-md shadow-emerald-600/25 py-2.5 font-bold"
-                    onClick={() => onStartScreening('color-hue-discrimination')}
+                    onClick={() => onStartScreening('color-perception')}
                   >
                     <span>
                       {isFinished

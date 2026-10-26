@@ -24,6 +24,11 @@ DESCRIPTIONS = {
         "tg": ("Ҳассосияти контрастӣ (Pelli-Robson)", "Баҳодиҳии фарқкунии рамзҳо ҳангоми паст шудани контраст то 1%."),
         "en": ("Contrast Sensitivity (Pelli-Robson)", "Letter triplet contrast threshold evaluation down to 1% contrast."),
     },
+    "color-perception": {
+        "ru": ("Тест на дальтонизм (Таблицы Рабкина и Ишихары)", "Клиническая оценка красно-зелёного цветовосприятия и спектра колбочек L, M, S с распознаванием цифр и геометрических фигур."),
+        "tg": ("Санҷиши дальтонизм (Ҷадвалҳои Рабкин ва Ишихара)", "Баҳодиҳии клиникии тафриқаи рангҳои сурху сабз ва колбачаҳои биноӣ бо рақамҳо ва шаклҳои геометрӣ."),
+        "en": ("Color Blindness Screening (Rabkin & Ishihara Plates)", "Clinical polychromatic screening for protan, deutan, and tritan defects using numbers and geometric figures."),
+    },
     "color-hue-discrimination": {
         "ru": ("Цветоразличение оттенков (Farnsworth D-15)", "Спектральная сортировка цветовых оттенков по кругу Манселла."),
         "tg": ("Фарқкунии тобишҳои ранг (Farnsworth D-15)", "Тартибдиҳии спектралии доираҳои ранга дар пайдарпайии ҳамвор."),
