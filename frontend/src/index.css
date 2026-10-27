@@ -463,35 +463,49 @@ html.theme-transitioning *::after {
   transition: none !important;
 }
 
+::view-transition-group(root) {
+  animation: none !important;
+}
+
+::view-transition-image-pair(root) {
+  isolation: auto !important;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
+  animation: none !important;
+  mix-blend-mode: normal !important;
   transform-origin: center center;
   will-change: clip-path, filter, transform;
 }
 
-/* Light transition: old dark view stays underneath, new light view is clipped to 0px initially so it NEVER flashes white */
+/* Light transition: old dark view stays completely solid underneath at opacity 1; new light view starts clipped at 0px so it CANNOT flash white */
 html:not(.dark)::view-transition-old(root) {
-  z-index: 1;
+  z-index: 1 !important;
+  opacity: 1 !important;
+  animation: none !important;
 }
 
 html:not(.dark)::view-transition-new(root) {
-  z-index: 9999;
+  z-index: 9999 !important;
+  animation: none !important;
   clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 30px));
 }
 
-/* Dark transition: old light view stays on top and collapses into button */
+/* Dark transition: old light view stays on top and collapses into button; dark view stays solid underneath */
 html.dark::view-transition-old(root) {
-  z-index: 9999;
+  z-index: 9999 !important;
+  animation: none !important;
   clip-path: circle(var(--theme-r, 2500px) at var(--theme-x, 50%) var(--theme-y, 30px));
 }
 
 html.dark::view-transition-new(root) {
-  z-index: 1;
+  z-index: 1 !important;
+  opacity: 1 !important;
+  animation: none !important;
 }
 
-/* Fluid shockwave ripple ring collapsing inward into button coordinates for dark theme */
+/* Fluid shockwave ripple ring collapsing inward into button coordinates for dark theme (synchronized with 750ms transition) */
 @keyframes theme-wave-ripple-dark {
   0% {
     opacity: 0.95;
@@ -519,7 +533,7 @@ html.dark::view-transition-new(root) {
   }
 }
 
-/* Fluid shockwave ripple ring radiating outward from button coordinates for light theme */
+/* Fluid shockwave ripple ring radiating outward from button coordinates for light theme (synchronized with 750ms transition) */
 @keyframes theme-wave-ripple-light {
   0% {
     opacity: 0.95;
@@ -550,7 +564,7 @@ html.dark::view-transition-new(root) {
   z-index: 100000;
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
-  animation: theme-wave-ripple-dark 0.95s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: theme-wave-ripple-dark 0.75s cubic-bezier(0.32, 0, 0.67, 0) forwards;
 }
 
 .theme-ripple-wave-light {
@@ -560,7 +574,7 @@ html.dark::view-transition-new(root) {
   z-index: 100000;
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
-  animation: theme-wave-ripple-light 0.95s cubic-bezier(0.25, 1, 0.4, 1) forwards;
+  animation: theme-wave-ripple-light 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes lang-wave-ripple {

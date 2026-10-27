@@ -342,7 +342,7 @@ export default function App() {
     targetTheme: 'light' | 'dark'
   } | null>(null)
 
-  // Cinematic theme toggle: progressive expansion on light, collapse into button on dark, zero flash
+  // Cinematic theme toggle: perfectly synchronized with circular shockwave, zero flash
   const toggleTheme = (e?: React.MouseEvent<HTMLElement>) => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark'
 
@@ -370,14 +370,13 @@ export default function App() {
       )
     )
 
-    // Set CSS coordinates immediately to prevent ANY white flash on initial frame
+    // Set CSS coordinates immediately to lock ::view-transition-new(root) to 0px on frame 0
     document.documentElement.style.setProperty('--theme-x', `${x}px`)
     document.documentElement.style.setProperty('--theme-y', `${y}px`)
     document.documentElement.style.setProperty('--theme-r', `${endRadius}px`)
 
     // Trigger visible glowing shockwave ripple ring calibrated to exact screen diagonal
     setThemeWave({ id: Date.now(), x, y, radius: endRadius, targetTheme: nextTheme })
-    setTimeout(() => setThemeWave(null), 1050)
 
     const doc = document as any
     if (
@@ -404,109 +403,122 @@ export default function App() {
 
       transition.ready
         .then(() => {
+          const duration = 750
+          const easeOut = 'cubic-bezier(0.22, 1, 0.36, 1)'
+          const easeIn = 'cubic-bezier(0.32, 0, 0.67, 0)'
+
           if (nextTheme === 'light') {
-            // Switching to LIGHT: old dark view stays underneath for full 950ms duration (no flash)
+            // Switching to LIGHT:
+            // 1. Old dark view stays underneath at 100% opacity for the entire duration (ZERO flash)
             document.documentElement.animate(
               [
                 {
                   transform: 'scale(1)',
                   filter: 'blur(0px)',
+                  opacity: 1,
                 },
                 {
                   transform: 'scale(1.02)',
-                  filter: 'blur(4px)',
+                  filter: 'blur(5px)',
+                  opacity: 1,
                 },
                 {
                   transform: 'scale(1.03)',
                   filter: 'blur(8px)',
+                  opacity: 1,
                 },
               ],
               {
-                duration: 950,
-                easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
+                duration,
+                easing: easeOut,
                 fill: 'forwards',
                 pseudoElement: '::view-transition-old(root)',
               }
             )
 
-            // Expanding light view: progressively sweeps from 0px to endRadius with un-blur
+            // 2. Light view expands strictly with the circular wave from 0px to endRadius
             document.documentElement.animate(
               [
                 {
                   clipPath: `circle(0px at ${x}px ${y}px)`,
                   transform: 'scale(1.03)',
                   filter: 'blur(8px)',
+                  opacity: 1,
                 },
                 {
                   clipPath: `circle(${endRadius * 0.45}px at ${x}px ${y}px)`,
                   transform: 'scale(1.015)',
                   filter: 'blur(3px)',
+                  opacity: 1,
                 },
                 {
                   clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
                   transform: 'scale(1)',
                   filter: 'blur(0px)',
+                  opacity: 1,
                 },
               ],
               {
-                duration: 950,
-                easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
+                duration,
+                easing: easeOut,
                 fill: 'forwards',
                 pseudoElement: '::view-transition-new(root)',
               }
             )
           } else {
-            // Switching to DARK: light view collapses from endRadius back into the button with heavy blur
+            // Switching to DARK:
+            // 1. Light view on top collapses from endRadius back into the toggle button with blur
             document.documentElement.animate(
               [
                 {
                   clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
                   transform: 'scale(1)',
                   filter: 'blur(0px)',
+                  opacity: 1,
                 },
                 {
-                  clipPath: `circle(${endRadius * 0.65}px at ${x}px ${y}px)`,
+                  clipPath: `circle(${endRadius * 0.5}px at ${x}px ${y}px)`,
                   transform: 'scale(0.99)',
                   filter: 'blur(8px)',
-                },
-                {
-                  clipPath: `circle(${endRadius * 0.3}px at ${x}px ${y}px)`,
-                  transform: 'scale(0.98)',
-                  filter: 'blur(14px)',
+                  opacity: 1,
                 },
                 {
                   clipPath: `circle(0px at ${x}px ${y}px)`,
-                  transform: 'scale(0.96)',
-                  filter: 'blur(20px)',
+                  transform: 'scale(0.97)',
+                  filter: 'blur(18px)',
+                  opacity: 1,
                 },
               ],
               {
-                duration: 950,
-                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                duration,
+                easing: easeIn,
                 fill: 'forwards',
                 pseudoElement: '::view-transition-old(root)',
               }
             )
 
-            // Dark view underneath smoothly un-blurs into full focus
+            // 2. Dark view underneath smoothly un-blurs into full focus
             document.documentElement.animate(
               [
                 {
                   transform: 'scale(1.025)',
                   filter: 'blur(10px)',
+                  opacity: 1,
                 },
                 {
                   transform: 'scale(1.01)',
                   filter: 'blur(4px)',
+                  opacity: 1,
                 },
                 {
                   transform: 'scale(1)',
                   filter: 'blur(0px)',
+                  opacity: 1,
                 },
               ],
               {
-                duration: 950,
-                easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
+                duration,
+                easing: easeOut,
                 fill: 'forwards',
                 pseudoElement: '::view-transition-new(root)',
               }
@@ -522,9 +534,11 @@ export default function App() {
         document.documentElement.style.removeProperty('--theme-x')
         document.documentElement.style.removeProperty('--theme-y')
         document.documentElement.style.removeProperty('--theme-r')
+        setThemeWave(null)
       })
     } else {
       setTheme(nextTheme)
+      setTimeout(() => setThemeWave(null), 750)
     }
   }
 
