@@ -333,14 +333,15 @@ export default function App() {
     localStorage.setItem('sihat_lang', newLang)
   }
 
-  // Theme transition state for visible shockwave ripple
+  // Theme transition state for lightweight GPU ring
   const [themeWave, setThemeWave] = useState<{
+    id: number
     x: number
     y: number
     targetTheme: 'light' | 'dark'
   } | null>(null)
 
-  // Theme toggle with progressive wave, initial blur and subtle zoom starting from button
+  // Ultra-smooth 60fps theme toggle optimized for low-end devices
   const toggleTheme = (e?: React.MouseEvent<HTMLElement>) => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark'
 
@@ -350,20 +351,16 @@ export default function App() {
 
     if (e?.currentTarget) {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-      x = rect.left + rect.width / 2
-      y = rect.top + rect.height / 2
+      x = Math.round(rect.left + rect.width / 2)
+      y = Math.round(rect.top + rect.height / 2)
     } else {
       const btn = document.getElementById('theme-toggle-btn')
       if (btn) {
         const rect = btn.getBoundingClientRect()
-        x = rect.left + rect.width / 2
-        y = rect.top + rect.height / 2
+        x = Math.round(rect.left + rect.width / 2)
+        y = Math.round(rect.top + rect.height / 2)
       }
     }
-
-    // Trigger visible shockwave ripple ring
-    setThemeWave({ x, y, targetTheme: nextTheme })
-    setTimeout(() => setThemeWave(null), 900)
 
     const doc = document as any
     if (
@@ -371,18 +368,25 @@ export default function App() {
       'startViewTransition' in doc &&
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
-      const endRadius = Math.hypot(
-        Math.max(x, window.innerWidth - x),
-        Math.max(y, window.innerHeight - y)
+      const endRadius = Math.ceil(
+        Math.hypot(
+          Math.max(x, window.innerWidth - x),
+          Math.max(y, window.innerHeight - y)
+        )
       )
+
+      // Disable all CSS transitions during view-transition capture & playback to prevent GPU/CPU lag
+      document.documentElement.classList.add('theme-transitioning')
 
       const transition = doc.startViewTransition(() => {
         flushSync(() => {
           setTheme(nextTheme)
           if (nextTheme === 'dark') {
             document.documentElement.classList.add('dark')
+            document.documentElement.style.colorScheme = 'dark'
           } else {
             document.documentElement.classList.remove('dark')
+            document.documentElement.style.colorScheme = 'light'
           }
           localStorage.setItem('sihat_theme', nextTheme)
         })
@@ -391,100 +395,34 @@ export default function App() {
       transition.ready
         .then(() => {
           if (nextTheme === 'light') {
-            // Switching to LIGHT: expands outward from the button
+            // Switching to LIGHT: pure GPU clip-path expanding outward from button
             document.documentElement.animate(
-              [
-                {
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                },
-                {
-                  transform: 'scale(1.025)',
-                  filter: 'blur(5px)',
-                },
-                {
-                  transform: 'scale(1.03)',
-                  filter: 'blur(8px)',
-                },
-              ],
               {
-                duration: 380,
-                easing: 'ease-out',
-                pseudoElement: '::view-transition-old(root)',
-              }
-            )
-
-            document.documentElement.animate(
-              [
-                {
-                  clipPath: `circle(0px at ${x}px ${y}px)`,
-                  transform: 'scale(1.03)',
-                  filter: 'blur(8px)',
-                },
-                {
-                  clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
-                  transform: 'scale(1.015)',
-                  filter: 'blur(4px)',
-                },
-                {
-                  clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                },
-              ],
+                clipPath: [
+                  `circle(0px at ${x}px ${y}px)`,
+                  `circle(${endRadius}px at ${x}px ${y}px)`,
+                ],
+              },
               {
-                duration: 750,
-                easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+                duration: 520,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
                 pseudoElement: '::view-transition-new(root)',
               }
             )
           } else {
-            // Switching to DARK: pulls/collapses back into the button
+            // Switching to DARK: pure GPU clip-path collapsing back into button
             document.documentElement.animate(
-              [
-                {
-                  clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                },
-                {
-                  clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
-                  transform: 'scale(0.99)',
-                  filter: 'blur(3px)',
-                },
-                {
-                  clipPath: `circle(0px at ${x}px ${y}px)`,
-                  transform: 'scale(0.975)',
-                  filter: 'blur(6px)',
-                },
-              ],
               {
-                duration: 750,
+                clipPath: [
+                  `circle(${endRadius}px at ${x}px ${y}px)`,
+                  `circle(0px at ${x}px ${y}px)`,
+                ],
+              },
+              {
+                duration: 520,
                 easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
                 fill: 'forwards',
                 pseudoElement: '::view-transition-old(root)',
-              }
-            )
-
-            document.documentElement.animate(
-              [
-                {
-                  transform: 'scale(1.02)',
-                  filter: 'blur(6px)',
-                },
-                {
-                  transform: 'scale(1.008)',
-                  filter: 'blur(2px)',
-                },
-                {
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                },
-              ],
-              {
-                duration: 750,
-                easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
-                pseudoElement: '::view-transition-new(root)',
               }
             )
           }
@@ -492,7 +430,13 @@ export default function App() {
         .catch(() => {
           setTheme(nextTheme)
         })
+
+      transition.finished.finally(() => {
+        document.documentElement.classList.remove('theme-transitioning')
+      })
     } else {
+      setThemeWave({ id: Date.now(), x, y, targetTheme: nextTheme })
+      setTimeout(() => setThemeWave(null), 550)
       setTheme(nextTheme)
     }
   }
@@ -960,7 +904,7 @@ export default function App() {
       {/* Fluid Theme Wave Shockwave Ring Originating from Button Coordinates */}
       {themeWave && (
         <div
-          key={`theme-wave-${themeWave.x}-${themeWave.y}-${Date.now()}`}
+          key={themeWave.id}
           className={
             themeWave.targetTheme === 'dark'
               ? 'theme-ripple-wave-dark'

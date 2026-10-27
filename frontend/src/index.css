@@ -453,14 +453,30 @@ body {
 }
 
 /* ==========================================================================
-   VIEW TRANSITION CIRCULAR RIPPLE THEME TOGGLE
+   VIEW TRANSITION CIRCULAR RIPPLE THEME TOGGLE (60FPS GPU-ACCELERATED)
    ========================================================================== */
+
+/* Freeze all element transitions and heavy blurs during theme snapshot & clip-path animation */
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: none !important;
+  animation-play-state: paused !important;
+}
+
+::view-transition-group(root) {
+  animation: none;
+}
+
+::view-transition-image-pair(root) {
+  isolation: auto;
+}
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
-  transform-origin: center center;
+  will-change: clip-path;
 }
 
 html:not(.dark)::view-transition-old(root) {
@@ -479,128 +495,74 @@ html.dark::view-transition-new(root) {
   z-index: 1;
 }
 
-/* Fluid shockwave ripple ring collapsing inward into button coordinates for dark theme */
+/* Lightweight GPU-only fallback ring (uses fixed 64px box + transform: scale, no layout reflow or blur) */
 @keyframes theme-wave-ripple-dark {
   0% {
-    width: 240vmax;
-    height: 240vmax;
-    opacity: 0.55;
-    transform: translate(-50%, -50%) scale(1);
-    box-shadow: 
-      0 0 0 8px rgba(46, 196, 167, 0.35),
-      0 0 90px 30px rgba(46, 196, 167, 0.25),
-      inset 0 0 50px 12px rgba(255, 255, 255, 0.25);
-  }
-  70% {
-    opacity: 0.9;
-  }
-  92% {
-    opacity: 0.95;
-    box-shadow: 
-      0 0 0 3px rgba(46, 196, 167, 0.95),
-      0 0 40px 16px rgba(46, 196, 167, 0.75),
-      inset 0 0 25px 6px rgba(255, 255, 255, 0.7);
+    opacity: 0.7;
+    transform: translate3d(-50%, -50%, 0) scale(36);
   }
   100% {
-    width: 0px;
-    height: 0px;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0);
-    box-shadow: 
-      0 0 0 0px rgba(46, 196, 167, 0),
-      0 0 0px 0px rgba(46, 196, 167, 0),
-      inset 0 0 0px 0px rgba(255, 255, 255, 0);
+    transform: translate3d(-50%, -50%, 0) scale(0.1);
   }
 }
 
 @keyframes theme-wave-ripple-light {
   0% {
-    width: 0px;
-    height: 0px;
-    opacity: 0.95;
-    transform: translate(-50%, -50%) scale(0);
-    box-shadow: 
-      0 0 0 2px rgba(245, 158, 11, 0.95),
-      0 0 45px 18px rgba(245, 158, 11, 0.65),
-      inset 0 0 30px 8px rgba(255, 255, 255, 0.85);
-  }
-  30% {
-    opacity: 0.85;
-  }
-  70% {
-    opacity: 0.45;
+    opacity: 0.8;
+    transform: translate3d(-50%, -50%, 0) scale(0.1);
   }
   100% {
-    width: 320vmax;
-    height: 320vmax;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(1);
-    box-shadow: 
-      0 0 0 10px rgba(245, 158, 11, 0),
-      0 0 120px 40px rgba(245, 158, 11, 0),
-      inset 0 0 60px 15px rgba(255, 255, 255, 0);
+    transform: translate3d(-50%, -50%, 0) scale(36);
   }
 }
 
 .theme-ripple-wave-dark {
   position: fixed;
+  width: 64px;
+  height: 64px;
   border-radius: 9999px;
+  border: 2px solid rgba(46, 196, 167, 0.7);
   pointer-events: none;
   z-index: 100000;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  animation: theme-wave-ripple-dark 0.85s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  animation: theme-wave-ripple-dark 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .theme-ripple-wave-light {
   position: fixed;
+  width: 64px;
+  height: 64px;
   border-radius: 9999px;
+  border: 2px solid rgba(245, 158, 11, 0.75);
   pointer-events: none;
   z-index: 100000;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  animation: theme-wave-ripple-light 0.85s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  animation: theme-wave-ripple-light 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes lang-wave-ripple {
   0% {
-    width: 0px;
-    height: 0px;
-    opacity: 0.85;
-    transform: translate(-50%, -50%) scale(0.1);
-    box-shadow: 
-      0 0 0 2px rgba(23, 168, 132, 0.8),
-      0 0 30px 10px rgba(46, 196, 167, 0.5),
-      inset 0 0 20px 4px rgba(255, 255, 255, 0.6);
-    background: radial-gradient(circle, rgba(23, 168, 132, 0.35) 0%, rgba(46, 196, 167, 0.15) 50%, transparent 80%);
-  }
-  50% {
-    opacity: 0.6;
-    box-shadow: 
-      0 0 0 12px rgba(23, 168, 132, 0.4),
-      0 0 80px 30px rgba(46, 196, 167, 0.25),
-      inset 0 0 40px 10px rgba(255, 255, 255, 0.2);
+    opacity: 0.75;
+    transform: translate3d(-50%, -50%, 0) scale(0.1);
   }
   100% {
-    width: 250vmax;
-    height: 250vmax;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(1);
-    box-shadow: 
-      0 0 0 20px rgba(23, 168, 132, 0),
-      0 0 120px 40px rgba(46, 196, 167, 0),
-      inset 0 0 60px 15px rgba(255, 255, 255, 0);
+    transform: translate3d(-50%, -50%, 0) scale(32);
   }
 }
 
 .lang-ripple-wave {
   position: fixed;
+  width: 64px;
+  height: 64px;
   border-radius: 9999px;
+  border: 2px solid rgba(23, 168, 132, 0.65);
   pointer-events: none;
   z-index: 100000;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  animation: lang-wave-ripple 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  animation: lang-wave-ripple 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 
