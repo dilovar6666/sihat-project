@@ -338,6 +338,7 @@ export default function App() {
     id: number
     x: number
     y: number
+    radius: number
     targetTheme: 'light' | 'dark'
   } | null>(null)
 
@@ -362,9 +363,16 @@ export default function App() {
       }
     }
 
-    // Trigger visible glowing shockwave ripple ring
-    setThemeWave({ id: Date.now(), x, y, targetTheme: nextTheme })
-    setTimeout(() => setThemeWave(null), 850)
+    const endRadius = Math.ceil(
+      Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      )
+    )
+
+    // Trigger visible glowing shockwave ripple ring calibrated to exact screen diagonal
+    setThemeWave({ id: Date.now(), x, y, radius: endRadius, targetTheme: nextTheme })
+    setTimeout(() => setThemeWave(null), 1050)
 
     const doc = document as any
     if (
@@ -372,13 +380,6 @@ export default function App() {
       'startViewTransition' in doc &&
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
-      const endRadius = Math.ceil(
-        Math.hypot(
-          Math.max(x, window.innerWidth - x),
-          Math.max(y, window.innerHeight - y)
-        )
-      )
-
       // Freeze inner transitions during snapshot capture
       document.documentElement.classList.add('theme-transitioning')
 
@@ -399,7 +400,7 @@ export default function App() {
       transition.ready
         .then(() => {
           if (nextTheme === 'light') {
-            // Switching to LIGHT: expands forward from the button across the screen
+            // Switching to LIGHT: expands forward across the screen with visible blur & un-blur
             document.documentElement.animate(
               [
                 {
@@ -408,15 +409,15 @@ export default function App() {
                 },
                 {
                   transform: 'scale(1.025)',
-                  filter: 'blur(4px)',
+                  filter: 'blur(5px)',
                 },
                 {
                   transform: 'scale(1.03)',
-                  filter: 'blur(7px)',
+                  filter: 'blur(10px)',
                 },
               ],
               {
-                duration: 380,
+                duration: 450,
                 easing: 'ease-out',
                 pseudoElement: '::view-transition-old(root)',
               }
@@ -427,12 +428,12 @@ export default function App() {
                 {
                   clipPath: `circle(0px at ${x}px ${y}px)`,
                   transform: 'scale(1.03)',
-                  filter: 'blur(7px)',
+                  filter: 'blur(10px)',
                 },
                 {
-                  clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
+                  clipPath: `circle(${endRadius * 0.45}px at ${x}px ${y}px)`,
                   transform: 'scale(1.015)',
-                  filter: 'blur(3px)',
+                  filter: 'blur(4px)',
                 },
                 {
                   clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
@@ -441,13 +442,13 @@ export default function App() {
                 },
               ],
               {
-                duration: 750,
-                easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+                duration: 950,
+                easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
                 pseudoElement: '::view-transition-new(root)',
               }
             )
           } else {
-            // Switching to DARK: pulls/collapses back into the button with blur
+            // Switching to DARK: pulls/collapses back into the button with heavy blur
             document.documentElement.animate(
               [
                 {
@@ -456,18 +457,23 @@ export default function App() {
                   filter: 'blur(0px)',
                 },
                 {
-                  clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
+                  clipPath: `circle(${endRadius * 0.65}px at ${x}px ${y}px)`,
                   transform: 'scale(0.99)',
-                  filter: 'blur(3px)',
+                  filter: 'blur(8px)',
+                },
+                {
+                  clipPath: `circle(${endRadius * 0.3}px at ${x}px ${y}px)`,
+                  transform: 'scale(0.98)',
+                  filter: 'blur(14px)',
                 },
                 {
                   clipPath: `circle(0px at ${x}px ${y}px)`,
-                  transform: 'scale(0.975)',
-                  filter: 'blur(7px)',
+                  transform: 'scale(0.96)',
+                  filter: 'blur(20px)',
                 },
               ],
               {
-                duration: 750,
+                duration: 950,
                 easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
                 fill: 'forwards',
                 pseudoElement: '::view-transition-old(root)',
@@ -478,11 +484,11 @@ export default function App() {
               [
                 {
                   transform: 'scale(1.025)',
-                  filter: 'blur(7px)',
+                  filter: 'blur(10px)',
                 },
                 {
-                  transform: 'scale(1.008)',
-                  filter: 'blur(2px)',
+                  transform: 'scale(1.01)',
+                  filter: 'blur(4px)',
                 },
                 {
                   transform: 'scale(1)',
@@ -490,8 +496,8 @@ export default function App() {
                 },
               ],
               {
-                duration: 750,
-                easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+                duration: 950,
+                easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
                 pseudoElement: '::view-transition-new(root)',
               }
             )
@@ -981,6 +987,8 @@ export default function App() {
           style={{
             left: `${themeWave.x}px`,
             top: `${themeWave.y}px`,
+            width: `${themeWave.radius * 2}px`,
+            height: `${themeWave.radius * 2}px`,
           }}
         />
       )}
