@@ -99,7 +99,7 @@ export const StarThemeToggle: React.FC<StarThemeToggleProps> = ({ theme, onToggl
     })
 
     gsap.to(toggle, {
-      '--rotate': '360deg',
+      '--rotate': isDark ? '360deg' : '-360deg',
       duration: 1.55,
       clearProps: true,
     })

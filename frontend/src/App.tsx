@@ -390,54 +390,104 @@ export default function App() {
 
       transition.ready
         .then(() => {
-          // Outgoing view: initial slight zoom and soft blur
-          document.documentElement.animate(
-            [
+          if (nextTheme === 'light') {
+            // Switching to LIGHT: expands outward from the button
+            document.documentElement.animate(
+              [
+                {
+                  transform: 'scale(1)',
+                  filter: 'blur(0px)',
+                },
+                {
+                  transform: 'scale(1.025)',
+                  filter: 'blur(5px)',
+                },
+                {
+                  transform: 'scale(1.03)',
+                  filter: 'blur(8px)',
+                },
+              ],
               {
-                transform: 'scale(1)',
-                filter: 'blur(0px)',
-              },
-              {
-                transform: 'scale(1.025)',
-                filter: 'blur(5px)',
-              },
-              {
-                transform: 'scale(1.03)',
-                filter: 'blur(8px)',
-              },
-            ],
-            {
-              duration: 380,
-              easing: 'ease-out',
-              pseudoElement: '::view-transition-old(root)',
-            }
-          )
+                duration: 380,
+                easing: 'ease-out',
+                pseudoElement: '::view-transition-old(root)',
+              }
+            )
 
-          // Incoming view: expanding circular wave from button with progressive sharpening
-          document.documentElement.animate(
-            [
+            document.documentElement.animate(
+              [
+                {
+                  clipPath: `circle(0px at ${x}px ${y}px)`,
+                  transform: 'scale(1.03)',
+                  filter: 'blur(8px)',
+                },
+                {
+                  clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
+                  transform: 'scale(1.015)',
+                  filter: 'blur(4px)',
+                },
+                {
+                  clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
+                  transform: 'scale(1)',
+                  filter: 'blur(0px)',
+                },
+              ],
               {
-                clipPath: `circle(0px at ${x}px ${y}px)`,
-                transform: 'scale(1.03)',
-                filter: 'blur(8px)',
-              },
+                duration: 750,
+                easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+                pseudoElement: '::view-transition-new(root)',
+              }
+            )
+          } else {
+            // Switching to DARK: pulls/collapses back into the button
+            document.documentElement.animate(
+              [
+                {
+                  clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
+                  transform: 'scale(1)',
+                  filter: 'blur(0px)',
+                },
+                {
+                  clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
+                  transform: 'scale(0.99)',
+                  filter: 'blur(3px)',
+                },
+                {
+                  clipPath: `circle(0px at ${x}px ${y}px)`,
+                  transform: 'scale(0.975)',
+                  filter: 'blur(6px)',
+                },
+              ],
               {
-                clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
-                transform: 'scale(1.015)',
-                filter: 'blur(4px)',
-              },
+                duration: 750,
+                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                fill: 'forwards',
+                pseudoElement: '::view-transition-old(root)',
+              }
+            )
+
+            document.documentElement.animate(
+              [
+                {
+                  transform: 'scale(1.02)',
+                  filter: 'blur(6px)',
+                },
+                {
+                  transform: 'scale(1.008)',
+                  filter: 'blur(2px)',
+                },
+                {
+                  transform: 'scale(1)',
+                  filter: 'blur(0px)',
+                },
+              ],
               {
-                clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
-                transform: 'scale(1)',
-                filter: 'blur(0px)',
-              },
-            ],
-            {
-              duration: 750,
-              easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
-              pseudoElement: '::view-transition-new(root)',
-            }
-          )
+                duration: 750,
+                easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+                pseudoElement: '::view-transition-new(root)',
+              }
+            )
+          }
         })
         .catch(() => {
           setTheme(nextTheme)

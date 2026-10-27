@@ -463,41 +463,53 @@ body {
   transform-origin: center center;
 }
 
-::view-transition-old(root) {
+html:not(.dark)::view-transition-old(root) {
   z-index: 1;
 }
 
-::view-transition-new(root) {
+html:not(.dark)::view-transition-new(root) {
   z-index: 9999;
 }
 
-/* Fluid shockwave ripple ring radiating outward from button coordinates */
+html.dark::view-transition-old(root) {
+  z-index: 9999;
+}
+
+html.dark::view-transition-new(root) {
+  z-index: 1;
+}
+
+/* Fluid shockwave ripple ring collapsing inward into button coordinates for dark theme */
 @keyframes theme-wave-ripple-dark {
   0% {
-    width: 0px;
-    height: 0px;
-    opacity: 0.95;
-    transform: translate(-50%, -50%) scale(0);
-    box-shadow: 
-      0 0 0 2px rgba(46, 196, 167, 0.95),
-      0 0 45px 18px rgba(46, 196, 167, 0.65),
-      inset 0 0 30px 8px rgba(255, 255, 255, 0.7);
-  }
-  30% {
-    opacity: 0.85;
-  }
-  70% {
-    opacity: 0.45;
-  }
-  100% {
-    width: 320vmax;
-    height: 320vmax;
-    opacity: 0;
+    width: 240vmax;
+    height: 240vmax;
+    opacity: 0.55;
     transform: translate(-50%, -50%) scale(1);
     box-shadow: 
-      0 0 0 10px rgba(46, 196, 167, 0),
-      0 0 120px 40px rgba(46, 196, 167, 0),
-      inset 0 0 60px 15px rgba(255, 255, 255, 0);
+      0 0 0 8px rgba(46, 196, 167, 0.35),
+      0 0 90px 30px rgba(46, 196, 167, 0.25),
+      inset 0 0 50px 12px rgba(255, 255, 255, 0.25);
+  }
+  70% {
+    opacity: 0.9;
+  }
+  92% {
+    opacity: 0.95;
+    box-shadow: 
+      0 0 0 3px rgba(46, 196, 167, 0.95),
+      0 0 40px 16px rgba(46, 196, 167, 0.75),
+      inset 0 0 25px 6px rgba(255, 255, 255, 0.7);
+  }
+  100% {
+    width: 0px;
+    height: 0px;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+    box-shadow: 
+      0 0 0 0px rgba(46, 196, 167, 0),
+      0 0 0px 0px rgba(46, 196, 167, 0),
+      inset 0 0 0px 0px rgba(255, 255, 255, 0);
   }
 }
 
