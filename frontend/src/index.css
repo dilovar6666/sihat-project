@@ -471,16 +471,20 @@ html.theme-transitioning *::after {
   will-change: clip-path, filter, transform;
 }
 
+/* Light transition: old dark view stays underneath, new light view is clipped to 0px initially so it NEVER flashes white */
 html:not(.dark)::view-transition-old(root) {
   z-index: 1;
 }
 
 html:not(.dark)::view-transition-new(root) {
   z-index: 9999;
+  clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 30px));
 }
 
+/* Dark transition: old light view stays on top and collapses into button */
 html.dark::view-transition-old(root) {
   z-index: 9999;
+  clip-path: circle(var(--theme-r, 2500px) at var(--theme-x, 50%) var(--theme-y, 30px));
 }
 
 html.dark::view-transition-new(root) {

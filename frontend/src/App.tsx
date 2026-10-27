@@ -342,7 +342,7 @@ export default function App() {
     targetTheme: 'light' | 'dark'
   } | null>(null)
 
-  // Cinematic theme toggle: expands on light, collapses into button on dark, with signature blur & ripple
+  // Cinematic theme toggle: progressive expansion on light, collapse into button on dark, zero flash
   const toggleTheme = (e?: React.MouseEvent<HTMLElement>) => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark'
 
@@ -369,6 +369,11 @@ export default function App() {
         Math.max(y, window.innerHeight - y)
       )
     )
+
+    // Set CSS coordinates immediately to prevent ANY white flash on initial frame
+    document.documentElement.style.setProperty('--theme-x', `${x}px`)
+    document.documentElement.style.setProperty('--theme-y', `${y}px`)
+    document.documentElement.style.setProperty('--theme-r', `${endRadius}px`)
 
     // Trigger visible glowing shockwave ripple ring calibrated to exact screen diagonal
     setThemeWave({ id: Date.now(), x, y, radius: endRadius, targetTheme: nextTheme })
@@ -400,7 +405,7 @@ export default function App() {
       transition.ready
         .then(() => {
           if (nextTheme === 'light') {
-            // Switching to LIGHT: expands forward across the screen with visible blur & un-blur
+            // Switching to LIGHT: old dark view stays underneath for full 950ms duration (no flash)
             document.documentElement.animate(
               [
                 {
@@ -408,32 +413,34 @@ export default function App() {
                   filter: 'blur(0px)',
                 },
                 {
-                  transform: 'scale(1.025)',
-                  filter: 'blur(5px)',
+                  transform: 'scale(1.02)',
+                  filter: 'blur(4px)',
                 },
                 {
                   transform: 'scale(1.03)',
-                  filter: 'blur(10px)',
+                  filter: 'blur(8px)',
                 },
               ],
               {
-                duration: 450,
-                easing: 'ease-out',
+                duration: 950,
+                easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
+                fill: 'forwards',
                 pseudoElement: '::view-transition-old(root)',
               }
             )
 
+            // Expanding light view: progressively sweeps from 0px to endRadius with un-blur
             document.documentElement.animate(
               [
                 {
                   clipPath: `circle(0px at ${x}px ${y}px)`,
                   transform: 'scale(1.03)',
-                  filter: 'blur(10px)',
+                  filter: 'blur(8px)',
                 },
                 {
                   clipPath: `circle(${endRadius * 0.45}px at ${x}px ${y}px)`,
                   transform: 'scale(1.015)',
-                  filter: 'blur(4px)',
+                  filter: 'blur(3px)',
                 },
                 {
                   clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
@@ -444,11 +451,12 @@ export default function App() {
               {
                 duration: 950,
                 easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
+                fill: 'forwards',
                 pseudoElement: '::view-transition-new(root)',
               }
             )
           } else {
-            // Switching to DARK: pulls/collapses back into the button with heavy blur
+            // Switching to DARK: light view collapses from endRadius back into the button with heavy blur
             document.documentElement.animate(
               [
                 {
@@ -480,6 +488,7 @@ export default function App() {
               }
             )
 
+            // Dark view underneath smoothly un-blurs into full focus
             document.documentElement.animate(
               [
                 {
@@ -498,6 +507,7 @@ export default function App() {
               {
                 duration: 950,
                 easing: 'cubic-bezier(0.25, 1, 0.4, 1)',
+                fill: 'forwards',
                 pseudoElement: '::view-transition-new(root)',
               }
             )
@@ -509,6 +519,9 @@ export default function App() {
 
       transition.finished.finally(() => {
         document.documentElement.classList.remove('theme-transitioning')
+        document.documentElement.style.removeProperty('--theme-x')
+        document.documentElement.style.removeProperty('--theme-y')
+        document.documentElement.style.removeProperty('--theme-r')
       })
     } else {
       setTheme(nextTheme)
