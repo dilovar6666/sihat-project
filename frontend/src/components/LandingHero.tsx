@@ -201,7 +201,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 {lang === 'tj' ? '15 методика' : lang === 'en' ? '15 Methods' : '15 методик'}
               </div>
               <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                {lang === 'tj' ? 'Ишихара, Струп, реакция' : lang === 'en' ? 'Ishihara, Stroop, Reaction' : 'Ишихара, Струп, реакция'}
+                {lang === 'tj' ? 'Дальтонизм, Струп, реаксия' : lang === 'en' ? 'Color vision, Stroop, Reaction' : 'Дальтонизм, Струп, реакция'}
               </div>
             </div>
           </div>
@@ -325,7 +325,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                   <Badge variant="emerald" className="mb-3 font-mono">
                     {isFinished
                       ? (lang === 'tj' ? 'Посухҳо сабт шуданд' : lang === 'en' ? 'Responses Stored' : 'Ответы зафиксированы')
-                      : (lang === 'tj' ? 'Ҷадвалҳои Ишихара ва Рабкин' : lang === 'en' ? 'Ishihara & Rabkin Paradigm' : 'Таблицы Ишихары и Рабкина')}
+                      : (lang === 'tj' ? 'Санҷиши биноии рангӣ' : lang === 'en' ? 'Color Perception Screening' : 'Тест на дальтонизм')}
                   </Badge>
 
                   <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">

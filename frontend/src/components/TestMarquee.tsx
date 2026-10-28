@@ -69,16 +69,16 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Зрение',
     localizations: {
       ru: {
-        title: 'Тест на дальтонизм (Таблицы Рабкина и Ишихары)',
-        description: 'Клинический скрининг красно-зелёного цветовосприятия и спектра колбочек L, M, S с распознаванием цифр и геометрических фигур.',
+        title: 'Тест на дальтонизм',
+        description: 'Клинический скрининг красно-зелёного цветовосприятия и спектра колбочек L, M, S с распознаванием цифр, букв и геометрических фигур.',
       },
       tj: {
-        title: 'Санҷиши дальтонизм (Ҷадвалҳои Рабкин ва Ишихара)',
-        description: 'Баҳодиҳии клиникии тафриқаи рангҳои сурху сабз ва колбачаҳои биноӣ бо рақамҳо ва шаклҳои геометрӣ.',
+        title: 'Санҷиши дальтонизм',
+        description: 'Баҳодиҳии клиникии тафриқаи рангҳои сурху сабз ва колбачаҳои биноӣ бо рақамҳо, ҳарфҳо ва шаклҳои геометрӣ.',
       },
       en: {
-        title: 'Color Blindness Screening (Rabkin & Ishihara Plates)',
-        description: 'Standardized polychromatic diagnostic screening with numbers and geometric shapes.',
+        title: 'Color Blindness Screening',
+        description: 'Standardized polychromatic diagnostic screening with numbers, letters, and geometric shapes.',
       },
     },
   },

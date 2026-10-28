@@ -20,7 +20,7 @@ Available test slugs and titles:
 - sound-discrimination: Pure Tone Audiometry 250–8000 Hz / Тональная аудиометрия (hearing / слух)
 - speech-in-noise: Speech-in-Noise Discrimination / Разборчивость речи в шуме
 - visual-perception: Visual Acuity Landolt C / Острота зрения (vision / зрение)
-- color-perception: Color Blindness Screening Rabkin & Ishihara / Тест на дальтонизм (цвета / дальтонизм)
+- color-perception: Color Blindness Screening / Тест на дальтонизм (цвета / дальтонизм)
 - contrast-sensitivity: Contrast Sensitivity Pelli-Robson / Контрастная чувствительность
 - color-hue-discrimination: Color Hue Discrimination Farnsworth D-15 / Цветоразличение оттенков
 - attention-concentration: Schulte Attention Tables 5x5 / Таблицы Шульте (внимание)
