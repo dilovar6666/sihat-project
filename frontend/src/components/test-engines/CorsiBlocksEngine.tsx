@@ -23,7 +23,7 @@ export const CorsiBlocksEngine: React.FC<CorsiBlocksEngineProps> = ({ lang, onCo
 
   const t = {
     ru: {
-      title: 'Пространственная память (Блоки Корси)',
+      title: 'Пространственная память',
       subtitle: 'Запомните и повторите последовательность загорающихся кубиков.',
       standard: 'Corsi Block-Tapping Test (CBTT)',
       instructionWatch: 'Внимание: запоминайте последовательность вспышек...',
@@ -41,7 +41,7 @@ export const CorsiBlocksEngine: React.FC<CorsiBlocksEngineProps> = ({ lang, onCo
       tryAgain: 'Попробовать снова',
     },
     tj: {
-      title: 'Хотираи фазоӣ (Блокҳои Корси)',
+      title: 'Хотираи фазоӣ',
       subtitle: 'Пайдарпайии фурӯзон шудани блокҳоро ба хотир гиред ва такрор намоед.',
       standard: 'Corsi Block-Tapping Test (CBTT)',
       instructionWatch: 'Диққат: пайдарпайиро дар хотир гиред...',
@@ -59,7 +59,7 @@ export const CorsiBlocksEngine: React.FC<CorsiBlocksEngineProps> = ({ lang, onCo
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Spatial Working Memory (Corsi Blocks)',
+      title: 'Spatial Working Memory',
       subtitle: 'Observe and replicate the sequence of illuminated spatial blocks.',
       standard: 'Corsi Block-Tapping Paradigm',
       instructionWatch: 'Observe carefully: memorize the spatial sequence...',

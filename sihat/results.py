@@ -23,6 +23,7 @@ class DirectSaveInput(BaseModel):
     test_slug: str
     result: dict[str, Any]
     answers: dict[str, Any] = Field(default_factory=dict)
+    lang: str = "ru"
 
 
 @router.post("/results/save-direct", response_model=SavedResultOutput, status_code=201)
@@ -40,11 +41,21 @@ def save_direct_result(
         select(MethodologyPassport).where(MethodologyPassport.test_id == test_def.id)
     )
 
+    user_lang = payload.lang if payload.lang in ("ru", "tj", "tg", "en") else "ru"
+    if user_lang == "tg":
+        user_lang = "tj"
+
     title = payload.test_slug
     if isinstance(test_def.localizations, dict):
-        ru_loc = test_def.localizations.get("ru") or test_def.localizations.get("en") or {}
-        if isinstance(ru_loc, dict):
-            title = ru_loc.get("title", payload.test_slug)
+        loc = (
+            test_def.localizations.get(user_lang)
+            or (test_def.localizations.get("tg") if user_lang == "tj" else None)
+            or test_def.localizations.get("ru")
+            or test_def.localizations.get("en")
+            or {}
+        )
+        if isinstance(loc, dict):
+            title = loc.get("title", payload.test_slug)
 
     saved = SavedResult(
         id=str(uuid.uuid4()),
@@ -254,8 +265,15 @@ def export_pdf(
     user: User = Depends(get_current_user),
 ) -> Response:
     item = _owned_saved_result(db, result_id, user)
+    test_def = db.scalar(
+        select(TestDefinition).where(TestDefinition.slug == item.test_slug)
+    )
+    lang = payload.lang if payload.lang in ("ru", "tj", "tg", "en") else "ru"
+    if lang == "tg":
+        lang = "tj"
+
     try:
-        content = build_screening_pdf(item, user, payload)
+        content = build_screening_pdf(item, user, payload, lang=lang, test_def=test_def)
     except Exception:
         lines = [
             "SIHAT result record",

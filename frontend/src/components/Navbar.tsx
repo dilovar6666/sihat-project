@@ -73,8 +73,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   }
 
   return (
-    <header className="fixed top-3 sm:top-4 inset-x-0 z-40 flex justify-center px-3 sm:px-4 pointer-events-none">
-      <div className="pointer-events-auto w-full max-w-5xl rounded-full liquid-glass shadow-xl px-3 sm:px-5 h-14 flex items-center justify-between transition-all">
+    <header className="fixed top-3 sm:top-4 inset-x-0 z-40 flex justify-center px-4 sm:px-6 lg:px-8 pointer-events-none">
+      <div className="pointer-events-auto w-full max-w-7xl rounded-full liquid-glass shadow-xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between transition-all">
         {/* Left: Brand Logo */}
         <button
           onClick={() => handleNavClick('home')}

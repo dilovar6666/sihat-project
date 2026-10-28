@@ -26,7 +26,7 @@ export const TonalAudiometryEngine: React.FC<TonalAudiometryEngineProps> = ({ la
 
   const t = {
     ru: {
-      title: 'Тональная аудиометрия (250–8000 Гц)',
+      title: 'Тональная аудиометрия',
       subtitle: 'Компьютерная оценка слухового порога с использованием Web Audio API.',
       standard: 'ISO 8253-1 / Pure Tone Audiometry',
       headphoneAlert: 'Наденьте наушники и выставьте комфортную общую громкость устройства (50%).',
@@ -45,7 +45,7 @@ export const TonalAudiometryEngine: React.FC<TonalAudiometryEngineProps> = ({ la
       tryAgain: 'Повторить тест',
     },
     tj: {
-      title: 'Аудиометрияи тоналӣ (250–8000 Гц)',
+      title: 'Аудиометрияи тоналӣ',
       subtitle: 'Баҳодиҳии компютерии ҳадди шунавоӣ бо истифода аз Web Audio API.',
       standard: 'ISO 8253-1 / Pure Tone Audiometry',
       headphoneAlert: 'Гӯшмонак (наушник) пӯшед ва баландии дастгоҳро дар 50% монед.',
@@ -64,7 +64,7 @@ export const TonalAudiometryEngine: React.FC<TonalAudiometryEngineProps> = ({ la
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Pure Tone Audiometry (250–8000 Hz)',
+      title: 'Pure Tone Audiometry',
       subtitle: 'Pure-tone hearing threshold evaluation using browser Web Audio API.',
       standard: 'ISO 8253-1 Audiometry Standard',
       headphoneAlert: 'Please wear stereo headphones and set system volume to ~50%.',

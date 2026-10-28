@@ -29,7 +29,7 @@ export const ColorHueEngine: React.FC<ColorHueEngineProps> = ({ lang, onComplete
 
   const t = {
     ru: {
-      title: 'Цветоразличение оттенков (Farnsworth D-15)',
+      title: 'Цветоразличение оттенков',
       subtitle: 'Упорядочите цветные фишки в плавный гармоничный спектр слева направо (от бирюзового к розовому).',
       standard: 'Farnsworth-Munsell D-15 Standard',
       instruction: 'Нажмите на фишку, затем на другую фишку, чтобы поменять их местами.',
@@ -43,7 +43,7 @@ export const ColorHueEngine: React.FC<ColorHueEngineProps> = ({ lang, onComplete
       tryAgain: 'Попробовать снова',
     },
     tj: {
-      title: 'Фарқкунии рангҳо ва тобишҳо (Farnsworth D-15)',
+      title: 'Фарқкунии рангҳо ва тобишҳо',
       subtitle: 'Рангҳоро аз чап ба рост дар пайдарпайии мукаммал ва ҳамвор ҷойгир намоед.',
       standard: 'Farnsworth-Munsell D-15 Standard',
       instruction: 'Ба як доира пахш кунед ва баъд ба дигараш, то ҷои онҳоро иваз намоед.',
@@ -57,7 +57,7 @@ export const ColorHueEngine: React.FC<ColorHueEngineProps> = ({ lang, onComplete
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Hue Discrimination (Farnsworth D-15)',
+      title: 'Hue Discrimination',
       subtitle: 'Arrange color disks into a continuous smooth rainbow gradient from left to right.',
       standard: 'Farnsworth-Munsell D-15 Paradigm',
       instruction: 'Click one disk and then another to swap their positions.',

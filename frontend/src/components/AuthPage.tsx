@@ -201,6 +201,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register' | 'forgot-password' | 'reset-password'
+  initialToken?: string | null
   lang: Language
   onSuccess: (user: UserProfile, token: string) => void
   onNotify: (msg: string) => void
@@ -209,13 +210,14 @@ interface AuthPageProps {
 
 export const AuthPage: React.FC<AuthPageProps> = ({
   initialMode = 'login',
+  initialToken,
   lang,
   onSuccess,
   onNotify,
   onNavigate,
 }) => {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>(
-    initialMode
+    initialToken ? 'reset-password' : initialMode
   )
   const [authMethod, setAuthMethod] = useState<'email' | 'mobile'>('email')
   const [email, setEmail] = useState('')
@@ -224,7 +226,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [ageGroup, setAgeGroup] = useState('18_plus')
-  const [resetToken, setResetToken] = useState('')
+  const [resetToken, setResetToken] = useState<string>(() => {
+    if (initialToken) return initialToken
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search)
+      return p.get('token') || ''
+    }
+    return ''
+  })
   const [newPassword, setNewPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
@@ -243,8 +252,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   }, [])
 
   useEffect(() => {
-    setMode(initialMode)
-  }, [initialMode])
+    if (initialToken) {
+      setResetToken(initialToken)
+      setMode('reset-password')
+    } else {
+      setMode(initialMode)
+    }
+  }, [initialMode, initialToken])
 
   const t = {
     ru: {

@@ -109,6 +109,7 @@ export const AssistantPage: React.FC<AssistantPageProps> = ({
           text: userText,
           conversation,
           shared_result_ids: [],
+          lang,
         }),
       })
 

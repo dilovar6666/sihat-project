@@ -29,15 +29,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Когнитивные навыки',
     localizations: {
       ru: {
-        title: 'Концентрация и устойчивость (Таблицы Шульте)',
+        title: 'Концентрация и устойчивость',
         description: 'Оценка скорости переключения, истощаемости внимания и темпа сенсомоторных реакций.',
       },
       tj: {
-        title: 'Таваҷҷӯҳ ва тамаркуз (Ҷадвалҳои Шулте)',
+        title: 'Таваҷҷӯҳ ва тамаркуз',
         description: 'Арзёбии суръати гузариш ва устувории таваҷҷӯҳ дар фазои визуалӣ.',
       },
       en: {
-        title: 'Attention Concentration (Schulte Matrices)',
+        title: 'Attention Concentration',
         description: 'Psychomotor processing speed, visual search efficiency, and attention stability.',
       },
     },
@@ -49,15 +49,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Когнитивные навыки',
     localizations: {
       ru: {
-        title: 'Переключаемость внимания (Trail Making B)',
+        title: 'Переключаемость внимания',
         description: 'Когнитивная гибкость и исполнительный контроль при чередовании сенсорных стимулов.',
       },
       tj: {
-        title: 'Гузариши таваҷҷӯҳ (Trail Making B)',
+        title: 'Гузариши таваҷҷӯҳ',
         description: 'Чандирии маърифатӣ ва назорати иҷроия ҳангоми ивазшавии пайдарпай.',
       },
       en: {
-        title: 'Cognitive Flexibility (Trail Making B)',
+        title: 'Cognitive Flexibility',
         description: 'Executive functioning, cognitive set-shifting, and dual-task tracking.',
       },
     },
@@ -89,15 +89,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Зрение',
     localizations: {
       ru: {
-        title: 'Цветоразличение оттенков (Farnsworth D-15)',
+        title: 'Цветоразличение оттенков',
         description: 'Спектральная сортировка цветовых оттенков по кругу Манселла.',
       },
       tj: {
-        title: 'Фарқкунии тобишҳои ранг (Farnsworth D-15)',
+        title: 'Фарқкунии тобишҳои ранг',
         description: 'Тартибдиҳии спектралии доираҳои ранга дар пайдарпайии ҳамвор.',
       },
       en: {
-        title: 'Color Hue Discrimination (Farnsworth D-15)',
+        title: 'Color Hue Discrimination',
         description: 'Spectral hue arrangement across the chromatic circle.',
       },
     },
@@ -109,15 +109,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Зрение',
     localizations: {
       ru: {
-        title: 'Контрастная чувствительность (Решётки Пелли-Робсона)',
+        title: 'Контрастная чувствительность',
         description: 'Определение порогов распознавания слабоконтрастных синусоидальных решёток при разном освещении.',
       },
       tj: {
-        title: 'Ҳассосияти контрастӣ (Пелли-Робсон)',
+        title: 'Ҳассосияти контрастӣ',
         description: 'Муайянкунии ҳадди шинохти объектҳои камранг ва тағйироти аввалини биноӣ.',
       },
       en: {
-        title: 'Contrast Sensitivity (Pelli-Robson)',
+        title: 'Contrast Sensitivity',
         description: 'Spatial contrast detection thresholds across subtle luminance gradations.',
       },
     },
@@ -129,15 +129,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Сенсомоторика',
     localizations: {
       ru: {
-        title: 'Сенсомоторная скорость (Простая реакция)',
+        title: 'Сенсомоторная скорость',
         description: 'Миллисекундный хронометраж скрытого времени психомоторного ответа на визуальный стимул.',
       },
       tj: {
-        title: 'Суръати аксуламал (Реаксияи фаврӣ)',
+        title: 'Суръати аксуламал',
         description: 'Ҳисоби миллисониявии вақти посухи сенсомоторӣ ба сигналҳои ногаҳонӣ.',
       },
       en: {
-        title: 'Psychomotor Latency (Simple Reaction)',
+        title: 'Psychomotor Latency',
         description: 'Sub-millisecond latency quantification of central visual-motor reflex arcs.',
       },
     },
@@ -153,11 +153,11 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
         description: 'Кратковременное удержание конфигураций и пространственных паттернов (тест Корси).',
       },
       tj: {
-        title: 'Хотираи фазоӣ-визуалӣ (Тести Корси)',
+        title: 'Хотираи фазоӣ-визуалӣ',
         description: 'Санҷиши нигоҳдории кӯтоҳмуддати сохторҳои мураккаб дар хотира.',
       },
       en: {
-        title: 'Visuospatial Span (Corsi Blocks)',
+        title: 'Visuospatial Span',
         description: 'Working memory capacity for sequential spatial and geometrical visual arrays.',
       },
     },
@@ -169,15 +169,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Слух',
     localizations: {
       ru: {
-        title: 'Тональная аудиометрия (Слуховые пороги)',
+        title: 'Тональная аудиометрия',
         description: 'Частотное сканирование от 125 Гц до 8 кГц с контролем уровня звукового давления.',
       },
       tj: {
-        title: 'Аудиометрияи басомадӣ (Ҳадди шунавоӣ)',
+        title: 'Аудиометрияи басомадӣ',
         description: 'Таҳлили ҳассосияти гӯш ба басомадҳои гуногуни савтӣ аз паст то баланд.',
       },
       en: {
-        title: 'Pure Tone Audiometry (Thresholds)',
+        title: 'Pure Tone Audiometry',
         description: 'Air conduction threshold curve estimation across clinical octaves 250Hz-8kHz.',
       },
     },
@@ -189,15 +189,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Слух',
     localizations: {
       ru: {
-        title: 'Разборчивость речи в шуме (SNR Screening)',
+        title: 'Разборчивость речи в шуме',
         description: 'Слуховая селективность и восприятие фонем на фоне смоделированного речевого шума.',
       },
       tj: {
-        title: 'Фаҳмиши нутқ дар шароити садо (SNR)',
+        title: 'Фаҳмиши нутқ дар шароити садо',
         description: 'Арзёбии ҷудокунии овозҳо ва нутқ дар муҳити пурмавҷ ва пурсадо.',
       },
       en: {
-        title: 'Speech-in-Noise Discrimination (SNR)',
+        title: 'Speech-in-Noise Discrimination',
         description: 'Auditory figure-ground discrimination with calibrated babble noise masking.',
       },
     },
@@ -209,15 +209,15 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'Самочувствие',
     localizations: {
       ru: {
-        title: 'Шкала генерализованной тревоги (GAD-7)',
+        title: 'Шкала генерализованной тревожности',
         description: 'Стандартизированный клинический скрининг тревожности и психоэмоционального напряжения.',
       },
       tj: {
-        title: 'Миқёси ташвиш ва изтироб (GAD-7)',
+        title: 'Миқёси ташвиш ва изтироб',
         description: 'Санҷиши равонии расмии сатҳи нигаронӣ ва шиддати асаб дар ҳаёти рӯзмарра.',
       },
       en: {
-        title: 'Generalized Anxiety Scale (GAD-7)',
+        title: 'Generalized Anxiety Scale',
         description: 'Validated psychometric instrument for screening and symptom severity tracking.',
       },
     },

@@ -16,13 +16,10 @@ interface CardItem {
   label: string
 }
 
-const SYMBOL_DEFS = [
-  { symbol: '★', label: 'Звезда / Star' },
-  { symbol: '●', label: 'Круг / Circle' },
-  { symbol: '▲', label: 'Треугольник / Triangle' },
-  { symbol: '◆', label: 'Ромб / Diamond' },
-  { symbol: '✦', label: 'Искра / Spark' },
-  { symbol: '⬢', label: 'Шестигранник / Hex' },
+const ALL_SYMBOL_POOL = [
+  '★', '●', '▲', '◆', '✦', '⬢', '♥', '✿', 
+  '♠', '♣', '♦', '⚡', '🌙', '☀', '☁', '☂', 
+  '☕', '⚓', '⚛', '☯', '☮', '♫', '🎯', '🚀'
 ]
 
 export const VisualPairsEngine: React.FC<VisualPairsEngineProps> = ({
@@ -41,7 +38,7 @@ export const VisualPairsEngine: React.FC<VisualPairsEngineProps> = ({
 
   const t = {
     ru: {
-      title: 'Визуальные пары (Память карточек)',
+      title: 'Визуальные пары',
       subtitle: 'Открывайте карточки парами и находите одинаковые символы за наименьшее число ходов.',
       startBtn: 'Начать поиск пар',
       moves: 'Ходов:',
@@ -55,7 +52,7 @@ export const VisualPairsEngine: React.FC<VisualPairsEngineProps> = ({
       efficiency: 'Эффективность поиска:',
     },
     tj: {
-      title: 'Ҷуфтҳои биноӣ (Хотираи кортҳо)',
+      title: 'Ҷуфтҳои биноӣ',
       subtitle: 'Кортҳоро ҷуфт-ҷуфт кушоед ва рамзҳои якхеларо бо камтарин ҳаракат пайдо кунед.',
       startBtn: 'Оғози ҷустуҷӯи ҷуфтҳо',
       moves: 'Ҳаракатҳо:',
@@ -69,7 +66,7 @@ export const VisualPairsEngine: React.FC<VisualPairsEngineProps> = ({
       efficiency: 'Самаранокии ҷустуҷӯ:',
     },
     en: {
-      title: 'Visual Pairs (Card Memory)',
+      title: 'Visual Pairs',
       subtitle: 'Flip cards in pairs to discover matching symbols with the fewest possible moves.',
       startBtn: 'Start Matching',
       moves: 'Moves:',
@@ -94,12 +91,20 @@ export const VisualPairsEngine: React.FC<VisualPairsEngineProps> = ({
         label: c.symbol,
       }))
     } else {
-      const selected = SYMBOL_DEFS.slice(0, 6)
-      selected.forEach((def, pairId) => {
-        deck.push({ id: pairId * 2, pairId, symbol: def.symbol, label: def.label })
-        deck.push({ id: pairId * 2 + 1, pairId, symbol: def.symbol, label: def.label })
+      const pool = [...ALL_SYMBOL_POOL]
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[pool[i], pool[j]] = [pool[j], pool[i]]
+      }
+      const selected = pool.slice(0, 6)
+      selected.forEach((sym, pairId) => {
+        deck.push({ id: pairId * 2, pairId, symbol: sym, label: sym })
+        deck.push({ id: pairId * 2 + 1, pairId, symbol: sym, label: sym })
       })
-      deck.sort(() => Math.random() - 0.5)
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[deck[i], deck[j]] = [deck[j], deck[i]]
+      }
     }
 
     setCards(deck)

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   ArrowRight,
   ShieldCheck,
@@ -14,7 +14,7 @@ import {
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import { Card } from './ui/Card'
-import { PseudoisochromaticPlateCanvas, CLINICAL_PLATES } from './test-engines/ColorPerceptionEngine'
+import { PseudoisochromaticPlateCanvas, pick10RandomPlates, type ClinicalPlate } from './test-engines/ColorPerceptionEngine'
 import type { Language, Translations } from '../i18n'
 import type { TestItem } from '../types'
 import { TestMarquee } from './TestMarquee'
@@ -29,8 +29,6 @@ interface LandingHeroProps {
   onStartScreening: (slug: string) => void
 }
 
-const MINI_PLATES = CLINICAL_PLATES.slice(0, 3)
-
 export const LandingHero: React.FC<LandingHeroProps> = ({
   t,
   lang,
@@ -40,17 +38,35 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
   onSelectTest,
   onStartScreening,
 }) => {
-  // Mini-screening for Color Blindness (Ishihara / Rabkin) state
+  // 10 randomized plates selected from the 50-plate library
+  const [activePlates, setActivePlates] = useState<ClinicalPlate[]>(() => pick10RandomPlates())
   const [currentPlateIdx, setCurrentPlateIdx] = useState(0)
   const [userAnswers, setUserAnswers] = useState<string[]>([])
   const [isFinished, setIsFinished] = useState(false)
 
-  const currentPlate = MINI_PLATES[currentPlateIdx]
+  const currentPlate = activePlates[currentPlateIdx] || activePlates[0]
+
+  // Shuffled options for current plate so positions are randomized
+  const currentOptions = useMemo(() => {
+    if (!currentPlate) return []
+    const raw =
+      lang === 'tj'
+        ? currentPlate.optionsTj
+        : lang === 'en'
+        ? currentPlate.optionsEn
+        : currentPlate.optionsRu
+    const shuffled = [...raw]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }, [currentPlate, lang])
 
   const handleSelectOption = (opt: string) => {
     const updated = [...userAnswers, opt]
     setUserAnswers(updated)
-    if (currentPlateIdx < MINI_PLATES.length - 1) {
+    if (currentPlateIdx < activePlates.length - 1) {
       setCurrentPlateIdx((prev) => prev + 1)
     } else {
       setIsFinished(true)
@@ -58,9 +74,46 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
   }
 
   const handleResetMiniTest = () => {
+    setActivePlates(pick10RandomPlates())
     setCurrentPlateIdx(0)
     setUserAnswers([])
     setIsFinished(false)
+  }
+
+  const getPromptText = () => {
+    if (!currentPlate) return ''
+    if (currentPlate.type === 'number') {
+      return lang === 'tj'
+        ? 'Кадом рақамро дар дохили доира мебинед?'
+        : lang === 'en'
+        ? 'Which number do you perceive inside the circle?'
+        : 'Какое число вы видите внутри круга?'
+    }
+    if (currentPlate.type === 'letter') {
+      return lang === 'tj'
+        ? 'Кадом ҳарфро дар дохили доира мебинед?'
+        : lang === 'en'
+        ? 'Which letter do you perceive inside the circle?'
+        : 'Какую букву вы видите внутри круга?'
+    }
+    if (
+      currentPlate.type === 'circle-triangle' ||
+      currentPlate.type === 'square-circle' ||
+      currentPlate.type === 'triangle-square' ||
+      currentPlate.type === 'star-circle' ||
+      currentPlate.type === 'diamond-triangle'
+    ) {
+      return lang === 'tj'
+        ? 'Кадом шаклҳоро дар дохили доира мебинед?'
+        : lang === 'en'
+        ? 'Which shapes do you perceive inside the circle?'
+        : 'Какие фигуры вы видите внутри круга?'
+    }
+    return lang === 'tj'
+      ? 'Кадом шаклро дар дохили доира мебинед?'
+      : lang === 'en'
+      ? 'Which shape do you perceive inside the circle?'
+      : 'Какую фигуру вы видите внутри круга?'
   }
 
   const heroBadge = lang === 'ru' 
@@ -236,7 +289,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                         </span>
                       </div>
                       <Badge variant="outline" className="text-[10px] font-mono">
-                        {currentPlateIdx + 1} / {MINI_PLATES.length}
+                        {currentPlateIdx + 1} / {activePlates.length}
                       </Badge>
                     </div>
 
@@ -246,20 +299,18 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                     </div>
 
                     <div className="text-xs text-zinc-600 dark:text-zinc-400 my-3 font-semibold text-center">
-                      {currentPlate.type === 'number'
-                        ? (lang === 'tj' ? 'Кадом рақамро дар дохили доира мебинед?' : lang === 'en' ? 'Which number do you perceive inside the circle?' : 'Какое число вы видите внутри круга?')
-                        : (lang === 'tj' ? 'Кадом шаклро дар дохили доира мебинед?' : lang === 'en' ? 'Which shape do you perceive inside the circle?' : 'Какую фигуру вы видите внутри круга?')}
+                      {getPromptText()}
                     </div>
 
-                    {/* 4 Interactive Choice Buttons */}
-                    <div className="grid grid-cols-4 gap-2 w-full max-w-sm">
-                      {(lang === 'tj' ? currentPlate.optionsTj : lang === 'en' ? currentPlate.optionsEn : currentPlate.optionsRu).map((opt) => (
+                    {/* Interactive Choice Buttons (Dynamic Grid) */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full max-w-sm">
+                      {currentOptions.map((opt) => (
                         <Button
                           key={opt}
                           variant="outline"
                           size="sm"
                           onClick={() => handleSelectOption(opt)}
-                          className="h-9 font-bold text-xs hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 transition-all shadow-xs"
+                          className="h-9 font-bold text-xs hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 transition-all shadow-xs truncate px-2"
                         >
                           {opt}
                         </Button>
@@ -275,28 +326,28 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
 
                     <div>
                       <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center justify-center gap-2">
-                        <span>{lang === 'tj' ? 'Санҷиши экспресс анҷом ёфт' : lang === 'en' ? 'Mini-Screening Completed' : 'Экспресс-тест завершён'}</span>
+                        <span>{lang === 'tj' ? 'Санҷиш анҷом ёфт (10 ҷадвал)' : lang === 'en' ? 'Test Completed (10 Plates)' : 'Тест завершён (10 таблиц)'}</span>
                         <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                       </h4>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
                         {lang === 'tj'
-                          ? '3 аз 3 посух дар хотираи маҳаллӣ сабт шуд'
+                          ? `${activePlates.length} аз ${activePlates.length} посух дар хотираи маҳаллӣ сабт шуд`
                           : lang === 'en'
-                          ? '3 of 3 plate responses securely recorded'
-                          : '3 из 3 ответов сохранены в защищённой памяти'}
+                          ? `${activePlates.length} of ${activePlates.length} plate responses securely recorded`
+                          : `${activePlates.length} из ${activePlates.length} ответов сохранены в защищённой памяти`}
                       </p>
                     </div>
 
-                    {/* Recorded Answers Status */}
-                    <div className="w-full space-y-2 bg-zinc-50 dark:bg-zinc-900/60 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-left text-xs">
-                      {MINI_PLATES.map((p, idx) => (
-                        <div key={p.id} className="flex items-center justify-between">
-                          <span className="text-zinc-600 dark:text-zinc-400 text-[11px]">
-                            Таблица #{p.id}:
+                    {/* Recorded Answers Status for all 10 plates */}
+                    <div className="w-full max-h-48 overflow-y-auto space-y-1.5 bg-zinc-50 dark:bg-zinc-900/60 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-left text-xs">
+                      {activePlates.map((p, idx) => (
+                        <div key={`${p.id}-${idx}`} className="flex items-center justify-between">
+                          <span className="text-zinc-600 dark:text-zinc-400 text-[11px] truncate pr-2">
+                            #{idx + 1} {lang === 'tj' ? p.labelTj : lang === 'en' ? p.labelEn : p.labelRu}:
                           </span>
-                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1">
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1 shrink-0">
                             <CheckCircle2 className="w-3 h-3" />
-                            {userAnswers[idx] ? `Ответ «${userAnswers[idx]}»` : 'Зафиксировано'}
+                            {userAnswers[idx] ? `«${userAnswers[idx]}»` : 'Зафиксировано'}
                           </span>
                         </div>
                       ))}
@@ -310,10 +361,10 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
 
                     <button
                       onClick={handleResetMiniTest}
-                      className="text-[11px] text-zinc-500 hover:text-emerald-500 underline flex items-center gap-1 transition-colors"
+                      className="text-[11px] text-zinc-500 hover:text-emerald-500 underline flex items-center gap-1 transition-colors cursor-pointer"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      <span>{lang === 'tj' ? 'Аз нав гузаштан' : lang === 'en' ? 'Retry mini-test' : 'Пройти экспресс-тест заново'}</span>
+                      <span>{lang === 'tj' ? 'Аз нав гузаштан (10 ҷадвали нави тасодуфӣ)' : lang === 'en' ? 'Retry with 10 new random plates' : 'Пройти заново (10 новых случайных таблиц)'}</span>
                     </button>
                   </div>
                 )}
@@ -345,10 +396,10 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                   <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
                     {isFinished
                       ? (lang === 'tj'
-                          ? 'Шумо ҳамаи 3 лавҳаро посух додед. Барои кушодани шарҳи мукаммали клиникӣ (ташхиси дейтеранопия, протанопия ва ахроматопсия), спектрограмма ва содироти шиносномаи расмии тиббии PDF — тугмаи «Оғози скрининги комил»-ро пахш намоед.'
+                          ? 'Шумо ҳамаи 10 лавҳаи тасодуфиро посух додед. Барои кушодани шарҳи мукаммали клиникӣ (ташхиси дейтеранопия, протанопия ва ахроматопсия), спектрограмма ва содироти шиносномаи расмии тиббии PDF — тугмаи «Оғози скрининги комил»-ро пахш намоед.'
                           : lang === 'en'
-                          ? 'You have completed all 3 test plates. To decrypt the full clinical evaluation (differential analysis of deutan, protan, and tritan defects), view full hue spectrogram, and export official PDF passport — click "Launch Full Screening".'
-                          : 'Вы успешно ответили на все 3 демонстрационные таблицы. Чтобы расшифровать клинический вердикт (дифференциация протанопии, дейтераномалии и ахроматопсии по стандарту Рабкина), спектрограмму и получить официальный медицинский PDF-паспорт — нажмите кнопку ниже.')
+                          ? 'You have completed all 10 randomized test plates. To decrypt the full clinical evaluation (differential analysis of deutan, protan, and tritan defects), view full hue spectrogram, and export official PDF passport — click "Launch Full Screening".'
+                          : 'Вы успешно ответили на все 10 случайно отобранных таблиц. Чтобы расшифровать клинический вердикт (дифференциация протанопии, дейтераномалии и ахроматопсии по стандарту Рабкина), спектрограмму и получить официальный медицинский PDF-паспорт — нажмите кнопку ниже.')
                       : (lang === 'tj'
                           ? 'Арзёбии фаврии қобилияти системаи биноӣ барои фарқ кардани дарозии мавҷҳои сурх ва сабз (колбачаҳои L ва M) дар матритсаи нуқтавии полихроматикӣ.'
                           : lang === 'en'
@@ -361,18 +412,18 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 <div className="space-y-3 bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-zinc-600 dark:text-zinc-400">
-                      {lang === 'tj' ? 'Пешрафти экспресс-тест:' : lang === 'en' ? 'Screening Progress:' : 'Прогресс экспресс-теста:'}
+                      {lang === 'tj' ? 'Пешрафти санҷиш:' : lang === 'en' ? 'Test Progress:' : 'Прогресс теста:'}
                     </span>
                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      {isFinished ? '100% (3/3)' : `${Math.round((userAnswers.length / 3) * 100)}% (${userAnswers.length}/3)`}
+                      {isFinished ? `100% (${activePlates.length}/${activePlates.length})` : `${Math.round((userAnswers.length / activePlates.length) * 100)}% (${userAnswers.length}/${activePlates.length})`}
                     </span>
                   </div>
 
                   <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
                     <div
                       className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-300"
-                      style={{ width: `${isFinished ? 100 : Math.max(15, (userAnswers.length / 3) * 100)}%` }}
+                      style={{ width: `${isFinished ? 100 : Math.max(10, (userAnswers.length / activePlates.length) * 100)}%` }}
                     />
                   </div>
 

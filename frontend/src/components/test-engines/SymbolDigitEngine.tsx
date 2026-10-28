@@ -9,6 +9,17 @@ interface SymbolDigitEngineProps {
   onComplete: (result: { summary: string; metrics: Record<string, unknown> }) => void
 }
 
+
+function generateShuffledSymbolKey(): Array<{ symbol: string; digit: number }> {
+  const digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  const shuffledDigits = [...digits].sort(() => Math.random() - 0.5)
+  const symbols = ['❖', '▲', '✦', '⬡', '✱', '◈', '◒', '✖', '◼']
+  return symbols.map((symbol, idx) => ({
+    symbol,
+    digit: shuffledDigits[idx],
+  }))
+}
+
 const SYMBOL_KEY = [
   { symbol: '❖', digit: 1 },
   { symbol: '▲', digit: 2 },
@@ -22,6 +33,7 @@ const SYMBOL_KEY = [
 ]
 
 export const SymbolDigitEngine: React.FC<SymbolDigitEngineProps> = ({ lang, onComplete }) => {
+  const [symbolKey, setSymbolKey] = useState(() => generateShuffledSymbolKey())
   const [currentSymbolIdx, setCurrentSymbolIdx] = useState(0)
   const [processedCount, setProcessedCount] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
@@ -32,7 +44,7 @@ export const SymbolDigitEngine: React.FC<SymbolDigitEngineProps> = ({ lang, onCo
 
   const t = {
     ru: {
-      title: 'Скорость обработки информации (SDMT)',
+      title: 'Скорость обработки символов',
       subtitle: 'Используя ключ наверху, как можно быстрее вводите цифру, соответствующую показанному символу.',
       standard: 'Symbol Digit Modalities Test (SDMT)',
       referenceKey: 'Ключ соответствия:',
@@ -49,7 +61,7 @@ export const SymbolDigitEngine: React.FC<SymbolDigitEngineProps> = ({ lang, onCo
       tryAgain: 'Попробовать снова',
     },
     tj: {
-      title: 'Суръати коркарди иттилоот (SDMT)',
+      title: 'Суръати коркарди иттилоот',
       subtitle: 'Бо истифода аз калиди болоӣ, рақами мувофиқи аломатро ҳарчи зудтар ворид намоед.',
       standard: 'Symbol Digit Modalities Test (SDMT)',
       referenceKey: 'Калиди мувофиқат:',
@@ -66,7 +78,7 @@ export const SymbolDigitEngine: React.FC<SymbolDigitEngineProps> = ({ lang, onCo
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Information Processing Speed (SDMT)',
+      title: 'Information Processing Speed',
       subtitle: 'Using the reference key at top, rapidly match and enter the digit for each symbol shown.',
       standard: 'Symbol Digit Modalities Test Paradigm',
       referenceKey: 'Reference Mapping Key:',
@@ -91,11 +103,13 @@ export const SymbolDigitEngine: React.FC<SymbolDigitEngineProps> = ({ lang, onCo
   }, [])
 
   const pickNextSymbol = () => {
-    const nextIdx = Math.floor(Math.random() * SYMBOL_KEY.length)
+    const nextIdx = Math.floor(Math.random() * symbolKey.length)
     setCurrentSymbolIdx(nextIdx)
   }
 
   const handleStart = () => {
+    const newKey = generateShuffledSymbolKey()
+    setSymbolKey(newKey)
     setProcessedCount(0)
     setCorrectCount(0)
     setTimeLeft(30)
@@ -225,7 +239,7 @@ export const SymbolDigitEngine: React.FC<SymbolDigitEngineProps> = ({ lang, onCo
               {t.referenceKey}
             </div>
             <div className="grid grid-cols-9 gap-1 text-center">
-              {SYMBOL_KEY.map((item) => (
+              {symbolKey.map((item: { symbol: string; digit: number }) => (
                 <div key={item.digit} className="flex flex-col items-center">
                   <span className="text-lg text-emerald-500 font-bold">{item.symbol}</span>
                   <span className="text-xs font-mono font-bold text-zinc-700 dark:text-zinc-300">

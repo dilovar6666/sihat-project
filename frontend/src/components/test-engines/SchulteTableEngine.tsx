@@ -22,7 +22,7 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
 
   const t = {
     ru: {
-      title: 'Таблицы Шульте (5 × 5)',
+      title: 'Таблицы Шульте',
       subtitle: 'Найдите и последовательно нажмите числа от 1 до 25 как можно быстрее.',
       standard: 'Методика Шульте: Скорость зрительного поиска и концентрация',
       startBtn: 'Начать поиск (1 → 25)',
@@ -41,7 +41,7 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
       tryAgain: 'Пройти снова',
     },
     tj: {
-      title: 'Ҷадвалҳои Шулте (5 × 5)',
+      title: 'Ҷадвалҳои Шулте',
       subtitle: 'Ададҳоро аз 1 то 25 пайдарпай ва ҳарчи зудтар пайдо кунед.',
       standard: 'Методикаи Шулте: Суръати ҷустуҷӯ ва диққат',
       startBtn: 'Оғози ҷустуҷӯ (1 → 25)',
@@ -60,7 +60,7 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Schulte Grid (5 × 5)',
+      title: 'Schulte Grid',
       subtitle: 'Locate and click numbers in ascending order from 1 to 25 as quickly as possible.',
       standard: 'Schulte Paradigm: Visual search rate and focal attention',
       startBtn: 'Start Search (1 → 25)',

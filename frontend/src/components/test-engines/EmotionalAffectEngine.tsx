@@ -16,7 +16,7 @@ export const EmotionalAffectEngine: React.FC<EmotionalAffectEngineProps> = ({ la
 
   const t = {
     ru: {
-      title: 'Психоэмоциональный баланс (Сетка Рассела)',
+      title: 'Психоэмоциональный баланс',
       subtitle: 'Двухосевая модель аффекта: Валентность (настроение) и Активация (энергия).',
       standard: 'Russell Circumplex Model of Affect',
       instruction: 'Нажмите или переместите точку в плоскости в соответствии с вашим текущим состоянием:',
@@ -32,7 +32,7 @@ export const EmotionalAffectEngine: React.FC<EmotionalAffectEngineProps> = ({ la
       tryAgain: 'Скорректировать',
     },
     tj: {
-      title: 'Тавозуни равонӣ-эҳсосӣ (Модели Рассел)',
+      title: 'Тавозуни равонӣ-эҳсосӣ',
       subtitle: 'Модели дусамтаи эҳсосот: Мусбат/Манфӣ ва Сатҳи нерӯ.',
       standard: 'Russell Circumplex Model of Affect',
       instruction: 'Нуқтаро ба мавқеи мувофиқи ҳолати кунунии худ гузоред:',
@@ -48,7 +48,7 @@ export const EmotionalAffectEngine: React.FC<EmotionalAffectEngineProps> = ({ la
       tryAgain: 'Ислоҳ кардан',
     },
     en: {
-      title: 'Affective Equilibrium (Russell Circumplex)',
+      title: 'Affective Equilibrium',
       subtitle: '2D dimensional model of emotion: Valence (pleasantness) and Arousal (activation).',
       standard: 'Russell Circumplex Model of Affect',
       instruction: 'Click or drag the locator on the plane to reflect your present affective state:',

@@ -74,6 +74,7 @@ export async function downloadPdfBlob(
     include_limitations: boolean
     include_answers: boolean
     include_warnings: boolean
+    lang?: string
   },
 ) {
   const blob = await apiRequest<Blob>(`/results/${resultId}/pdf`, {

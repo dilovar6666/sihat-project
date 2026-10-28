@@ -22,7 +22,7 @@ export const DigitSpanEngine: React.FC<DigitSpanEngineProps> = ({ lang, onComple
 
   const t = {
     ru: {
-      title: 'Кратковременная память (Digit Span)',
+      title: 'Кратковременная память',
       subtitle: 'Запомните последовательность цифр и введите их в том же порядке.',
       standard: 'WAIS-IV Digit Span Working Memory Standard',
       watchCard: 'Запоминайте появляющиеся цифры...',
@@ -40,7 +40,7 @@ export const DigitSpanEngine: React.FC<DigitSpanEngineProps> = ({ lang, onComple
       tryAgain: 'Попробовать снова',
     },
     tj: {
-      title: 'Хотираи кӯтоҳмуддат (Digit Span)',
+      title: 'Хотираи кӯтоҳмуддат',
       subtitle: 'Пайдарпайии рақамҳоро ба хотир гиред ва бо ҳамон тартиб дохил намоед.',
       standard: 'WAIS-IV Digit Span Working Memory Standard',
       watchCard: 'Рақамҳои пайдошавандаро дар хотир гиред...',
@@ -58,7 +58,7 @@ export const DigitSpanEngine: React.FC<DigitSpanEngineProps> = ({ lang, onComple
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Short-Term Memory (Digit Span)',
+      title: 'Short-Term Memory',
       subtitle: 'Memorize the flashed sequence of digits and enter them in order.',
       standard: 'WAIS-IV Working Memory Paradigm',
       watchCard: 'Memorize the sequence of digits...',

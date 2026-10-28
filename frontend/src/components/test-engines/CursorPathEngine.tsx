@@ -40,7 +40,7 @@ export const CursorPathEngine: React.FC<CursorPathEngineProps> = ({ lang, challe
 
   const t = {
     ru: {
-      title: 'Удержание траектории (Steering Path)',
+      title: 'Удержание траектории',
       subtitle: 'Проведите курсор или палец по коридору от точки СТАРТ до ФИНИШ через все контрольные узлы, не выходя за пределы траектории.',
       standard: 'Motor Steering Law / Accot-Zhai Corridor Paradigm',
       startBtn: 'Начать попытку',
@@ -60,7 +60,7 @@ export const CursorPathEngine: React.FC<CursorPathEngineProps> = ({ lang, challe
       tryAgain: 'Попробовать снова',
     },
     tj: {
-      title: 'Идораи траектория (Steering Path)',
+      title: 'Идораи траектория',
       subtitle: 'Нишоннаморо аз оғоз (СТАРТ) то анҷом (ФИНИШ) тавассути нуқтаҳои назоратӣ гузаронед, бидуни берун баромадан аз роҳрав.',
       standard: 'Motor Steering Law / Accot-Zhai Corridor Paradigm',
       startBtn: 'Оғози кӯшиш',

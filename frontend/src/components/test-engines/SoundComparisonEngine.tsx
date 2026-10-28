@@ -16,13 +16,42 @@ interface ToneTrial {
   diff: 'higher' | 'lower' | 'same'
 }
 
-const DEFAULT_TRIALS: ToneTrial[] = [
-  { trial: 1, freq_a: 1000, freq_b: 1040, diff: 'higher' },
-  { trial: 2, freq_a: 800, freq_b: 760, diff: 'lower' },
-  { trial: 3, freq_a: 1200, freq_b: 1200, diff: 'same' },
-  { trial: 4, freq_a: 1500, freq_b: 1550, diff: 'higher' },
-  { trial: 5, freq_a: 600, freq_b: 560, diff: 'lower' },
-]
+const BASE_FREQS = [350, 500, 750, 900, 1000, 1250, 1500, 2000, 2500, 3000]
+
+function generateRandomToneTrials(): ToneTrial[] {
+  // 10 randomized trials: 4 higher, 4 lower, 2 same
+  const types: ('higher' | 'lower' | 'same')[] = [
+    'higher', 'higher', 'higher', 'higher',
+    'lower', 'lower', 'lower', 'lower',
+    'same', 'same'
+  ]
+  for (let i = types.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[types[i], types[j]] = [types[j], types[i]]
+  }
+
+  const shuffledFreqs = [...BASE_FREQS]
+  for (let i = shuffledFreqs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffledFreqs[i], shuffledFreqs[j]] = [shuffledFreqs[j], shuffledFreqs[i]]
+  }
+
+  return types.map((diff, idx) => {
+    const freq_a = shuffledFreqs[idx] || 1000
+    const delta = Math.floor(35 + Math.random() * 45) // 35 - 80 Hz shift
+    let freq_b = freq_a
+    if (diff === 'higher') freq_b = freq_a + delta
+    else if (diff === 'lower') freq_b = freq_a - delta
+
+    return {
+      trial: idx + 1,
+      freq_a,
+      freq_b,
+      diff,
+    }
+  })
+}
+
 
 export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
   lang,
@@ -36,10 +65,12 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
   const [isFinished, setIsFinished] = useState(false)
   const audioCtxRef = useRef<AudioContext | null>(null)
 
-  const trials: ToneTrial[] =
-    challenge && Array.isArray(challenge.trials) && challenge.trials.length > 0
-      ? (challenge.trials as ToneTrial[])
-      : DEFAULT_TRIALS
+  const [trials, setTrials] = useState<ToneTrial[]>(() => {
+    if (challenge && Array.isArray(challenge.trials) && challenge.trials.length > 0) {
+      return challenge.trials as ToneTrial[]
+    }
+    return generateRandomToneTrials()
+  })
 
   const currentTrial = trials[currentIdx]
 
@@ -47,7 +78,7 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
     ru: {
       title: 'Сравнение звуков',
       subtitle: 'Прослушайте два коротких звуковых сигнала и определите, как изменилась высота второго звука.',
-      startBtn: 'Начать тест слуха',
+      startBtn: 'Начать тест слуха (10 проб)',
       playTones: 'Воспроизвести пару звуков',
       playing: 'Воспроизведение...',
       question: 'Второй звук относительно первого был:',
@@ -57,7 +88,7 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
       volumeNotice: 'Рекомендуется комфортная громкость в наушниках (без превышения безопасного уровня).',
       trialOf: 'Попытка',
       of: 'из',
-      tryAgain: 'Пройти снова',
+      tryAgain: 'Пройти снова (10 новых случайных проб)',
       saveBtn: 'Завершить и сохранить',
       finishTitle: 'Тест различения звуков завершен!',
     },
@@ -146,6 +177,7 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
   }
 
   const handleStart = () => {
+    setTrials(generateRandomToneTrials())
     setCurrentIdx(0)
     setUserAnswers({})
     setIsFinished(false)

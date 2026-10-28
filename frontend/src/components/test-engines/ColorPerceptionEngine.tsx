@@ -1065,34 +1065,25 @@ export const ALL_CLINICAL_PLATES: ClinicalPlate[] = [
 export const CLINICAL_PLATES = ALL_CLINICAL_PLATES
 
 export function pick10RandomPlates(): ClinicalPlate[] {
-  // Always include 1 baseline demo plate (Plate 1 or 46)
-  const baselines = ALL_CLINICAL_PLATES.filter((p) => p.diagnosticWeight === 'baseline')
-  const others = ALL_CLINICAL_PLATES.filter((p) => p.diagnosticWeight !== 'baseline')
+  // Balanced random selection: 4 numbers, 3 letters, 3 shapes from 50 pool
+  const numbers = ALL_CLINICAL_PLATES.filter((p) => p.type === 'number')
+  const letters = ALL_CLINICAL_PLATES.filter((p) => p.type === 'letter')
+  const shapes = ALL_CLINICAL_PLATES.filter((p) => p.type !== 'number' && p.type !== 'letter')
 
-  const selectedBase = baselines[Math.floor(Math.random() * baselines.length)]
-
-  // Shuffle others using Fisher-Yates
-  const shuffledOthers = [...others]
-  for (let i = shuffledOthers.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffledOthers[i], shuffledOthers[j]] = [shuffledOthers[j], shuffledOthers[i]]
+  const shuffle = <T,>(arr: T[]): T[] => {
+    const copy = [...arr]
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[copy[i], copy[j]] = [copy[j], copy[i]]
+    }
+    return copy
   }
 
-  // Ensure diverse mix of numbers, letters, and shapes
-  const numbers = shuffledOthers.filter((p) => p.type === 'number').slice(0, 4)
-  const letters = shuffledOthers.filter((p) => p.type === 'letter').slice(0, 3)
-  const shapes = shuffledOthers
-    .filter((p) => p.type !== 'number' && p.type !== 'letter')
-    .slice(0, 2)
+  const pickedNumbers = shuffle(numbers).slice(0, 4)
+  const pickedLetters = shuffle(letters).slice(0, 3)
+  const pickedShapes = shuffle(shapes).slice(0, 3)
 
-  const selected = [selectedBase, ...numbers, ...letters, ...shapes]
-
-  // Final shuffle of the 10 plates so order is unpredictable
-  for (let i = selected.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[selected[i], selected[j]] = [selected[j], selected[i]]
-  }
-
+  const selected = shuffle([...pickedNumbers, ...pickedLetters, ...pickedShapes])
   return selected
 }
 

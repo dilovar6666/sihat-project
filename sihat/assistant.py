@@ -1,4 +1,6 @@
-"""Safe current-dialog assistant with a typed, validated UI-action allowlist."""
+"""Safe current-dialog assistant with a typed, validated UI-action allowlist
+and intelligent multilingual support for Russian (RU), Tajik (TJ), and English (EN).
+"""
 
 from collections import defaultdict, deque
 from time import monotonic
@@ -132,189 +134,541 @@ def _validated_action(action: object, db: Session, user: User | None) -> Assista
     return None
 
 
-def _fallback(user_text: str = "") -> AssistantMessageOutput:
+def _detect_lang(user_text: str, preferred_lang: str | None = None) -> str:
+    low = user_text.lower().strip()
+    # 1. Check for specific Tajik Cyrillic letters
+    tj_letters = {"ғ", "ӣ", "ӯ", "ҳ", "ҷ", "қ"}
+    if any(c in low for c in tj_letters):
+        return "tj"
+
+    # Common Tajik words
+    tj_words = [
+        "салом", "чихел", "чихели", "чихеле", "чи кор", "чӣ кор", "лозим", "чи лозим", "чӣ лозим",
+        "ман", "шумо", "кардан", "мехоҳам", "мехохам", "дард", "биноӣ", "шунавоӣ", "хотира",
+        "диққат", "ранг", "натиҷа", "барои", "метавонам", "хато", "хуб", "ҳамин", "хамин",
+        "кадом", "чист", "чихел аст", "нафас", "сарам"
+    ]
+    if any(w in low for w in tj_words):
+        return "tj"
+
+    # 2. Check for English (Latin count > Cyrillic count)
+    latin_count = sum(1 for c in low if "a" <= c <= "z")
+    cyrillic_count = sum(1 for c in low if "а" <= c <= "я" or c in tj_letters)
+
+    en_words = [
+        "what", "how", "why", "who", "which", "when", "where", "can", "should", "need",
+        "help", "test", "vision", "hearing", "color", "blind", "memory", "attention",
+        "reaction", "hello", "hi", "hey", "catalog", "result", "doctor", "health",
+        "anxiety", "stress", "sleep", "tired", "headache"
+    ]
+    if latin_count > cyrillic_count and (any(w in low for w in en_words) or latin_count > 4):
+        return "en"
+
+    # 3. If mostly Russian Cyrillic
+    if cyrillic_count > 0:
+        return "ru"
+
+    # Fallback to UI preferred language if available
+    if preferred_lang in ("ru", "tj", "tg", "en"):
+        return "tj" if preferred_lang in ("tj", "tg") else preferred_lang
+
+    return "ru"
+
+
+def _fallback(user_text: str = "", preferred_lang: str | None = None) -> AssistantMessageOutput:
+    lang = _detect_lang(user_text, preferred_lang)
     low = user_text.lower().strip()
     actions: list[AssistantAction] = []
 
-    # 1. Emergency / Acute symptoms
-    if any(k in low for k in ["бол", "температур", "давлен", "плохо", "сердц", "pain", "hurt", "dizzy", "emergency", "дышать", "одышк", "травм", "дард"]):
-        msg = (
-            "⚠️ Внимание: Платформа SIHAT does not diagnose conditions or prescribe treatment. "
-            "Если вы испытываете сильную боль, давящие ощущения в груди, внезапную потерю зрения/слуха, одышку или резкое ухудшение самочувствия, "
-            "немедленно вызовите бригаду скорой помощи (103 / 112) или обратитесь в ближайший приёмный покой больницы!"
-        )
+    # 1. EMERGENCY / ACUTE SYMPTOMS
+    if any(k in low for k in ["бол", "температур", "давлен", "плохо", "сердц", "одышк", "травм", "дард", "нафас", "pain", "hurt", "dizzy", "emergency", "chest"]):
+        if lang == "tj":
+            msg = (
+                "⚠️ **Диққат:** Платформаи SIHAT ёрии таъҷилии тиббиро иваз намекунад ва ташхиси клиникӣ намегузорад. "
+                "Агар шумо дарди шадид, фишор дар қафаси сина, якбора хира шудан ё гум шудани биноӣ ва шунавоӣ, ё нафастангиро эҳсос кунед — "
+                "фавран ба хадамоти ёрии таъҷилӣ (103 ё 112) занг занед ё ба беморхонаи наздиктарин муроҷиат намоед!"
+            )
+        elif lang == "en":
+            msg = (
+                "⚠️ **Urgent Medical Notice:** The SIHAT platform does not provide emergency medical care or diagnosis. "
+                "If you are experiencing severe pain, chest tightness, sudden vision or hearing loss, shortness of breath, "
+                "or acute deterioration of your condition, immediately call emergency medical services (103 / 112 / 911) "
+                "or visit the nearest emergency hospital!"
+            )
+        else:
+            msg = (
+                "⚠️ **Внимание:** Платформа SIHAT не является службой скорой помощи и не заменяет экстренного осмотра врача. "
+                "Если вы испытываете сильную боль, давящие ощущения в груди, внезапную потерю зрения или слуха, "
+                "одышку или резкое ухудшение самочувствия — немедленно вызовите бригаду скорой помощи (103 / 112) "
+                "или обратитесь в ближайший приёмный покой больницы!"
+            )
 
-    # 2. Greetings
-    elif any(k in low for k in ["привет", "здравствуй", "салам", "салом", "добрый", "хай", "hello", "hi", "start"]):
-        msg = (
-            "Здравствуйте! Я клинический навигатор платформы SIHAT (Сиҳат). "
-            "Я помогаю подобрать научно обоснованные скрининги сенсорных функций (зрение, слух, внимание), "
-            "объясняю условия калибровки экрана и паспорта методик. "
-            "Платформа SIHAT does not diagnose conditions (не ставит диагнозов и не назначает лекарств), "
-            "а служит доказательным инструментом объективной самопроверки. С чего вы хотите начать?"
-        )
+    # 2. NEEDS / SELECTION / "ЧТО МНЕ НАДО" / "БА МАН ЧИ ЛОЗИМ" / "WHAT DO I NEED"
+    elif any(k in low for k in [
+        "что мне надо", "что мне нужно", "ба ман чи лозим", "ба ман чӣ лозим", "what do i need",
+        "с чего начать", "посоветуй", "что выбрать", "что пройти", "какой тест", "что делать",
+        "чи кор кунам", "чӣ кор кунам", "чихел сар кунам", "what should i do", "recommend"
+    ]):
+        if lang == "tj":
+            msg = (
+                "Барои он ки бидонед аз кадом санҷиш оғоз кардан беҳтар аст, ба эҳсосот ва ҳадафи худ нигаред:\n\n"
+                "• **Аз компютер чашмонатон хаста мешаванд ё норавшан мебинед?**\n"
+                "  Тавсия медиҳем аз **Тезиши биноӣ** (ISO 8596) ва **Ҳассосияти контрастӣ** оғоз кунед.\n\n"
+                "• **Тамаркузи диққат душвор шудааст ё зуд монда мешавед?**\n"
+                "  Санҷиши **Ҷадвалҳои Шулте** (5 × 5) барои устувории диққат ва **Хотираи кӯтоҳмуддат**-ро бисанҷед.\n\n"
+                "• **Мехоҳед суръати аксуламал ва рефлексҳоро чен кунед?**\n"
+                "  Санҷиши стандартии **Суръати аксуламали оддӣ** (Donders A).\n\n"
+                "• **Дар фарқкунии рангҳо ё тобишҳо шубҳа доред?**\n"
+                "  Экспресс-санҷиши **Дальтонизм** бо рақамҳо, ҳарфҳо ва шаклҳо.\n\n"
+                "• **Сатҳи стресс ё нигаронӣ зиёд шудааст?**\n"
+                "  Пурсишномаи стандартии **GAD-7** барои баҳодиҳии ҳолати равонӣ.\n\n"
+                "Аз кадом самт оғоз кардан мехоҳед? Метавонед феҳристи санҷишҳоро кушоед ё якеро интихоб намоед."
+            )
+        elif lang == "en":
+            msg = (
+                "To choose the most relevant screening for your current needs, consider what you want to evaluate:\n\n"
+                "• **Eye strain, blurred focus, or frequent screen work?**\n"
+                "  Start with **Visual Acuity** (ISO 8596) and **Contrast Sensitivity**.\n\n"
+                "• **Difficulty concentrating, brain fog, or mental fatigue?**\n"
+                "  Try **Schulte Attention Tables** (5 × 5) and **Short-Term Memory** (Digit Span).\n\n"
+                "• **Testing nervous system response and reflexes?**\n"
+                "  Take the **Simple Reaction Speed** test (Donders A).\n\n"
+                "• **Checking color perception and spectral cones?**\n"
+                "  Take the standardized **Color Blindness Screening**.\n\n"
+                "• **Experiencing stress, anxiety, or nervous tension?**\n"
+                "  Complete the clinical **GAD-7 Generalized Anxiety Scale**.\n\n"
+                "Which area would you like to explore first? You can also open the full catalog to browse all available modules."
+            )
+        else:
+            msg = (
+                "Чтобы понять, какие тесты вам лучше пройти, ориентируйтесь на то, что вас сейчас беспокоит или интересует:\n\n"
+                "• **Устают глаза за экраном, двоится или падает чёткость?**\n"
+                "  Рекомендуем начать с **Остроты зрения** (ISO 8596) и **Контрастной чувствительности**.\n\n"
+                "• **Сложно сфокусироваться, рассеяно внимание или чувствуете спад сил?**\n"
+                "  Пройдите **Таблицы Шульте** (5 × 5) на устойчивость концентрации и **Кратковременную память**.\n\n"
+                "• **Хотите оценить подвижность нервной системы и рефлексы?**\n"
+                "  Пройдите тест **Скорости простой реакции** (Donders A).\n\n"
+                "• **Сомневаетесь в распознавании оттенков?**\n"
+                "  Экспресс-тест на **Дальтонизм** (полихроматические таблицы Рабкина и колбочки L, M, S).\n\n"
+                "• **Беспокоит уровень стресса или тревоги?**\n"
+                "  Клинический опросник тревожности **GAD-7**.\n\n"
+                "С какого направления хотите начать? Или можете открыть каталог и выбрать подходящий модуль."
+            )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
 
-    # 3. Catalog / What tests exist / Capabilities
-    elif any(k in low for k in ["что ты умеешь", "какие тесты", "список", "возможности", "что делать", "помоги выбрать", "тесты", "каталог", "все тесты"]):
-        msg = (
-            "В каталоге SIHAT доступны ключевые направления самопроверки:\n"
-            "1. 👁️ Зрение (ISO 8596) — оптотипы Ландольта C, контрастная чувствительность (Pelli-Robson), таблицы Рабкина/Ишихары.\n"
-            "2. 👂 Слух (ISO 8253-1) — тональная аудиометрия чистых тонов (250–8000 Гц) и разборчивость речи в шуме.\n"
-            "3. 🧠 Внимание и память — таблицы Шульте 5×5, тест Струпа, блоки Корси и Digit Span.\n"
-            "4. ⚡ Сенсомоторика — измерение скорости простой реакции (Donders A).\n"
-            "Платформа SIHAT does not diagnose conditions. Выберите направление или откройте полный каталог."
-        )
+    # 3. COLOR BLINDNESS
+    elif any(k in low for k in ["дальтон", "цвет", "исихар", "рабкин", "ранг", "цветовосприят", "цветоощущ", "color", "blind"]):
+        if lang == "tj":
+            msg = (
+                "Барои ташхиси фарқкунии рангҳо дар платформа санҷиши стандартии дальтонизм мавҷуд аст. "
+                "Он қобилияти кори колбачаҳои биноӣ (L, M, S)-ро санҷида, нишонаҳои протанопия ва дейтеранопияро (нобиноӣ ба ранги сурх ва сабз) ошкор менамояд. "
+                "Санҷишро дар равшании табиӣ ва бе истифодаи филтрҳои шабонаи экран гузаронед."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "color-perception",
+                        "test_slug": "color-perception",
+                        "title": "Санҷиши дальтонизм",
+                    },
+                )
+            )
+        elif lang == "en":
+            msg = (
+                "For color vision assessment, SIHAT offers a standardized color blindness screening. "
+                "It evaluates cone photoreceptor sensitivity (L, M, S) and detects protan and deutan deficiencies (red-green variations) "
+                "using numbers, letters, and geometric shapes. "
+                "Please perform the test under natural lighting with screen eye-comfort shields disabled."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "color-perception",
+                        "test_slug": "color-perception",
+                        "title": "Color Vision Screening",
+                    },
+                )
+            )
+        else:
+            msg = (
+                "Для оценки цветового зрения доступен стандартизированный тест на дальтонизм. "
+                "Скрининг исследует чувствительность колбочек сетчатки (спектры L, M, S) и выявляет проявления протанопии и дейтеранопии "
+                "с распознаванием цифр, букв и геометрических фигур. "
+                "Рекомендуется проходить тест при естественном освещении без фильтров защиты глаз и ночного режима экрана."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "color-perception",
+                        "test_slug": "color-perception",
+                        "title": "Тест на дальтонизм",
+                    },
+                )
+            )
+
+    # 4. VISION / EYE STRAIN / LANDOLT C
+    elif any(k in low for k in ["зрен", "глаз", "видеть", "бино", "чашм", "близорук", "дальнозор", "размыт", "vision", "eye", "landolt"]):
+        if lang == "tj":
+            msg = (
+                "Барои санҷиши қувваи биноӣ методи байналмилалии оптотипҳои Ландольт C (стандарти ISO 8596) амал мекунад. "
+                "Пеш аз санҷиш экранро ба масофаи дасти дарозшуда (~50–60 см) мувофиқ кунед. "
+                "Дар ҳолати хастагии чашм аз қоидаи тиббии 20-20-20 истифода баред: ҳар 20 дақиқа ба масофаи 6 метр барои 20 сония нигоҳ кунед."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "visual-perception",
+                        "test_slug": "visual-perception",
+                        "title": "Тезиши биноӣ (ISO 8596)",
+                    },
+                )
+            )
+        elif lang == "en":
+            msg = (
+                "For visual acuity screening, SIHAT uses the standardized ISO 8596 Landolt C optotype protocol. "
+                "Calibrate your screen to approximately arm's length (~50–60 cm) before starting. "
+                "To reduce digital eye strain, ophthalmologists recommend the 20-20-20 rule: every 20 minutes, look at an object 20 feet away for 20 seconds."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "visual-perception",
+                        "test_slug": "visual-perception",
+                        "title": "Visual Acuity (Landolt C)",
+                    },
+                )
+            )
+        else:
+            msg = (
+                "Для проверки зрительного анализатора доступен скрининг остроты зрения на базе оптотипов Ландольта C (стандарт ISO 8596). "
+                "Перед прохождением теста экран калибруется на расстояние вытянутой руки (~50–60 см). "
+                "При зрительной утомляемости офтальмологи рекомендуют правило 20-20-20: каждые 20 минут смотрите на 6 метров вдаль в течение 20 секунд."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "visual-perception",
+                        "test_slug": "visual-perception",
+                        "title": "Острота зрения (Кольца Ландольта C)",
+                    },
+                )
+            )
+
+    # 5. HEARING / AUDIOMETRY
+    elif any(k in low for k in ["слух", "ухо", "слыш", "громк", "аудио", "шунавоӣ", "гӯш", "тиннитус", "шум в ушах", "hear", "ear", "sound", "audiometry"]):
+        if lang == "tj":
+            msg = (
+                "Барои баҳодиҳии шунавоӣ санҷиши пороговии овозҳои тоза (250–8000 Гц, стандарти ISO 8253-1) пешбинӣ шудааст. "
+                "Санҷишро дар гӯшмонакҳо дар ҳуҷраи ором гузаронед ва баландии овозро аз 60% зиёд накунед. "
+                "Агар садои доимӣ ё занг задан дар гӯшҳо шуморо азият диҳад, ба духтури мутахассиси ЛОР муроҷиат намоед."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "sound-discrimination",
+                        "test_slug": "sound-discrimination",
+                        "title": "Аудиометрияи тоналӣ (250–8000 Гц)",
+                    },
+                )
+            )
+        elif lang == "en":
+            msg = (
+                "For auditory assessment, SIHAT provides pure-tone threshold audiometry (250–8000 Hz, ISO 8253-1 standard). "
+                "We recommend wearing wired headphones in a quiet room and setting device volume to no more than 60% for acoustic safety. "
+                "If you experience persistent ringing or buzzing (tinnitus), consult an ENT physician."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "sound-discrimination",
+                        "test_slug": "sound-discrimination",
+                        "title": "Pure Tone Audiometry (250–8000 Hz)",
+                    },
+                )
+            )
+        else:
+            msg = (
+                "Для оценки слухового восприятия в каталоге представлен скрининг порогов слышимости чистых тонов (250–8000 Гц, стандарт ISO 8253-1). "
+                "Рекомендуется проходить в проводных наушниках в тихой комнате. Установите громкость устройства не более 60%, чтобы избежать акустической травмы. "
+                "Если вас беспокоит постоянный шум или звон в ушах (тиннитус), обратитесь к врачу-сурдологу или оториноларингологу."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "sound-discrimination",
+                        "test_slug": "sound-discrimination",
+                        "title": "Тональная аудиометрия (250–8000 Гц)",
+                    },
+                )
+            )
+
+    # 6. ATTENTION & MEMORY (SCHULTE TABLES / DIGIT SPAN)
+    elif any(k in low for k in ["вниман", "памят", "концентр", "шульт", "струп", "мозг", "хотира", "диққат", "attention", "memory", "schulte", "focus", "fog"]):
+        if lang == "tj":
+            msg = (
+                "Барои санҷиши тамаркуз ва устувории диққат аз **Ҷадвалҳои Шулте** (5 × 5) истифода баред. "
+                "Он суръати ҷустуҷӯи биноӣ ва устувории кори мағзи сарро дақиқ нишон медиҳад. "
+                "Барои санҷиши ҳаҷми хотираи корӣ инчунин санҷиши қатори рақамҳои Векслер (Digit Span) дастрас аст."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "attention-concentration",
+                        "test_slug": "attention-concentration",
+                        "title": "Ҷадвалҳои Шулте (5 × 5)",
+                    },
+                )
+            )
+        elif lang == "en":
+            msg = (
+                "To evaluate focal concentration and attention stability, we recommend the **Schulte 5 × 5 Matrix Grid**. "
+                "It measures visual search rate, cognitive endurance, and mental fatigue dynamics. "
+                "For working memory capacity, the Wechsler Digit Span test is also available."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "attention-concentration",
+                        "test_slug": "attention-concentration",
+                        "title": "Schulte Attention Tables (5 × 5)",
+                    },
+                )
+            )
+        else:
+            msg = (
+                "Для оценки концентрации, устойчивости внимания и скорости когнитивной обработки доступен скрининг на базе таблиц Шульте (5 × 5). "
+                "Упражнение измеряет темп зрительного поиска, динамику врабатываемости и умственную утомляемость. "
+                "Для оценки объёма рабочей памяти доступен тест цифровых рядов Векслера (Digit Span)."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "attention-concentration",
+                        "test_slug": "attention-concentration",
+                        "title": "Таблицы Шульте (5 × 5)",
+                    },
+                )
+            )
+
+    # 7. REACTION SPEED
+    elif any(k in low for k in ["реакц", "скорост", "рефлекс", "аксуламал", "reaction", "reflex"]):
+        if lang == "tj":
+            msg = (
+                "Барои чен кардани суръати аксуламали биноӣ-ҳаракатӣ санҷиши Donders A пешниҳод шудааст. "
+                "Ин санҷиш вақти пинҳонии посухи асабҳоро бо миллисонияҳо чен карда, устувории системаи асабро нишон медиҳад."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "reaction-speed",
+                        "test_slug": "reaction-speed",
+                        "title": "Суръати аксуламали оддӣ",
+                    },
+                )
+            )
+        elif lang == "en":
+            msg = (
+                "To measure visual-motor response latency, take the Simple Reaction Speed test (Donders A methodology). "
+                "It records response time in milliseconds and assesses psychomotor stability."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "reaction-speed",
+                        "test_slug": "reaction-speed",
+                        "title": "Simple Reaction Speed",
+                    },
+                )
+            )
+        else:
+            msg = (
+                "Для измерения сенсомоторной реакции на визуальный стимул доступен тест скорости простой реакции (методика Donders A). "
+                "Тест фиксирует латентное время моторного ответа в миллисекундах и стабильность нервных процессов."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "reaction-speed",
+                        "test_slug": "reaction-speed",
+                        "title": "Скорость простой реакции",
+                    },
+                )
+            )
+
+    # 8. STRESS / ANXIETY / GAD-7
+    elif any(k in low for k in ["стресс", "тревог", "нерв", "паник", "ташвиш", "фишор", "stress", "anxiety", "gad"]):
+        if lang == "tj":
+            msg = (
+                "Барои баҳодиҳии дараҷаи стресс ва ташвиш опросники стандартии GAD-7 (Generalized Anxiety Disorder 7) мавҷуд аст. "
+                "Он ба таври далелнок сатҳи фишори эҳсосиро муайян карда, нишон медиҳад, ки оё ба истироҳат ва машварати мутахассис эҳтиёҷ ҳаст ё не."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "gad-7",
+                        "test_slug": "gad-7",
+                        "title": "Шкалаи ташвиши GAD-7",
+                    },
+                )
+            )
+        elif lang == "en":
+            msg = (
+                "For objective assessment of stress and worry, SIHAT includes the evidence-based GAD-7 (Generalized Anxiety Disorder 7-item scale). "
+                "It calculates an anxiety severity index and helps track emotional equilibrium."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "gad-7",
+                        "test_slug": "gad-7",
+                        "title": "GAD-7 Generalized Anxiety Scale",
+                    },
+                )
+            )
+        else:
+            msg = (
+                "Для объективной оценки уровня эмоционального напряжения и тревожности доступен клинический опросник GAD-7. "
+                "Шкала рассчитывает стандартизированный индекс выраженности тревоги и помогает отслеживать психоэмоциональное равновесие."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "gad-7",
+                        "test_slug": "gad-7",
+                        "title": "Шкала тревожности GAD-7",
+                    },
+                )
+            )
+
+    # 9. SLEEP / INSOMNIA / FATIGUE
+    elif any(k in low for k in ["сон", "спать", "бессон", "устал", "хоб", "монда", "хаста", "sleep", "insomnia", "tired"]):
+        if lang == "tj":
+            msg = (
+                "Барои барқарор кардани нерӯ ва хоби бароҳат қоидаҳои гигиенаи хобро риоя намоед: "
+                "реҷаи мунтазами хоб, қатъи истифодаи экранҳо 1 соат пеш аз хоб ва ҳарорати муносиби хона (18–20°C). "
+                "Дар платформа метавонед тести **Ритми сиркадӣ ва гигиенаи рақамӣ**-ро гузаред."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "daily-activity",
+                        "test_slug": "daily-activity",
+                        "title": "Ритми сиркадӣ ва хоб",
+                    },
+                )
+            )
+        elif lang == "en":
+            msg = (
+                "For healthy restorative sleep, follow clinical sleep hygiene: consistent sleep-wake cycles, "
+                "cutting off bright blue screens 1 hour before bedtime, bedroom temperature between 18–20°C, and limiting afternoon caffeine. "
+                "You can also take our **Circadian Hygiene & Light Alignment** screening."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "daily-activity",
+                        "test_slug": "daily-activity",
+                        "title": "Circadian Hygiene & Light Alignment",
+                    },
+                )
+            )
+        else:
+            msg = (
+                "Для восстановления сил и здорового сна рекомендуем соблюдать правила гигиены сна: "
+                "постоянное время отхода ко сну, исключение ярких экранов за 1 час до сна, температура спальни 18–20°C и ограничение кофеина во второй половине дня. "
+                "В каталоге доступен модуль оценки **Циркадианного ритма и цифровой гигиены**."
+            )
+            actions.append(
+                AssistantAction(
+                    name="open_test",
+                    arguments={
+                        "slug": "daily-activity",
+                        "test_slug": "daily-activity",
+                        "title": "Циркадианный ритм и гигиена",
+                    },
+                )
+            )
+
+    # 10. GREETINGS
+    elif any(k in low for k in ["привет", "здравствуй", "салам", "салом", "добрый", "хай", "hello", "hi", "hey"]):
+        if lang == "tj":
+            msg = (
+                "Салом! Ман ёвари клиникии платформаи SIHAT ҳастам. "
+                "Ба шумо барои интихоб ва гузаштани санҷишҳои далелноки биноӣ, шунавоӣ, хотира, тамаркуз ва аксуламал кӯмак мерасонам. "
+                "Мехоҳед кадом қобилиятро бисанҷед ё ба кадом нишонаҳо таваҷҷуҳ доред?"
+            )
+        elif lang == "en":
+            msg = (
+                "Hello! I am your SIHAT clinical navigation assistant. "
+                "I help you choose evidence-based screenings for vision, hearing, memory, attention, reaction speed, and emotional wellbeing. "
+                "What would you like to explore or evaluate today?"
+            )
+        else:
+            msg = (
+                "Здравствуйте! Я клинический навигатор платформы SIHAT (Сиҳат). "
+                "Я помогаю подобрать научно обоснованные скрининги сенсорных функций (зрение, слух, внимание, реакция) "
+                "и объясняю принципы калибровки. Что вас интересует или с какого теста хотите начать?"
+            )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
 
-    # 4. Color blindness / Rabkin & Ishihara plates
-    elif any(k in low for k in ["дальтон", "цвет", "исихар", "рабкин", "color", "ранг", "цветовосприят", "цветоощущ"]):
-        msg = (
-            "Для проверки цветового зрения доступен стандартизированный тест на дальтонизм. "
-            "Скрининг выявляет признаки протанопии, дейтеранопии (красно-зелёная слепота) и других аномалий цветовосприятия с распознаванием цифр и геометрических фигур. "
-            "Проходите тест при естественном освещении без фильтров защиты глаз и ночного режима экрана. "
-            "SIHAT does not diagnose conditions."
-        )
-        actions.append(
-            AssistantAction(
-                name="open_test",
-                arguments={
-                    "slug": "color-perception",
-                    "test_slug": "color-perception",
-                    "title": "Тест на дальтонизм",
-                },
+    # 11. PRIVACY & ZERO-RETENTION
+    elif any(k in low for k in ["удал", "приватн", "сохран", "данн", "махфият", "нест", "privacy", "delete", "zero-retention"]):
+        if lang == "tj":
+            msg = (
+                "Меъмории платформаи SIHAT бар асоси принсипи Zero-Retention сохта шудааст: "
+                "ҳамаи маълумоти санҷиш танҳо дар хотираи фаврии дастгоҳи шумо коркард мешаванд. "
+                "Пас аз анҷом шумо худатон интихоб мекунед: натиҷаро ба бойгонии маҳрами худ сабт кунед ё бе сабт комилан тоза намоед."
             )
-        )
-
-    # 5. Hearing / Pure tone audiometry
-    elif any(k in low for k in ["слух", "ухо", "слыш", "громк", "hear", "ear", "sound", "аудио", "шунавоӣ", "гӯш", "тиннитус", "шум в ушах"]):
-        msg = (
-            "Для оценки слухового восприятия в каталоге представлен скрининг порогов слышимости чистых тонов (250–8000 Гц, стандарт ISO 8253-1). "
-            "Рекомендуется проходить в проводных наушниках в тихой комнате. Установите громкость устройства не более 60%, чтобы избежать акустической травмы. "
-            "Если вас беспокоит постоянный шум или звон в ушах (тиннитус), обратитесь к врачу-сурдологу или оториноларингологу. "
-            "SIHAT does not diagnose conditions."
-        )
-        actions.append(
-            AssistantAction(
-                name="open_test",
-                arguments={
-                    "slug": "sound-discrimination",
-                    "test_slug": "sound-discrimination",
-                    "title": "Тональная аудиометрия (250–8000 Гц)",
-                },
+        elif lang == "en":
+            msg = (
+                "SIHAT is built on Zero-Retention privacy principles: all sensory telemetry is processed ephemeral in your browser memory. "
+                "After completing a session, you decide whether to save the encrypted protocol to your private profile or discard it permanently with zero trace on the server."
             )
-        )
-
-    # 6. Contrast Sensitivity (Pelli-Robson)
-    elif any(k in low for k in ["контраст", "пэлли", "робсон", "contrast", "равшанӣ"]):
-        msg = (
-            "Для оценки контрастной чувствительности доступен тест Pelli-Robson. "
-            "Он определяет порог восприятия слабоконтрастных оптотипов при ступенчатом снижении контрастности до 1%, что важно при ночном вождении и раннем зрительном утомлении. "
-            "SIHAT does not diagnose conditions."
-        )
-        actions.append(
-            AssistantAction(
-                name="open_test",
-                arguments={
-                    "slug": "contrast-sensitivity",
-                    "test_slug": "contrast-sensitivity",
-                    "title": "Контрастная чувствительность (Pelli-Robson)",
-                },
+        else:
+            msg = (
+                "Архитектура SIHAT построена по принципу Zero-Retention: "
+                "все скрининги обрабатываются исключительно в оперативной памяти вашего браузера. "
+                "После теста вы сами решаете: сохранить результат в личный зашифрованный архив или стереть без сохранения — в таком случае данные мгновенно удаляются."
             )
-        )
-
-    # 7. Vision / Landolt C
-    elif any(k in low for k in ["зрен", "глаз", "видеть", "vision", "eye", "оптотип", "ландольт", "бино", "чашм", "близорук", "дальнозор"]):
-        msg = (
-            "Для проверки зрительного анализатора доступен скрининг остроты зрения на базе оптотипов Ландольта C (стандарт ISO 8596). "
-            "Перед прохождением теста экран калибруется на расстояние вытянутой руки (~50–60 см). "
-            "При зрительной утомляемости офтальмологи рекомендуют правило 20-20-20: каждые 20 минут смотрите на 20 футов (6 метров) вдаль в течение 20 секунд. "
-            "Напоминаем: SIHAT does not diagnose conditions."
-        )
-        actions.append(
-            AssistantAction(
-                name="open_test",
-                arguments={
-                    "slug": "visual-perception",
-                    "test_slug": "visual-perception",
-                    "title": "Острота зрения (Кольца Ландольта C)",
-                },
-            )
-        )
-
-    # 8. Attention / Schulte tables / Stroop
-    elif any(k in low for k in ["памят", "вниман", "струп", "шульт", "концентр", "cognit", "memory", "stroop", "мозг", "хотира", "диққат", "устал", "фокус"]):
-        msg = (
-            "Для оценки концентрации, устойчивости внимания и скорости когнитивной обработки доступен скрининг на базе таблиц Шульте (5 × 5). "
-            "Упражнение измеряет темп зрительного поиска, динамику врабатываемости и умственную утомляемость. "
-            "Помогает объективно оценить ментальную устойчивость и способность к фокусировке. "
-            "SIHAT does not diagnose conditions."
-        )
-        actions.append(
-            AssistantAction(
-                name="open_test",
-                arguments={
-                    "slug": "attention-concentration",
-                    "test_slug": "attention-concentration",
-                    "title": "Таблицы Шульте (5 × 5)",
-                },
-            )
-        )
-
-    # 9. Simple Reaction Speed
-    elif any(k in low for k in ["реакц", "скорост", "reaction", "рефлекс", "аксуламал"]):
-        msg = (
-            "Для измерения сенсомоторной реакции на визуальный стимул доступен тест скорости простой реакции (методика Donders A). "
-            "Тест фиксирует латентное время моторного ответа в миллисекундах и стабильность нервных процессов. "
-            "SIHAT does not diagnose conditions."
-        )
-        actions.append(
-            AssistantAction(
-                name="open_test",
-                arguments={
-                    "slug": "reaction-speed",
-                    "test_slug": "reaction-speed",
-                    "title": "Скорость простой реакции",
-                },
-            )
-        )
-
-    # 10. Sleep / Insomnia
-    elif any(k in low for k in ["сон", "спать", "бессон", "sleep", "хоб", "засыпа"]):
-        msg = (
-            "В нашей базе знаний собраны клинические рекомендации по гигиене здорового сна: "
-            "регулярное время отхода ко сну и подъема, исключение ярких экранов за 1 час до сна, температура спальни 18–20°C и ограничение кофеина во второй половине дня. "
-            "SIHAT does not diagnose conditions, но в каталоге доступен опросник дневной сонливости."
-        )
-        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/faq"}))
-
-    # 11. Privacy & Data deletion
-    elif any(k in low for k in ["удал", "приватн", "сохран", "данн", "privacy", "delete", "махфият", "нест"]):
-        msg = (
-            "Архитектура SIHAT построена по принципу Zero-Retention: "
-            "все скрининги обрабатываются в оперативной памяти браузера. После завершения сессии вы сами решаете: "
-            "нажать «Сохранить» в личный зашифрованный архив или «Не сохранять» — тогда данные немедленно и безвозвратно удаляются с сервера. "
-            "SIHAT does not diagnose conditions."
-        )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/history"}))
 
-    # 12. Methodology / Standards
-    elif any(k in low for k in ["метод", "научн", "стандарт", "iso", "кто создал", "паспорт", "доказатель"]):
-        msg = (
-            "Каждый модуль на платформе SIHAT имеет открытый паспорт методики: первоисточники в PubMed/ISO, класс доказательности, калибровочные условия и клинические ограничения. "
-            "Мы не вычисляем псевдонаучные 'проценты здоровья', а даём точные объективные параметры. "
-            "Платформа SIHAT does not diagnose conditions."
-        )
-        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/faq"}))
-
-    # 13. General default
+    # 12. GENERAL / DEFAULT
     else:
-        msg = (
-            "Я клинический навигатор SIHAT. Помогаю выбрать программу скрининга (зрение, слух, внимание), "
-            "объясняю условия калибровки и принципы доказательной медицины. "
-            "Вы можете спросить меня: «Как проверить слух?», «Как проверить зрение?», «Тест на дальтонизм» или перейти сразу в каталог. "
-            "SIHAT does not diagnose conditions or prescribe treatment."
-        )
+        if lang == "tj":
+            msg = (
+                "Ман ёвари клиникии SIHAT ҳастам ва омодаам дар интихоби санҷишҳои саломатӣ ва таҳлили нишондиҳандаҳо ба шумо кӯмак расонам. "
+                "Шумо метавонед мустақиман пурсед: «Ба ман чӣ лозим?», «Санҷиши биноӣ», «Таблитсаҳои Шулте» ё феҳристи умумии санҷишҳоро кушоед."
+            )
+        elif lang == "en":
+            msg = (
+                "I am your SIHAT clinical assistant, here to help guide your cognitive and sensory screening journey. "
+                "You can ask me: 'What do I need?', 'Test my hearing', 'Check visual acuity', 'Attention test', or explore the full catalog."
+            )
+        else:
+            msg = (
+                "Я клинический навигатор SIHAT и готов помочь вам подобрать подходящую программу скрининга. "
+                "Вы можете спросить меня: «Что мне надо?», «Как проверить зрение?», «Таблицы Шульте», «Тест на слух» или перейти в полный каталог тестов."
+            )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
 
     return AssistantMessageOutput(message=msg, actions=actions, provider_available=False)
@@ -341,13 +695,13 @@ def send_message(
             api_key=payload.api_key,
         )
     except GeminiUnavailableError:
-        return _fallback(payload.text)
+        return _fallback(payload.text, preferred_lang=payload.lang)
     message = raw.get("message")
     if not isinstance(message, str) or not message.strip() or len(message) > 2000:
-        return _fallback(payload.text)
+        return _fallback(payload.text, preferred_lang=payload.lang)
     raw_actions = raw.get("actions", [])
     if not isinstance(raw_actions, list):
-        return _fallback(payload.text)
+        return _fallback(payload.text, preferred_lang=payload.lang)
     actions = [
         validated
         for item in raw_actions

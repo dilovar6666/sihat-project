@@ -22,6 +22,12 @@ import {
   Ear,
   Brain,
   ArrowRight,
+  Table as TableIcon,
+  Lock,
+  KeyRound,
+  Mail,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
@@ -84,6 +90,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   )
 
   const [results, setResults] = useState<SavedResult[]>(propResults || [])
+  const [overviewDisplayMode, setOverviewDisplayMode] = useState<'chart' | 'table'>('chart')
+  const [vaultDisplayMode, setVaultDisplayMode] = useState<'cards' | 'table'>('cards')
   const [searchFilter, setSearchFilter] = useState('')
   const [comparisonData, setComparisonData] = useState<SavedResult[]>([])
 
@@ -182,6 +190,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       archivedFootnote: 'Архивировано в защищенном контуре',
       latencyFootnote: 'Сенсомоторная скорость отклика',
       precisionFootnote: 'Клиническая валидность оптотипов',
+      tableTitle: 'Таблица ключевых биомаркеров',
+      tableSubtitle: 'Сводные данные измерений и нормативный статус по проведённым тестам',
+      viewMode: 'Режим отображения',
+      viewChart: 'График',
+      viewTable: 'Таблица',
+      viewCards: 'Карточки',
+      toggleViewBtn: 'Показать разными способами',
       chartVelocitySubtitle: 'Динамика скорости обработки информации и точности',
       chartDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс (Сегодня)'],
       pulseSubtitle: 'Клинический мониторинг сенсорных контуров',
@@ -216,6 +231,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       compareMinNotice: 'Для сравнения необходимо как минимум 2 сохраненных скрининга. Пройдите тесты в каталоге.',
       speedScore: 'Скорость/Балл:',
       settingsSubtitle: 'Настройте клинический профиль, режим приватности Zero-Retention и доставку отчётов.',
+      securityTitle: 'Безопасность и пароль',
+      securitySubtitle: 'Управление доступом к аккаунту и сброс пароля',
+      resetPasswordBtn: 'Сбросить пароль',
+      resetPasswordDesc: 'Мы отправим защищённую ссылку для смены пароля на вашу электронную почту',
+      resetEmailSentSuccess: 'Ссылка для сброса пароля успешно отправлена на вашу почту. Проверьте папку «Входящие» (и «Спам»).',
+      resetEmailMissing: 'Для сброса пароля сначала привяжите email в блоке выше.',
+      sendingResetEmail: 'Отправка ссылки...',
       platformModes: 'Интеллектуальные режимы платформы',
       discardNotice: 'Изменения сброшены',
       gdprTitle: 'Право на забвение (GDPR)',
@@ -291,6 +313,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       archivedFootnote: 'Дар контури маҳфуз сабт шудааст',
       latencyFootnote: 'Суръати аксуламали сенсомоторӣ',
       precisionFootnote: 'Эътибори клиникии оптотипҳо',
+      tableTitle: 'Ҷадвали нишондиҳандаҳои асосӣ',
+      tableSubtitle: 'Маълумоти ҷамъбастии санҷишҳои гузаронидашуда',
+      viewMode: 'Намуди намоиш',
+      viewChart: 'График',
+      viewTable: 'Ҷадвал',
+      viewCards: 'Кортҳо',
+      toggleViewBtn: 'Ивази намуди намоиш',
       chartVelocitySubtitle: 'Динамикаи суръати коркарди маълумот ва дақиқӣ',
       chartDays: ['Дш', 'Сш', 'Чш', 'Пш', 'Ҷм', 'Шб', 'Яш (Имрӯз)'],
       pulseSubtitle: 'Мониторинги клиникии контурҳои сенсорӣ',
@@ -325,6 +354,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       compareMinNotice: 'Барои муқоиса ҳадди аққал 2 скрининги сабтшуда лозим аст. Санҷишҳоро дар каталог гузаред.',
       speedScore: 'Суръат/Хол:',
       settingsSubtitle: 'Танзимоти профили клиникӣ, режими Zero-Retention ва ирсоли гузоришҳо.',
+      securityTitle: 'Амният ва парол',
+      securitySubtitle: 'Идоракунии дастрасӣ ба ҳисоб ва барқароркунии парол',
+      resetPasswordBtn: 'Барқароркунии парол',
+      resetPasswordDesc: 'Мо пайванди амн барои иваз кардани паролро ба почтаи электронии шумо мефиристем',
+      resetEmailSentSuccess: 'Пайванд барои барқароркунии парол ба почтаи шумо фиристода шуд. Қуттии почтаи худро санҷед.',
+      resetEmailMissing: 'Барои барқароркунии парол аввал почтаи электронии худро дар боло пайваст кунед.',
+      sendingResetEmail: 'Ирсоли пайванд...',
       platformModes: 'Реҷаҳои зеҳнии платформа',
       discardNotice: 'Тағйирот бекор карда шуд',
       gdprTitle: 'Ҳуқуқи фаромӯш шудан (GDPR)',
@@ -400,6 +436,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       archivedFootnote: 'Archived in encrypted vault',
       latencyFootnote: 'Sensory-motor response velocity',
       precisionFootnote: 'Optotype clinical validation',
+      tableTitle: 'Biomarker Telemetry Table',
+      tableSubtitle: 'Consolidated measurement history across completed screenings',
+      viewMode: 'Display Mode',
+      viewChart: 'Chart',
+      viewTable: 'Table',
+      viewCards: 'Cards',
+      toggleViewBtn: 'Switch Display Mode',
       chartVelocitySubtitle: 'Information processing velocity and sensory acuity dynamics',
       chartDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun (Today)'],
       pulseSubtitle: 'Continuous sensory circuit telemetry',
@@ -434,6 +477,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       compareMinNotice: 'At least 2 saved screenings are required for comparative telemetry. Take tests from the catalog.',
       speedScore: 'Velocity/Score:',
       settingsSubtitle: 'Configure clinical telemetry, Zero-Retention privacy boundaries, and report delivery.',
+      securityTitle: 'Security & Password',
+      securitySubtitle: 'Account access management and password reset',
+      resetPasswordBtn: 'Reset Password',
+      resetPasswordDesc: 'We will send a secure link to reset your password to your email address',
+      resetEmailSentSuccess: 'Password reset link has been successfully sent to your email. Please check your inbox.',
+      resetEmailMissing: 'To reset your password, please link your email address in the section above first.',
+      sendingResetEmail: 'Sending link...',
       platformModes: 'Autonomous Platform Engines',
       discardNotice: 'Changes reverted',
       gdprTitle: 'Right to Erasure (GDPR)',
@@ -471,6 +521,50 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       onNotify(err instanceof Error ? err.message : 'Не удалось привязать email')
     } finally {
       setAttachingEmail(false)
+    }
+  }
+
+  // Request password reset email from Profile
+  const [resettingPassword, setResettingPassword] = useState(false)
+  const [resetEmailSuccess, setResetEmailSuccess] = useState<string | null>(null)
+
+  const handleRequestPasswordReset = async () => {
+    if (!user || !user.email) {
+      onNotify(t.resetEmailMissing)
+      return
+    }
+    const targetEmail = user.email
+    setResettingPassword(true)
+    setResetEmailSuccess(null)
+    try {
+      const res = await apiRequest<{ ok: boolean; email: string; message: string }>(
+        '/auth/profile/reset-password',
+        { method: 'POST' }
+      )
+      const successMsg = `${t.resetEmailSentSuccess} (${res.email || targetEmail})`
+      setResetEmailSuccess(successMsg)
+      onNotify(successMsg)
+    } catch (err: unknown) {
+      // Fallback to /auth/forgot-password if profile endpoint fails
+      try {
+        await apiRequest('/auth/forgot-password', {
+          method: 'POST',
+          body: JSON.stringify({ email: targetEmail }),
+        })
+        const successMsg = `${t.resetEmailSentSuccess} (${targetEmail})`
+        setResetEmailSuccess(successMsg)
+        onNotify(successMsg)
+      } catch (fallbackErr: unknown) {
+        const errMsg =
+          fallbackErr instanceof Error
+            ? fallbackErr.message
+            : err instanceof Error
+            ? err.message
+            : 'Ошибка отправки ссылки для сброса пароля'
+        onNotify(errMsg)
+      }
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -810,75 +904,188 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
                     <div>
                       <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        {t.chartTitle}
+                        {overviewDisplayMode === 'chart' ? t.chartTitle : t.tableTitle}
                       </h3>
                       <p className="text-xs text-slate-400">
-                        {t.chartVelocitySubtitle}
+                        {overviewDisplayMode === 'chart' ? t.chartVelocitySubtitle : t.tableSubtitle}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs font-medium">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#17A884]" />
-                        <span className="text-slate-600 dark:text-slate-300">{t.chartLegendUser}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                        <span className="text-slate-400">{t.chartLegendOptimum}</span>
+                    <div className="flex items-center gap-3">
+                      {overviewDisplayMode === 'chart' && (
+                        <div className="hidden xl:flex items-center gap-3 text-xs font-medium">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#17A884]" />
+                            <span className="text-slate-600 dark:text-slate-300">{t.chartLegendUser}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                            <span className="text-slate-400">{t.chartLegendOptimum}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Mode Toggle Button: Chart vs Table */}
+                      <div className="flex items-center p-1 bg-slate-100 dark:bg-[#131C1A] rounded-xl border border-slate-200/80 dark:border-[#1E302B]">
+                        <button
+                          type="button"
+                          onClick={() => setOverviewDisplayMode('chart')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            overviewDisplayMode === 'chart'
+                              ? 'bg-white dark:bg-[#103D35] text-[#17A884] dark:text-[#2EC4A7] shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                          }`}
+                          title={t.viewChart}
+                        >
+                          <Activity className="w-3.5 h-3.5" />
+                          <span>{t.viewChart}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOverviewDisplayMode('table')}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            overviewDisplayMode === 'table'
+                              ? 'bg-white dark:bg-[#103D35] text-[#17A884] dark:text-[#2EC4A7] shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                          }`}
+                          title={t.viewTable}
+                        >
+                          <TableIcon className="w-3.5 h-3.5" />
+                          <span>{t.viewTable}</span>
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* SVG Spline Chart with Gradient Area */}
-                  <div className="h-56 w-full relative flex items-center justify-center">
-                    <svg viewBox="0 0 600 200" className="w-full h-full overflow-visible">
-                      <defs>
-                        <linearGradient id="novaUserGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#17A884" stopOpacity="0.35" />
-                          <stop offset="100%" stopColor="#17A884" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
+                  {overviewDisplayMode === 'chart' ? (
+                    <>
+                      {/* SVG Spline Chart with Gradient Area */}
+                      <div className="h-56 w-full relative flex items-center justify-center">
+                        <svg viewBox="0 0 600 200" className="w-full h-full overflow-visible">
+                          <defs>
+                            <linearGradient id="novaUserGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#17A884" stopOpacity="0.35" />
+                              <stop offset="100%" stopColor="#17A884" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
 
-                      {/* Grid Horizontal Guide Lines */}
-                      <line x1="0" y1="40" x2="600" y2="40" stroke="currentColor" className="text-slate-100 dark:text-[#1E302B]" strokeDasharray="3 3" />
-                      <line x1="0" y1="100" x2="600" y2="100" stroke="currentColor" className="text-slate-100 dark:text-[#1E302B]" strokeDasharray="3 3" />
-                      <line x1="0" y1="160" x2="600" y2="160" stroke="currentColor" className="text-slate-100 dark:text-[#1E302B]" strokeDasharray="3 3" />
+                          {/* Grid Horizontal Guide Lines */}
+                          <line x1="0" y1="40" x2="600" y2="40" stroke="currentColor" className="text-slate-100 dark:text-[#1E302B]" strokeDasharray="3 3" />
+                          <line x1="0" y1="100" x2="600" y2="100" stroke="currentColor" className="text-slate-100 dark:text-[#1E302B]" strokeDasharray="3 3" />
+                          <line x1="0" y1="160" x2="600" y2="160" stroke="currentColor" className="text-slate-100 dark:text-[#1E302B]" strokeDasharray="3 3" />
 
-                      {/* Optimum Clinical Reference Curve */}
-                      <path
-                        d="M 0 130 C 100 110, 200 90, 300 100 C 400 110, 500 80, 600 85"
-                        fill="none"
-                        stroke="#34d399"
-                        strokeWidth="2"
-                        strokeDasharray="4 4"
-                      />
+                          {/* Optimum Clinical Reference Curve */}
+                          <path
+                            d="M 0 130 C 100 110, 200 90, 300 100 C 400 110, 500 80, 600 85"
+                            fill="none"
+                            stroke="#34d399"
+                            strokeWidth="2"
+                            strokeDasharray="4 4"
+                          />
 
-                      {/* User Velocity Curve Area Fill */}
-                      <path
-                        d="M 0 150 C 120 160, 180 60, 280 80 C 380 100, 480 30, 600 60 L 600 200 L 0 200 Z"
-                        fill="url(#novaUserGradient)"
-                      />
+                          {/* User Velocity Curve Area Fill */}
+                          <path
+                            d="M 0 150 C 120 160, 180 60, 280 80 C 380 100, 480 30, 600 60 L 600 200 L 0 200 Z"
+                            fill="url(#novaUserGradient)"
+                          />
 
-                      {/* User Velocity Curve Line */}
-                      <path
-                        d="M 0 150 C 120 160, 180 60, 280 80 C 380 100, 480 30, 600 60"
-                        fill="none"
-                        stroke="#17A884"
-                        strokeWidth="3.5"
-                        strokeLinecap="round"
-                      />
+                          {/* User Velocity Curve Line */}
+                          <path
+                            d="M 0 150 C 120 160, 180 60, 280 80 C 380 100, 480 30, 600 60"
+                            fill="none"
+                            stroke="#17A884"
+                            strokeWidth="3.5"
+                            strokeLinecap="round"
+                          />
 
-                      {/* Key Milestone Dots */}
-                      <circle cx="280" cy="80" r="5" fill="#103D35" stroke="#2EC4A7" strokeWidth="2.5" />
-                      <circle cx="600" cy="60" r="5" fill="#17A884" stroke="#ffffff" strokeWidth="2.5" />
-                    </svg>
-                  </div>
+                          {/* Key Milestone Dots */}
+                          <circle cx="280" cy="80" r="5" fill="#103D35" stroke="#2EC4A7" strokeWidth="2.5" />
+                          <circle cx="600" cy="60" r="5" fill="#17A884" stroke="#ffffff" strokeWidth="2.5" />
+                        </svg>
+                      </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-slate-100 dark:border-[#1E302B] mt-2 font-mono">
-                    {t.chartDays.map((day, idx) => (
-                      <span key={idx}>{day}</span>
-                    ))}
-                  </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-3 border-t border-slate-100 dark:border-[#1E302B] mt-2 font-mono">
+                        {t.chartDays.map((day, idx) => (
+                          <span key={idx}>{day}</span>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="overflow-x-auto min-h-[224px]">
+                      {results.length === 0 ? (
+                        <div className="h-56 flex flex-col items-center justify-center text-center p-4">
+                          <FileText className="w-10 h-10 text-slate-300 dark:text-slate-700 mb-2" />
+                          <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            {t.noResultsTitle}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {t.noResultsDesc}
+                          </p>
+                        </div>
+                      ) : (
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-100 dark:border-[#1E302B] text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                              <th className="pb-2.5 pl-1">{t.colProtocol}</th>
+                              <th className="pb-2.5">{t.colCategory}</th>
+                              <th className="pb-2.5">{t.colDate}</th>
+                              <th className="pb-2.5">{t.colResult}</th>
+                              <th className="pb-2.5">{t.colStatus}</th>
+                              <th className="pb-2.5 text-right pr-1">{t.colActions}</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-[#1E302B]">
+                            {results.slice(0, 5).map((r) => {
+                              const raw = (r.result || {}) as Record<string, any>
+                              const metricVal = raw.reaction_time_ms ? `${raw.reaction_time_ms} ms` :
+                                raw.mean_reaction_time_ms ? `${raw.mean_reaction_time_ms} ms` :
+                                raw.accuracy_pct ? `${raw.accuracy_pct}%` :
+                                raw.score !== undefined ? `${raw.score} ${t.scoreUnit}` :
+                                raw.logCS ? `${raw.logCS} logCS` :
+                                raw.speed_cpm ? `${raw.speed_cpm} зн/мин` :
+                                t.completedBadge
+
+                              return (
+                                <tr key={r.id} className="hover:bg-slate-50/70 dark:hover:bg-[#131C1A]/60 transition-colors">
+                                  <td className="py-2.5 pl-1 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-lg bg-[#17A884]/15 text-[#17A884] dark:text-[#2EC4A7] flex items-center justify-center shrink-0">
+                                      <Activity className="w-3 h-3" />
+                                    </span>
+                                    <span className="truncate max-w-[170px]">{r.test_title}</span>
+                                  </td>
+                                  <td className="py-2.5 text-slate-500 font-mono text-[11px] truncate max-w-[110px]">
+                                    {r.test_slug}
+                                  </td>
+                                  <td className="py-2.5 text-slate-500 text-[11px]">
+                                    {new Date(r.completed_at).toLocaleDateString(lang === 'tj' ? 'tg-TJ' : lang === 'en' ? 'en-US' : 'ru-RU')}
+                                  </td>
+                                  <td className="py-2.5 font-bold text-slate-800 dark:text-slate-200">
+                                    {metricVal}
+                                  </td>
+                                  <td className="py-2.5">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                                      <Check className="w-2.5 h-2.5" />
+                                      {t.validatedBadge}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 text-right pr-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => onDownloadPdf(r.id)}
+                                      className="p-1 rounded-lg text-slate-400 hover:text-[#17A884] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer"
+                                      title={t.exportPdfTooltip}
+                                    >
+                                      <Download className="w-3.5 h-3.5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Right: System Pulse & Protocol Status */}
@@ -1066,16 +1273,48 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </p>
                 </div>
 
-                {results.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={onClearAll}
-                    className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer self-start sm:self-center"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>{t.clearAllBtn}</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-2 self-start sm:self-center">
+                  {/* View Mode Toggle: Cards vs Table */}
+                  <div className="flex items-center p-1 bg-slate-100 dark:bg-[#131C1A] rounded-xl border border-slate-200/80 dark:border-[#1E302B]">
+                    <button
+                      type="button"
+                      onClick={() => setVaultDisplayMode('cards')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        vaultDisplayMode === 'cards'
+                          ? 'bg-white dark:bg-[#103D35] text-[#17A884] dark:text-[#2EC4A7] shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                      title={t.viewCards}
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                      <span>{t.viewCards}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVaultDisplayMode('table')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        vaultDisplayMode === 'table'
+                          ? 'bg-white dark:bg-[#103D35] text-[#17A884] dark:text-[#2EC4A7] shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                      }`}
+                      title={t.viewTable}
+                    >
+                      <TableIcon className="w-3.5 h-3.5" />
+                      <span>{t.viewTable}</span>
+                    </button>
+                  </div>
+
+                  {results.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={onClearAll}
+                      className="px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{t.clearAllBtn}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Search bar */}
@@ -1094,7 +1333,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 <div className="py-12 text-center text-slate-400 text-xs">
                   {t.vaultEmptySearch}
                 </div>
-              ) : (
+              ) : vaultDisplayMode === 'cards' ? (
                 <div className="space-y-3">
                   {filteredResults.map((item) => (
                     <div
@@ -1135,6 +1374,77 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-[#1E302B] text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                        <th className="pb-3 pl-1">{t.colProtocol}</th>
+                        <th className="pb-3">{t.colCategory}</th>
+                        <th className="pb-3">{t.colDate}</th>
+                        <th className="pb-3">{t.colResult}</th>
+                        <th className="pb-3">{t.colStatus}</th>
+                        <th className="pb-3 text-right pr-1">{t.colActions}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-[#1E302B]">
+                      {filteredResults.map((item) => {
+                        const raw = (item.result || {}) as Record<string, any>
+                        const metricVal = raw.reaction_time_ms ? `${raw.reaction_time_ms} ms` :
+                          raw.mean_reaction_time_ms ? `${raw.mean_reaction_time_ms} ms` :
+                          raw.accuracy_pct ? `${raw.accuracy_pct}%` :
+                          raw.score !== undefined ? `${raw.score} ${t.scoreUnit}` :
+                          raw.logCS ? `${raw.logCS} logCS` :
+                          raw.speed_cpm ? `${raw.speed_cpm} зн/мин` :
+                          t.completedBadge
+
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-[#131C1A]/60 transition-colors">
+                            <td className="py-3 pl-1 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                              <span className="w-6 h-6 rounded-lg bg-[#17A884]/15 text-[#17A884] dark:text-[#2EC4A7] flex items-center justify-center shrink-0">
+                                <Activity className="w-3 h-3" />
+                              </span>
+                              <span className="truncate max-w-[200px]">{item.test_title}</span>
+                            </td>
+                            <td className="py-3 text-slate-500 font-mono text-[11px]">
+                              {item.test_slug}
+                            </td>
+                            <td className="py-3 text-slate-500 text-[11px]">
+                              {new Date(item.completed_at).toLocaleDateString(lang === 'tj' ? 'tg-TJ' : lang === 'en' ? 'en-US' : 'ru-RU')}
+                            </td>
+                            <td className="py-3 font-bold text-slate-800 dark:text-slate-200">
+                              {metricVal}
+                            </td>
+                            <td className="py-3">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                                <Check className="w-2.5 h-2.5" />
+                                {t.validatedBadge}
+                              </span>
+                            </td>
+                            <td className="py-3 text-right pr-1 flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => onDownloadPdf(item.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-[#17A884] hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors cursor-pointer"
+                                title={t.exportPdfTooltip}
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onDeleteResult(item.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
+                                title={t.deleteRecordTooltip}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -1319,6 +1629,64 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     </div>
                   </div>
                 </form>
+              </section>
+
+              {/* Security & Password Reset Section */}
+              <section aria-labelledby="security-heading" className="space-y-4 pt-6 border-t border-slate-100 dark:border-[#1E302B]">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <KeyRound className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 id="security-heading" className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
+                      {t.securityTitle}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {t.securitySubtitle}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] max-w-2xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        {t.resetPasswordBtn}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-md">
+                        {t.resetPasswordDesc}
+                        {user.email && (
+                          <>: <span className="font-semibold text-slate-700 dark:text-slate-200">{user.email}</span></>
+                        )}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={resettingPassword || !user.email}
+                      onClick={handleRequestPasswordReset}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-xs shadow-sm shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 self-start sm:self-center"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      {resettingPassword ? t.sendingResetEmail : t.resetPasswordBtn}
+                    </button>
+                  </div>
+
+                  {resetEmailSuccess && (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                      <span className="leading-snug">{resetEmailSuccess}</span>
+                    </div>
+                  )}
+
+                  {!user.email && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2.5">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+                      <span className="leading-snug">{t.resetEmailMissing}</span>
+                    </div>
+                  )}
+                </div>
               </section>
 
               {/* 2. Platform Toggles (Auto-Pilot, Privacy Shield, Data Delivery) */}

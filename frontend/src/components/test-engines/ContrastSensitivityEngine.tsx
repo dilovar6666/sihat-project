@@ -9,19 +9,36 @@ interface ContrastSensitivityEngineProps {
   onComplete: (result: { summary: string; metrics: Record<string, unknown> }) => void
 }
 
-const CONTRAST_STEPS = [
-  { contrastPct: 100, logCS: 0.0, triplet: ['H', 'K', 'R'] },
-  { contrastPct: 56, logCS: 0.25, triplet: ['C', 'Z', 'S'] },
-  { contrastPct: 32, logCS: 0.50, triplet: ['O', 'N', 'D'] },
-  { contrastPct: 18, logCS: 0.75, triplet: ['V', 'K', 'C'] },
-  { contrastPct: 10, logCS: 1.00, triplet: ['R', 'H', 'S'] },
-  { contrastPct: 5.6, logCS: 1.25, triplet: ['Z', 'D', 'O'] },
-  { contrastPct: 3.2, logCS: 1.50, triplet: ['N', 'C', 'V'] },
-  { contrastPct: 1.8, logCS: 1.75, triplet: ['S', 'Z', 'H'] },
-  { contrastPct: 1.0, logCS: 1.95, triplet: ['K', 'O', 'D'] },
+const SLOAN_LETTERS = ['C', 'D', 'E', 'F', 'H', 'K', 'N', 'O', 'P', 'R', 'S', 'V', 'Z']
+
+const BASE_CONTRAST_STEPS = [
+  { contrastPct: 100, logCS: 0.0 },
+  { contrastPct: 56, logCS: 0.25 },
+  { contrastPct: 32, logCS: 0.50 },
+  { contrastPct: 18, logCS: 0.75 },
+  { contrastPct: 10, logCS: 1.00 },
+  { contrastPct: 5.6, logCS: 1.25 },
+  { contrastPct: 3.2, logCS: 1.50 },
+  { contrastPct: 1.8, logCS: 1.75 },
+  { contrastPct: 1.0, logCS: 1.95 },
 ]
 
+function generateRandomContrastSteps() {
+  return BASE_CONTRAST_STEPS.map((step) => {
+    const letters = [...SLOAN_LETTERS]
+    for (let i = letters.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[letters[i], letters[j]] = [letters[j], letters[i]]
+    }
+    return {
+      ...step,
+      triplet: letters.slice(0, 3),
+    }
+  })
+}
+
 export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps> = ({ lang, onComplete }) => {
+  const [contrastSteps, setContrastSteps] = useState(() => generateRandomContrastSteps())
   const [stepIdx, setStepIdx] = useState(0)
   const [userInputs, setUserInputs] = useState(['', '', ''])
   const [highestLogCS, setHighestLogCS] = useState(0)
@@ -31,7 +48,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
 
   const t = {
     ru: {
-      title: 'Контрастная чувствительность (Pelli-Robson)',
+      title: 'Контрастная чувствительность',
       subtitle: 'Определите буквы в тройках при ступенчатом снижении контрастности до 1%.',
       standard: 'Pelli-Robson Contrast Sensitivity Standard',
       instruction: 'Введите 3 буквы, которые вы видите на карточке (английские буквы):',
@@ -48,7 +65,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
       tryAgain: 'Пройти снова',
     },
     tj: {
-      title: 'Ҳассосияти контрастӣ (Pelli-Robson)',
+      title: 'Ҳассосияти контрастӣ',
       subtitle: 'Ҳарфҳоро ҳангоми паст шудани контраст то 1% муайян кунед.',
       standard: 'Pelli-Robson Contrast Sensitivity Standard',
       instruction: '3 ҳарферо, ки мебинед, дохил намоед (ҳарфҳои лотинӣ):',
@@ -65,7 +82,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Contrast Sensitivity (Pelli-Robson Chart)',
+      title: 'Contrast Sensitivity',
       subtitle: 'Identify letter triplets with step-wise decreasing contrast down to 1%.',
       standard: 'Pelli-Robson Clinical Contrast Standard',
       instruction: 'Enter the 3 letters you see on the card (Latin uppercase):',
@@ -84,6 +101,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
   }[lang]
 
   const handleStart = () => {
+    setContrastSteps(generateRandomContrastSteps())
     setStepIdx(0)
     setHighestLogCS(0)
     setUserInputs(['', '', ''])
@@ -93,7 +111,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
   }
 
   const handleNextStep = (skip: boolean) => {
-    const current = CONTRAST_STEPS[stepIdx]
+    const current = contrastSteps[stepIdx]
     let correct = 0
 
     if (!skip) {
@@ -118,7 +136,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
     }
 
     setUserInputs(['', '', ''])
-    if (stepIdx + 1 < CONTRAST_STEPS.length) {
+    if (stepIdx + 1 < contrastSteps.length) {
       setStepIdx((prev) => prev + 1)
     } else {
       setIsActive(false)
@@ -141,7 +159,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
     })
   }
 
-  const currentStep = CONTRAST_STEPS[stepIdx]
+  const currentStep = contrastSteps[stepIdx]
   // Calculate CSS opacity / color to simulate Pelli-Robson contrast degradation on neutral gray
   const opacityVal = Math.max(0.04, currentStep.contrastPct / 100)
 
@@ -154,7 +172,7 @@ export const ContrastSensitivityEngine: React.FC<ContrastSensitivityEngineProps>
         </Badge>
         {isActive && (
           <span className="text-xs font-mono text-zinc-500">
-            {t.step} {stepIdx + 1} / {CONTRAST_STEPS.length} (Contrast: {currentStep.contrastPct}%)
+            {t.step} {stepIdx + 1} / {contrastSteps.length} (Contrast: {currentStep.contrastPct}%)
           </span>
         )}
       </div>

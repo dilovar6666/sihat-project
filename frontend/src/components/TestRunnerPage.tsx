@@ -77,6 +77,7 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
   const [showPassportDetails, setShowPassportDetails] = useState(false)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
   const [attemptChallenge, setAttemptChallenge] = useState<any>(null)
+  const [testRunKey, setTestRunKey] = useState(1)
 
   // Find test by slug
   const testDef = allTests.find((t) => t.slug === slug)
@@ -286,6 +287,7 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
           test_slug: slug,
           result: completedData.metrics,
           answers: { summary: completedData.summary },
+          lang,
         }),
       })
       if (res?.id) {
@@ -323,6 +325,7 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
             test_slug: slug,
             result: completedData?.metrics,
             answers: { summary: completedData?.summary },
+            lang,
           }),
         })
         if (res?.id) {
@@ -351,6 +354,7 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
           include_limitations: true,
           include_answers: false,
           include_warnings: true,
+          lang,
         }),
       })
       const url = window.URL.createObjectURL(blob)
@@ -386,7 +390,7 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
       case 'color-hue-discrimination':
         return <ColorHueEngine lang={lang} onComplete={handleTestComplete} />
       case 'color-perception':
-        return <ColorPerceptionEngine lang={lang} onComplete={handleTestComplete} />
+        return <ColorPerceptionEngine key={`color-engine-${testRunKey}`} lang={lang} onComplete={handleTestComplete} />
       case 'visual-perception':
         return <LandoltVisionEngine lang={lang} onComplete={handleTestComplete} />
       case 'sound-discrimination':
@@ -612,6 +616,7 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
                   onClick={() => {
                     setCompletedData(null)
                     setSavedSuccess(false)
+                    setTestRunKey((prev) => prev + 1)
                   }}
                   className="rounded-xl border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >

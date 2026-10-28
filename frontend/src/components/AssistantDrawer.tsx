@@ -102,6 +102,7 @@ export const AssistantDrawer: React.FC<AssistantDrawerProps> = ({
           text: userText,
           conversation,
           shared_result_ids: [],
+          lang,
         }),
       })
 

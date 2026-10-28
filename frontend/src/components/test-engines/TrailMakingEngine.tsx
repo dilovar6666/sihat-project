@@ -16,20 +16,54 @@ interface TrailNode {
   y: number // percentage
 }
 
-const TRAIL_TARGETS: TrailNode[] = [
-  { id: '1', label: '1', x: 20, y: 30 },
-  { id: 'A', label: 'A', x: 75, y: 25 },
-  { id: '2', label: '2', x: 50, y: 55 },
-  { id: 'B', label: 'B', x: 25, y: 75 },
-  { id: '3', label: '3', x: 80, y: 80 },
-  { id: 'C', label: 'C', x: 85, y: 50 },
-  { id: '4', label: '4', x: 30, y: 15 },
-  { id: 'D', label: 'D', x: 45, y: 85 },
-  { id: '5', label: '5', x: 60, y: 20 },
-  { id: 'E', label: 'E', x: 15, y: 50 },
+const NODE_LABELS = [
+  { id: '1', label: '1' },
+  { id: 'A', label: 'A' },
+  { id: '2', label: '2' },
+  { id: 'B', label: 'B' },
+  { id: '3', label: '3' },
+  { id: 'C', label: 'C' },
+  { id: '4', label: '4' },
+  { id: 'D', label: 'D' },
+  { id: '5', label: '5' },
+  { id: 'E', label: 'E' },
 ]
 
+function generateRandomTrailNodes(): TrailNode[] {
+  const nodes: TrailNode[] = []
+  const minDist = 15 // minimum percent distance between circle centers
+
+  for (const item of NODE_LABELS) {
+    let placed = false
+    let attempts = 0
+    let x = 50
+    let y = 50
+
+    while (!placed && attempts < 150) {
+      attempts++
+      x = Math.floor(12 + Math.random() * 76)
+      y = Math.floor(12 + Math.random() * 76)
+
+      const tooClose = nodes.some((n) => {
+        const dx = n.x - x
+        const dy = n.y - y
+        return Math.sqrt(dx * dx + dy * dy) < minDist
+      })
+
+      if (!tooClose) {
+        placed = true
+      }
+    }
+
+    nodes.push({ id: item.id, label: item.label, x, y })
+  }
+
+  return nodes
+}
+
+
 export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onComplete }) => {
+  const [trailNodes, setTrailNodes] = useState<TrailNode[]>(() => generateRandomTrailNodes())
   const [currentStep, setCurrentStep] = useState(0)
   const [connectedNodes, setConnectedNodes] = useState<TrailNode[]>([])
   const [elapsedSec, setElapsedSec] = useState(0)
@@ -41,7 +75,7 @@ export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onCo
 
   const t = {
     ru: {
-      title: 'Переключаемость внимания (Trail Making B)',
+      title: 'Переключаемость внимания',
       subtitle: 'Последовательно соединяйте кружки, чередуя цифры и буквы: 1 → A → 2 → B → 3 → C...',
       standard: 'Trail Making Test (TMT-B) / Cognitive Switching',
       nextTarget: 'Следующая цель:',
@@ -57,7 +91,7 @@ export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onCo
       tryAgain: 'Попробовать снова',
     },
     tj: {
-      title: 'Ивазшавии диққат (Trail Making B)',
+      title: 'Ивазшавии диққат',
       subtitle: 'Доираҳоро бо навбат пайваст кунед, рақамҳо ва ҳарфҳоро иваз намуда: 1 → A → 2 → B → 3 → C...',
       standard: 'Trail Making Test (TMT-B) / Cognitive Switching',
       nextTarget: 'Нишони навбатӣ:',
@@ -73,7 +107,7 @@ export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onCo
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Cognitive Switching (Trail Making Test B)',
+      title: 'Cognitive Switching',
       subtitle: 'Connect the circles alternating between numbers and letters: 1 → A → 2 → B → 3 → C...',
       standard: 'Trail Making Test Part B Protocol',
       nextTarget: 'Next target:',
@@ -97,6 +131,7 @@ export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onCo
   }, [])
 
   const handleStart = () => {
+    setTrailNodes(generateRandomTrailNodes())
     setCurrentStep(0)
     setConnectedNodes([])
     setErrors(0)
@@ -112,12 +147,12 @@ export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onCo
 
   const handleNodeClick = (node: TrailNode) => {
     if (!isActive || isFinished) return
-    const expected = TRAIL_TARGETS[currentStep]
+    const expected = trailNodes[currentStep]
 
     if (node.id === expected.id) {
       const nextConnected = [...connectedNodes, node]
       setConnectedNodes(nextConnected)
-      if (currentStep + 1 < TRAIL_TARGETS.length) {
+      if (currentStep + 1 < trailNodes.length) {
         setCurrentStep((prev) => prev + 1)
       } else {
         if (timerRef.current) clearInterval(timerRef.current)
@@ -146,7 +181,7 @@ export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onCo
     })
   }
 
-  const nextExpected = TRAIL_TARGETS[currentStep]
+  const nextExpected = trailNodes[currentStep]
 
   return (
     <div className="flex flex-col items-center max-w-xl mx-auto w-full select-none">
@@ -246,7 +281,7 @@ export const TrailMakingEngine: React.FC<TrailMakingEngineProps> = ({ lang, onCo
           </svg>
 
           {/* Target Nodes */}
-          {TRAIL_TARGETS.map((node) => {
+          {trailNodes.map((node) => {
             const isConnected = connectedNodes.some((n) => n.id === node.id)
             const isNext = nextExpected.id === node.id
 

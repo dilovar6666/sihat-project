@@ -21,7 +21,7 @@ export const Gad7Engine: React.FC<Gad7EngineProps> = ({ lang, onComplete }) => {
 
   const t = {
     ru: {
-      title: 'Шкала генерализованной тревожности (GAD-7)',
+      title: 'Шкала генерализованной тревожности',
       subtitle: 'За последние 2 недели, как часто вас беспокоили следующие проблемы?',
       standard: 'GAD-7 (Spitzer et al., 2006) Educational Self-Assessment',
       disclaimer: 'Опросник носит ознакомительный характер, не является медицинским диагнозом и служит исключительно для самонаблюдения.',
@@ -60,7 +60,7 @@ export const Gad7Engine: React.FC<Gad7EngineProps> = ({ lang, onComplete }) => {
       ],
     },
     tj: {
-      title: 'Миқёси изтироби умумӣ (GAD-7)',
+      title: 'Миқёси изтироби умумӣ',
       subtitle: 'Дар давоми 2 ҳафтаи охир, чанд маротиба шуморо мушкилоти зерин нигарон карданд?',
       standard: 'GAD-7 (Spitzer et al., 2006) Educational Self-Assessment',
       disclaimer: 'Ин пурсишнома хусусияти шиносоӣ дошта, ташхиси тиббӣ намебошад ва танҳо барои худназоратӣ хидмат мекунад.',
@@ -99,7 +99,7 @@ export const Gad7Engine: React.FC<Gad7EngineProps> = ({ lang, onComplete }) => {
       ],
     },
     en: {
-      title: 'Generalized Anxiety Scale (GAD-7)',
+      title: 'Generalized Anxiety Scale',
       subtitle: 'Over the last 2 weeks, how often have you been bothered by the following problems?',
       standard: 'GAD-7 (Spitzer et al., 2006) Educational Self-Assessment',
       disclaimer: 'This questionnaire is educational only, does not constitute a clinical diagnosis, and serves for personal self-reflection.',

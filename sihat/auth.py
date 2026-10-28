@@ -1,3 +1,4 @@
+from typing import Any
 from datetime import UTC, datetime, timedelta
 import re
 
@@ -500,4 +501,46 @@ def update_profile(
     db.commit()
     db.refresh(user)
     return user_output(user)
+
+@router.post("/profile/reset-password", status_code=status.HTTP_200_OK)
+def profile_reset_password(
+    request: Request,
+    db: Session = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    if not user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="К вашему аккаунту не привязана электронная почта. Сначала укажите email в профиле.",
+        )
+    if not settings.smtp_is_configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Сервис отправки писем временно недоступен",
+        )
+    enforce_auth_rate_limit(request, "forgot-password", user.email)
+    token = new_refresh_token()
+    db.add(
+        PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_token(token),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    try:
+        send_password_reset_email(user.email, token, settings)
+        db.commit()
+    except MailDeliveryError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Не удалось доставить письмо для сброса пароля",
+        ) from exc
+
+    return {
+        "ok": True,
+        "email": user.email,
+        "message": f"Инструкция по сбросу пароля отправлена на {user.email}",
+    }
 

@@ -26,7 +26,7 @@ export const PursuitTrackingEngine: React.FC<PursuitTrackingEngineProps> = ({ la
 
   const t = {
     ru: {
-      title: 'Зрительно-моторная координация (Pursuit Tracking)',
+      title: 'Зрительно-моторная координация',
       subtitle: 'Удерживайте курсор мыши или палец внутри движущейся цели на протяжении 15 секунд.',
       standard: 'Pursuit Rotor / Time-on-Target (TOT) Standard',
       keepInside: 'Удерживайте курсор внутри зелёного диска!',
@@ -42,7 +42,7 @@ export const PursuitTrackingEngine: React.FC<PursuitTrackingEngineProps> = ({ la
       tryAgain: 'Попробовать снова',
     },
     tj: {
-      title: 'Ҳамоҳангии чашму даст (Pursuit Tracking)',
+      title: 'Ҳамоҳангии чашму даст',
       subtitle: 'Нишоннамо (курсор)-ро дар давоми 15 сония дар дохили ҳадафи ҳаракаткунанда нигоҳ доред.',
       standard: 'Pursuit Rotor / Time-on-Target (TOT) Standard',
       keepInside: 'Нишоннаморо дар дохили доираи сабз нигоҳ доред!',
@@ -58,7 +58,7 @@ export const PursuitTrackingEngine: React.FC<PursuitTrackingEngineProps> = ({ la
       tryAgain: 'Аз нав гузаштан',
     },
     en: {
-      title: 'Eye-Hand Pursuit Tracking (TOT)',
+      title: 'Eye-Hand Coordination',
       subtitle: 'Keep your mouse cursor or touch point continuously inside the moving target disk for 15 seconds.',
       standard: 'Pursuit Rotor Paradigm',
       keepInside: 'Keep cursor inside target ring!',

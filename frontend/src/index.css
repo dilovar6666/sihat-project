@@ -807,3 +807,16 @@ html.theme-transitioning *::after {
     transparent 100%
   );
 }
+
+
+/* ==========================================================================
+   SIHAT CUSTOM CURSOR
+   Hides system cursor on desktop with fine pointer so the custom emerald
+   glow cursor seamlessly drives the interface.
+   ========================================================================== */
+@media (hover: hover) and (pointer: fine) {
+  body.custom-cursor-active,
+  body.custom-cursor-active * {
+    cursor: none !important;
+  }
+}

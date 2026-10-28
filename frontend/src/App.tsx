@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { flushSync } from 'react-dom'
 import { Navbar } from './components/Navbar'
+import { CustomCursor } from './components/CustomCursor'
 import { LandingHero } from './components/LandingHero'
 import { BentoFeatures } from './components/BentoFeatures'
 import { CatalogSection } from './components/CatalogSection'
@@ -80,22 +81,37 @@ export default function App() {
     | 'forgot-password'
     | 'reset-password'
 
-  const parseHash = (): { page: PageId; testSlug: string | null } => {
-    const raw = window.location.hash.replace('#/', '').replace('#', '').trim()
+  const parseHash = (): { page: PageId; testSlug: string | null; token: string | null } => {
+    const pathname = typeof window !== 'undefined' ? window.location.pathname.replace(/^\//, '').trim() : ''
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace('#/', '').replace('#', '').trim() : ''
+
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+    let token = urlParams.get('token')
+
+    let raw = hash || pathname
+    if (raw.includes('?')) {
+      const parts = raw.split('?')
+      raw = parts[0]
+      if (!token) {
+        const hashParams = new URLSearchParams(parts[1])
+        token = hashParams.get('token')
+      }
+    }
+
     if (raw.startsWith('test/')) {
       const slug = raw.replace('test/', '').trim()
-      return { page: 'test', testSlug: slug }
+      return { page: 'test', testSlug: slug, token: null }
     }
     if (raw.startsWith('passport/')) {
       const slug = raw.replace('passport/', '').trim()
-      return { page: 'passport', testSlug: slug }
+      return { page: 'passport', testSlug: slug, token: null }
     }
     if (raw === 'methodology' || raw.startsWith('methodology/')) {
       const slug = raw.replace('methodology/', '').replace('methodology', '').trim()
-      return { page: 'passport', testSlug: slug || null }
+      return { page: 'passport', testSlug: slug || null, token: null }
     }
     if (raw === 'methodologies') {
-      return { page: 'methodologies', testSlug: null }
+      return { page: 'methodologies', testSlug: null, token: null }
     }
     if (
       [
@@ -115,23 +131,31 @@ export default function App() {
         'reset-password',
       ].includes(raw)
     ) {
-      return { page: raw as PageId, testSlug: null }
+      return { page: raw as PageId, testSlug: null, token }
     }
-    return { page: 'home', testSlug: null }
+    return { page: 'home', testSlug: null, token }
   }
 
   const [currentPage, setCurrentPage] = useState<PageId>(() => parseHash().page)
   const [currentTestSlug, setCurrentTestSlug] = useState<string | null>(() => parseHash().testSlug)
+  const [resetTokenParam, setResetTokenParam] = useState<string | null>(() => parseHash().token)
 
   useEffect(() => {
-    const onHashChange = () => {
+    const onLocationChange = () => {
       const parsed = parseHash()
       setCurrentPage(parsed.page)
       setCurrentTestSlug(parsed.testSlug)
+      if (parsed.token) {
+        setResetTokenParam(parsed.token)
+      }
       window.scrollTo(0, 0)
     }
-    window.addEventListener('hashchange', onHashChange)
-    return () => window.removeEventListener('hashchange', onHashChange)
+    window.addEventListener('hashchange', onLocationChange)
+    window.addEventListener('popstate', onLocationChange)
+    return () => {
+      window.removeEventListener('hashchange', onLocationChange)
+      window.removeEventListener('popstate', onLocationChange)
+    }
   }, [])
 
   const handleNavigate = (pageId: string) => {
@@ -625,6 +649,7 @@ export default function App() {
         include_limitations: true,
         include_answers: false,
         include_warnings: true,
+        lang,
       })
       addToast('PDF-паспорт успешно сформирован и скачан.', 'success')
     } catch (err: unknown) {
@@ -634,6 +659,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8F9F5] dark:bg-[#101716] text-[#202827] dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
+      <CustomCursor />
       {/* Floating Dynamic Navbar */}
       <Navbar
         t={t}
@@ -790,6 +816,7 @@ export default function App() {
           currentPage === 'reset-password') && (
           <AuthPage
             initialMode={currentPage as any}
+            initialToken={resetTokenParam}
             lang={lang}
             onSuccess={(newUser, newToken) => {
               setUser(newUser)

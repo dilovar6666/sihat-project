@@ -64,3 +64,4 @@ class PdfExportInput(BaseModel):
     include_limitations: bool = True
     include_warnings: bool = True
     include_answers: bool = False
+    lang: str = "ru" 
