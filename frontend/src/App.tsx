@@ -335,14 +335,12 @@ export default function App() {
 
   // Theme transition state for visible shockwave ripple
   const [themeWave, setThemeWave] = useState<{
-    id: number
     x: number
     y: number
-    radius: number
     targetTheme: 'light' | 'dark'
   } | null>(null)
 
-  // Cinematic theme toggle: perfectly synchronized with circular shockwave, zero flash
+  // Theme toggle with progressive wave, initial blur and subtle zoom starting from button
   const toggleTheme = (e?: React.MouseEvent<HTMLElement>) => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark'
 
@@ -352,31 +350,20 @@ export default function App() {
 
     if (e?.currentTarget) {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-      x = Math.round(rect.left + rect.width / 2)
-      y = Math.round(rect.top + rect.height / 2)
+      x = rect.left + rect.width / 2
+      y = rect.top + rect.height / 2
     } else {
       const btn = document.getElementById('theme-toggle-btn')
       if (btn) {
         const rect = btn.getBoundingClientRect()
-        x = Math.round(rect.left + rect.width / 2)
-        y = Math.round(rect.top + rect.height / 2)
+        x = rect.left + rect.width / 2
+        y = rect.top + rect.height / 2
       }
     }
 
-    const endRadius = Math.ceil(
-      Math.hypot(
-        Math.max(x, window.innerWidth - x),
-        Math.max(y, window.innerHeight - y)
-      )
-    )
-
-    // Set CSS coordinates immediately to lock ::view-transition-new(root) to 0px on frame 0
-    document.documentElement.style.setProperty('--theme-x', `${x}px`)
-    document.documentElement.style.setProperty('--theme-y', `${y}px`)
-    document.documentElement.style.setProperty('--theme-r', `${endRadius}px`)
-
-    // Trigger visible glowing shockwave ripple ring calibrated to exact screen diagonal
-    setThemeWave({ id: Date.now(), x, y, radius: endRadius, targetTheme: nextTheme })
+    // Trigger visible shockwave ripple ring
+    setThemeWave({ x, y, targetTheme: nextTheme })
+    setTimeout(() => setThemeWave(null), 900)
 
     const doc = document as any
     if (
@@ -384,18 +371,18 @@ export default function App() {
       'startViewTransition' in doc &&
       !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     ) {
-      // Freeze inner transitions during snapshot capture
-      document.documentElement.classList.add('theme-transitioning')
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      )
 
       const transition = doc.startViewTransition(() => {
         flushSync(() => {
           setTheme(nextTheme)
           if (nextTheme === 'dark') {
             document.documentElement.classList.add('dark')
-            document.documentElement.style.colorScheme = 'dark'
           } else {
             document.documentElement.classList.remove('dark')
-            document.documentElement.style.colorScheme = 'light'
           }
           localStorage.setItem('sihat_theme', nextTheme)
         })
@@ -403,142 +390,60 @@ export default function App() {
 
       transition.ready
         .then(() => {
-          const duration = 750
-          const easeOut = 'cubic-bezier(0.22, 1, 0.36, 1)'
-          const easeIn = 'cubic-bezier(0.32, 0, 0.67, 0)'
+          // Outgoing view: initial slight zoom and soft blur
+          document.documentElement.animate(
+            [
+              {
+                transform: 'scale(1)',
+                filter: 'blur(0px)',
+              },
+              {
+                transform: 'scale(1.025)',
+                filter: 'blur(5px)',
+              },
+              {
+                transform: 'scale(1.03)',
+                filter: 'blur(8px)',
+              },
+            ],
+            {
+              duration: 380,
+              easing: 'ease-out',
+              pseudoElement: '::view-transition-old(root)',
+            }
+          )
 
-          if (nextTheme === 'light') {
-            // Switching to LIGHT:
-            // 1. Old dark view stays underneath at 100% opacity for the entire duration (ZERO flash)
-            document.documentElement.animate(
-              [
-                {
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                  opacity: 1,
-                },
-                {
-                  transform: 'scale(1.02)',
-                  filter: 'blur(5px)',
-                  opacity: 1,
-                },
-                {
-                  transform: 'scale(1.03)',
-                  filter: 'blur(8px)',
-                  opacity: 1,
-                },
-              ],
+          // Incoming view: expanding circular wave from button with progressive sharpening
+          document.documentElement.animate(
+            [
               {
-                duration,
-                easing: easeOut,
-                fill: 'forwards',
-                pseudoElement: '::view-transition-old(root)',
-              }
-            )
-
-            // 2. Light view expands strictly with the circular wave from 0px to endRadius
-            document.documentElement.animate(
-              [
-                {
-                  clipPath: `circle(0px at ${x}px ${y}px)`,
-                  transform: 'scale(1.03)',
-                  filter: 'blur(8px)',
-                  opacity: 1,
-                },
-                {
-                  clipPath: `circle(${endRadius * 0.45}px at ${x}px ${y}px)`,
-                  transform: 'scale(1.015)',
-                  filter: 'blur(3px)',
-                  opacity: 1,
-                },
-                {
-                  clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                  opacity: 1,
-                },
-              ],
+                clipPath: `circle(0px at ${x}px ${y}px)`,
+                transform: 'scale(1.03)',
+                filter: 'blur(8px)',
+              },
               {
-                duration,
-                easing: easeOut,
-                fill: 'forwards',
-                pseudoElement: '::view-transition-new(root)',
-              }
-            )
-          } else {
-            // Switching to DARK:
-            // 1. Light view on top collapses from endRadius back into the toggle button with blur
-            document.documentElement.animate(
-              [
-                {
-                  clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                  opacity: 1,
-                },
-                {
-                  clipPath: `circle(${endRadius * 0.5}px at ${x}px ${y}px)`,
-                  transform: 'scale(0.99)',
-                  filter: 'blur(8px)',
-                  opacity: 1,
-                },
-                {
-                  clipPath: `circle(0px at ${x}px ${y}px)`,
-                  transform: 'scale(0.97)',
-                  filter: 'blur(18px)',
-                  opacity: 1,
-                },
-              ],
+                clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
+                transform: 'scale(1.015)',
+                filter: 'blur(4px)',
+              },
               {
-                duration,
-                easing: easeIn,
-                fill: 'forwards',
-                pseudoElement: '::view-transition-old(root)',
-              }
-            )
-
-            // 2. Dark view underneath smoothly un-blurs into full focus
-            document.documentElement.animate(
-              [
-                {
-                  transform: 'scale(1.025)',
-                  filter: 'blur(10px)',
-                  opacity: 1,
-                },
-                {
-                  transform: 'scale(1.01)',
-                  filter: 'blur(4px)',
-                  opacity: 1,
-                },
-                {
-                  transform: 'scale(1)',
-                  filter: 'blur(0px)',
-                  opacity: 1,
-                },
-              ],
-              {
-                duration,
-                easing: easeOut,
-                fill: 'forwards',
-                pseudoElement: '::view-transition-new(root)',
-              }
-            )
-          }
+                clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
+                transform: 'scale(1)',
+                filter: 'blur(0px)',
+              },
+            ],
+            {
+              duration: 750,
+              easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
+              pseudoElement: '::view-transition-new(root)',
+            }
+          )
         })
         .catch(() => {
           setTheme(nextTheme)
         })
-
-      transition.finished.finally(() => {
-        document.documentElement.classList.remove('theme-transitioning')
-        document.documentElement.style.removeProperty('--theme-x')
-        document.documentElement.style.removeProperty('--theme-y')
-        document.documentElement.style.removeProperty('--theme-r')
-        setThemeWave(null)
-      })
     } else {
       setTheme(nextTheme)
-      setTimeout(() => setThemeWave(null), 750)
     }
   }
 
@@ -1005,7 +910,7 @@ export default function App() {
       {/* Fluid Theme Wave Shockwave Ring Originating from Button Coordinates */}
       {themeWave && (
         <div
-          key={themeWave.id}
+          key={`theme-wave-${themeWave.x}-${themeWave.y}-${Date.now()}`}
           className={
             themeWave.targetTheme === 'dark'
               ? 'theme-ripple-wave-dark'
@@ -1014,8 +919,6 @@ export default function App() {
           style={{
             left: `${themeWave.x}px`,
             top: `${themeWave.y}px`,
-            width: `${themeWave.radius * 2}px`,
-            height: `${themeWave.radius * 2}px`,
           }}
         />
       )}

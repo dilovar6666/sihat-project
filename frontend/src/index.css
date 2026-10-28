@@ -456,98 +456,71 @@ body {
    VIEW TRANSITION CIRCULAR RIPPLE THEME TOGGLE
    ========================================================================== */
 
-/* Freeze inner transitions during snapshot capture */
-html.theme-transitioning *,
-html.theme-transitioning *::before,
-html.theme-transitioning *::after {
-  transition: none !important;
-}
-
-::view-transition-group(root) {
-  animation: none !important;
-}
-
-::view-transition-image-pair(root) {
-  isolation: auto !important;
-}
-
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation: none !important;
-  mix-blend-mode: normal !important;
+  animation: none;
+  mix-blend-mode: normal;
   transform-origin: center center;
-  will-change: clip-path, filter, transform;
 }
 
-/* Light transition: old dark view stays completely solid underneath at opacity 1; new light view starts clipped at 0px so it CANNOT flash white */
-html:not(.dark)::view-transition-old(root) {
-  z-index: 1 !important;
-  opacity: 1 !important;
-  animation: none !important;
+::view-transition-old(root) {
+  z-index: 1;
 }
 
-html:not(.dark)::view-transition-new(root) {
-  z-index: 9999 !important;
-  animation: none !important;
-  clip-path: circle(0px at var(--theme-x, 50%) var(--theme-y, 30px));
+::view-transition-new(root) {
+  z-index: 9999;
 }
 
-/* Dark transition: old light view stays on top and collapses into button; dark view stays solid underneath */
-html.dark::view-transition-old(root) {
-  z-index: 9999 !important;
-  animation: none !important;
-  clip-path: circle(var(--theme-r, 2500px) at var(--theme-x, 50%) var(--theme-y, 30px));
-}
-
-html.dark::view-transition-new(root) {
-  z-index: 1 !important;
-  opacity: 1 !important;
-  animation: none !important;
-}
-
-/* Fluid shockwave ripple ring collapsing inward into button coordinates for dark theme (synchronized with 750ms transition) */
+/* Fluid shockwave ripple ring radiating outward from button coordinates */
 @keyframes theme-wave-ripple-dark {
   0% {
+    width: 0px;
+    height: 0px;
     opacity: 0.95;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(0);
     box-shadow: 
-      0 0 0 5px rgba(46, 196, 167, 0.95),
-      0 0 60px 24px rgba(46, 196, 167, 0.8),
-      inset 0 0 40px 12px rgba(46, 196, 167, 0.6),
-      inset 0 0 60px 20px rgba(255, 255, 255, 0.6);
+      0 0 0 2px rgba(46, 196, 167, 0.95),
+      0 0 45px 18px rgba(46, 196, 167, 0.65),
+      inset 0 0 30px 8px rgba(255, 255, 255, 0.7);
   }
-  60% {
-    opacity: 0.9;
+  30% {
+    opacity: 0.85;
   }
-  90% {
-    opacity: 0.95;
-    box-shadow: 
-      0 0 0 4px rgba(46, 196, 167, 1),
-      0 0 40px 16px rgba(46, 196, 167, 0.9),
-      inset 0 0 30px 8px rgba(255, 255, 255, 0.8);
+  70% {
+    opacity: 0.45;
   }
   100% {
+    width: 320vmax;
+    height: 320vmax;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0);
-    box-shadow: none;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: 
+      0 0 0 10px rgba(46, 196, 167, 0),
+      0 0 120px 40px rgba(46, 196, 167, 0),
+      inset 0 0 60px 15px rgba(255, 255, 255, 0);
   }
 }
 
-/* Fluid shockwave ripple ring radiating outward from button coordinates for light theme (synchronized with 750ms transition) */
 @keyframes theme-wave-ripple-light {
   0% {
+    width: 0px;
+    height: 0px;
     opacity: 0.95;
     transform: translate(-50%, -50%) scale(0);
     box-shadow: 
-      0 0 0 5px rgba(245, 158, 11, 0.95),
-      0 0 60px 24px rgba(245, 158, 11, 0.8),
-      inset 0 0 40px 12px rgba(245, 158, 11, 0.6),
-      inset 0 0 60px 20px rgba(255, 255, 255, 0.8);
+      0 0 0 2px rgba(245, 158, 11, 0.95),
+      0 0 45px 18px rgba(245, 158, 11, 0.65),
+      inset 0 0 30px 8px rgba(255, 255, 255, 0.85);
   }
-  60% {
+  30% {
     opacity: 0.85;
   }
+  70% {
+    opacity: 0.45;
+  }
   100% {
+    width: 320vmax;
+    height: 320vmax;
     opacity: 0;
     transform: translate(-50%, -50%) scale(1);
     box-shadow: 
@@ -562,9 +535,9 @@ html.dark::view-transition-new(root) {
   border-radius: 9999px;
   pointer-events: none;
   z-index: 100000;
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  animation: theme-wave-ripple-dark 0.75s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: theme-wave-ripple-dark 0.85s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
 }
 
 .theme-ripple-wave-light {
@@ -572,9 +545,9 @@ html.dark::view-transition-new(root) {
   border-radius: 9999px;
   pointer-events: none;
   z-index: 100000;
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  animation: theme-wave-ripple-light 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: theme-wave-ripple-light 0.85s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
 }
 
 @keyframes lang-wave-ripple {
