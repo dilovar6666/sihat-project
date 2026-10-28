@@ -340,7 +340,7 @@ export default function App() {
     targetTheme: 'light' | 'dark'
   } | null>(null)
 
-  // Theme toggle with progressive wave, initial blur and subtle zoom starting from button
+  // 60 FPS GPU-optimized theme toggle with progressive wave, subtle blur and zoom starting from button
   const toggleTheme = (e?: React.MouseEvent<HTMLElement>) => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark'
 
@@ -376,6 +376,9 @@ export default function App() {
         Math.max(y, window.innerHeight - y)
       )
 
+      // Freeze inner transitions during snapshot capture to eliminate DOM layout thrashing
+      document.documentElement.classList.add('theme-transitioning')
+
       const transition = doc.startViewTransition(() => {
         flushSync(() => {
           setTheme(nextTheme)
@@ -390,7 +393,7 @@ export default function App() {
 
       transition.ready
         .then(() => {
-          // Outgoing view: initial slight zoom and soft blur
+          // Outgoing view: initial slight zoom and lightweight soft blur (GPU-optimized)
           document.documentElement.animate(
             [
               {
@@ -398,12 +401,8 @@ export default function App() {
                 filter: 'blur(0px)',
               },
               {
-                transform: 'scale(1.025)',
-                filter: 'blur(5px)',
-              },
-              {
-                transform: 'scale(1.03)',
-                filter: 'blur(8px)',
+                transform: 'scale(1.02)',
+                filter: 'blur(3px)',
               },
             ],
             {
@@ -418,13 +417,13 @@ export default function App() {
             [
               {
                 clipPath: `circle(0px at ${x}px ${y}px)`,
-                transform: 'scale(1.03)',
-                filter: 'blur(8px)',
+                transform: 'scale(1.025)',
+                filter: 'blur(4px)',
               },
               {
-                clipPath: `circle(${endRadius * 0.4}px at ${x}px ${y}px)`,
-                transform: 'scale(1.015)',
-                filter: 'blur(4px)',
+                clipPath: `circle(${endRadius * 0.45}px at ${x}px ${y}px)`,
+                transform: 'scale(1.01)',
+                filter: 'blur(1.5px)',
               },
               {
                 clipPath: `circle(${endRadius}px at ${x}px ${y}px)`,
@@ -433,7 +432,7 @@ export default function App() {
               },
             ],
             {
-              duration: 750,
+              duration: 720,
               easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)',
               pseudoElement: '::view-transition-new(root)',
             }
@@ -442,6 +441,10 @@ export default function App() {
         .catch(() => {
           setTheme(nextTheme)
         })
+
+      transition.finished.finally(() => {
+        document.documentElement.classList.remove('theme-transitioning')
+      })
     } else {
       setTheme(nextTheme)
     }
