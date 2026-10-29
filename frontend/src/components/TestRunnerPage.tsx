@@ -13,6 +13,7 @@ import { Card } from './ui/Card'
 import type { Language } from '../i18n'
 import type { TestItem, SavedResult } from '../types'
 import { apiRequest } from '../api'
+import { getPlatformSettings } from '../lib/settings'
 
 import { SchulteTableEngine } from './test-engines/SchulteTableEngine'
 import { TrailMakingEngine } from './test-engines/TrailMakingEngine'
@@ -309,6 +310,58 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
 
     setCompletedResult(resolvedResult)
     await loadPreviousCompatibleResults()
+
+    // Autosave check: if user turned off privacyShield ("Сохранение только с явного согласия"),
+    // results are saved automatically upon completion without requiring manual confirmation.
+    const platformSettings = getPlatformSettings()
+    if (token && !platformSettings.privacyShield) {
+      setIsSaving(true)
+      try {
+        let newSavedId: string | undefined
+        if (activeAttemptId) {
+          try {
+            const saved = await apiRequest<{ saved_result_id?: string }>(`/attempts/${activeAttemptId}/save`, {
+              method: 'POST',
+              body: JSON.stringify({ consent_confirmed: true }),
+            })
+            if (saved?.saved_result_id) {
+              newSavedId = saved.saved_result_id
+            }
+          } catch {
+            // Fallback to direct save below
+          }
+        }
+        if (!newSavedId) {
+          const res = await apiRequest<{ id?: string }>('/results/save-direct', {
+            method: 'POST',
+            body: JSON.stringify({
+              test_slug: slug,
+              result: resolvedResult,
+              answers: {},
+              lang,
+            }),
+          })
+          newSavedId = res?.id
+        }
+        if (newSavedId) {
+          setSavedResultId(newSavedId)
+          setSavedSuccess(true)
+          onNotify(
+            lang === 'tj'
+              ? 'Натиҷа ба таври худкор сабт шуд (танзимоти худкор фаъол аст)'
+              : lang === 'en'
+              ? 'Result auto-saved to archive per your platform settings'
+              : 'Результат автоматически сохранён в архив (автосохранение)',
+            'success'
+          )
+          await loadPreviousCompatibleResults()
+        }
+      } catch (err) {
+        console.error('Auto-save error:', err)
+      } finally {
+        setIsSaving(false)
+      }
+    }
   }
 
   const handleSaveResult = async () => {
@@ -442,8 +495,8 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
         method: 'POST',
         body: JSON.stringify({
           include_result: true,
-          include_methodology: true,
-          include_limitations: true,
+          include_methodology: getPlatformSettings().pdfIncludeMethodology,
+          include_limitations: getPlatformSettings().pdfIncludeMethodology,
           include_answers: false,
           include_warnings: true,
           lang,

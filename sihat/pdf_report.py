@@ -807,6 +807,12 @@ def build_screening_pdf(
     if active_lang == "tg":
         active_lang = "tj"
 
+    include_methodology = True
+    include_limitations = True
+    if payload is not None:
+        include_methodology = getattr(payload, "include_methodology", True)
+        include_limitations = getattr(payload, "include_limitations", True)
+
     ui = UI_STRINGS.get(active_lang, UI_STRINGS["ru"])
     metric_labels_map = METRIC_LABELS.get(active_lang, METRIC_LABELS["ru"])
 
@@ -1039,29 +1045,32 @@ def build_screening_pdf(
     story.append(Paragraph(f"{ui['test_section_prefix']}{_clean_text(resolved_title)}", style_section_title))
     story.append(Spacer(1, 4))
 
-    meth_card_data = [
-        [
-            Paragraph(f"<b>{ui['scientific_passport_label']}</b>", style_table_cell),
-            Paragraph(_clean_text(meth_standard), style_table_cell),
-            Paragraph(f"<b>{ui['calibration_label']}</b>", style_table_cell),
-            Paragraph(ui["calibration_value"], style_table_cell_bold),
-        ]
-    ]
-    meth_table = Table(meth_card_data, colWidths=[100, 215, 108, 100])
-    meth_table.setStyle(
-        TableStyle(
+    if include_methodology:
+        meth_card_data = [
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F1F5F9")),
-                ("BOX", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING", (0, 0), (-1, -1), 7),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                Paragraph(f"<b>{ui['scientific_passport_label']}</b>", style_table_cell),
+                Paragraph(_clean_text(meth_standard), style_table_cell),
+                Paragraph(f"<b>{ui['calibration_label']}</b>", style_table_cell),
+                Paragraph(ui["calibration_value"], style_table_cell_bold),
             ]
+        ]
+        meth_table = Table(meth_card_data, colWidths=[100, 215, 108, 100])
+        meth_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F1F5F9")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                ]
+            )
         )
-    )
-    story.append(meth_table)
-    story.append(Spacer(1, 10))
+        story.append(meth_table)
+        story.append(Spacer(1, 10))
+    else:
+        story.append(Spacer(1, 6))
 
     # 4. MEASURED BIOMARKERS TABLE
     raw_result: dict = getattr(item, "result", {}) or {}
@@ -1160,35 +1169,35 @@ def build_screening_pdf(
         story.append(Spacer(1, 10))
 
     # 5. LIMITATIONS & VALIDITY
-    # Use clean localized limitations to avoid database unreviewed English strings leaking into RU/TJ
-    limitations_text = ui["limitations_text"]
-
-    limitations_data = [
-        [
-            Paragraph(f"<b>{ui['limitations_title']}</b>", style_callout_title)
-        ],
-        [
-            Paragraph(_clean_text(limitations_text), style_callout_body)
-        ],
-        [
-            Paragraph(f"<b>{ui['special_notes_label']}</b> {ui['special_notes_default']}", style_callout_body)
-        ],
-    ]
-
-    lim_table = Table(limitations_data, colWidths=[523])
-    lim_table.setStyle(
-        TableStyle(
+    # Controlled by user setting: pdfIncludeMethodology
+    if include_limitations:
+        limitations_text = ui["limitations_text"]
+        limitations_data = [
             [
-                ("BACKGROUND", (0, 0), (-1, -1), COLOR_CARD_BG),
-                ("BOX", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-            ]
+                Paragraph(f"<b>{ui['limitations_title']}</b>", style_callout_title)
+            ],
+            [
+                Paragraph(_clean_text(limitations_text), style_callout_body)
+            ],
+            [
+                Paragraph(f"<b>{ui['special_notes_label']}</b> {ui['special_notes_default']}", style_callout_body)
+            ],
+        ]
+
+        lim_table = Table(limitations_data, colWidths=[523])
+        lim_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), COLOR_CARD_BG),
+                    ("BOX", (0, 0), (-1, -1), 0.5, COLOR_BORDER),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ]
+            )
         )
-    )
-    story.append(KeepTogether([lim_table, Spacer(1, 10)]))
+        story.append(KeepTogether([lim_table, Spacer(1, 10)]))
 
     # 6. OFFICIAL DISCLAIMER & SIGNATURE BLOCK
     disc_table = Table([[Paragraph(ui["disclaimer"], style_disclaimer)]], colWidths=[523])

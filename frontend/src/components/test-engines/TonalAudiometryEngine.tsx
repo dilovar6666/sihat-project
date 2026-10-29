@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Headphones, Volume2, Award, CheckCircle, RotateCcw, Play } from 'lucide-react'
+import { Headphones, Volume2, VolumeX, Award, CheckCircle, RotateCcw, Play } from 'lucide-react'
+import { usePlatformSettings } from '../../lib/settings'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import type { Language } from '../../i18n'
@@ -13,6 +14,7 @@ const FREQUENCIES = [250, 500, 1000, 2000, 4000, 8000]
 
 export const TonalAudiometryEngine: React.FC<TonalAudiometryEngineProps> = ({ lang, onComplete }) => {
   const [freqIdx, setFreqIdx] = useState(0)
+  const [platformSettings, updatePlatformSetting] = usePlatformSettings()
   const [isPlaying, setIsPlaying] = useState(false)
   const [volumeLevel, setVolumeLevel] = useState(0.05) // starting quiet
   const [audiogram, setAudiogram] = useState<Record<number, number>>({})
@@ -99,6 +101,7 @@ export const TonalAudiometryEngine: React.FC<TonalAudiometryEngineProps> = ({ la
   }
 
   const playFrequency = (freq: number) => {
+    if (!platformSettings.soundEnabled) return
     stopCurrentTone()
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     if (!audioCtxRef.current) {
@@ -208,6 +211,28 @@ export const TonalAudiometryEngine: React.FC<TonalAudiometryEngineProps> = ({ la
           </span>
         )}
       </div>
+
+      {!platformSettings.soundEnabled && (
+        <div className="w-full mb-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-3 text-left">
+          <div className="flex items-center gap-2.5">
+            <VolumeX className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              {lang === 'tj'
+                ? 'Садо дар танзимоти платформа хомӯш карда шудааст'
+                : lang === 'en'
+                ? 'Audio is disabled in platform settings'
+                : 'Звуковое сопровождение отключено в настройках профиля'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => updatePlatformSetting('soundEnabled', true)}
+            className="px-3 py-1 text-[11px] font-bold bg-amber-500 text-slate-950 rounded-lg hover:bg-amber-400 transition-colors shrink-0 cursor-pointer"
+          >
+            {lang === 'tj' ? 'Фаъол кардан' : lang === 'en' ? 'Enable sound' : 'Включить звук'}
+          </button>
+        </div>
+      )}
 
       {!isActive && !isFinished && (
         <div className="w-full rounded-3xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/50 dark:bg-zinc-900/40 flex flex-col items-center justify-center p-8 text-center">

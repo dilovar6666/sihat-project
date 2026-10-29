@@ -22,6 +22,7 @@ import { NotificationsDrawer, type NotificationItem } from './components/Notific
 import { Footer } from './components/Footer'
 import { translations } from './i18n'
 import type { Language } from './i18n'
+import { getPlatformSettings } from './lib/settings'
 import {
   apiRequest,
   downloadPdfBlob,
@@ -670,8 +671,8 @@ export default function App() {
     try {
       await downloadPdfBlob(resultId, {
         include_result: true,
-        include_methodology: true,
-        include_limitations: true,
+        include_methodology: getPlatformSettings().pdfIncludeMethodology,
+        include_limitations: getPlatformSettings().pdfIncludeMethodology,
         include_answers: false,
         include_warnings: true,
         lang,

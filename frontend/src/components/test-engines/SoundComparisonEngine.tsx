@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Volume2, Play, RotateCcw, CheckCircle, Sparkles } from 'lucide-react'
+import { Volume2, VolumeX, Play, RotateCcw, CheckCircle, Sparkles } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { shuffleArray, type InteractiveEngineProps } from './engineTypes'
+import { usePlatformSettings } from '../../lib/settings'
 
 interface SoundTrial {
   id: string
@@ -56,6 +57,7 @@ export const SoundComparisonEngine: React.FC<InteractiveEngineProps> = ({
       : buildFallbackSoundTrials()
   )
   const [currentIdx, setCurrentIdx] = useState(0)
+  const [platformSettings, updatePlatformSetting] = usePlatformSettings()
   const [isPlaying, setIsPlaying] = useState(false)
   const [isActive, setIsActive] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
@@ -150,6 +152,7 @@ export const SoundComparisonEngine: React.FC<InteractiveEngineProps> = ({
   }
 
   const playTone = (freq: number, startTime: number, durationSec: number) => {
+    if (!platformSettings.soundEnabled) return
     try {
       const ctx = getAudioContext()
       const osc = ctx.createOscillator()
@@ -280,7 +283,30 @@ export const SoundComparisonEngine: React.FC<InteractiveEngineProps> = ({
         <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto leading-relaxed">
           {t.subtitle}
         </p>
+
       </div>
+
+      {!platformSettings.soundEnabled && (
+        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-3 text-left max-w-md mx-auto w-full">
+          <div className="flex items-center gap-2.5">
+            <VolumeX className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              {lang === 'tj'
+                ? 'Садо дар танзимоти платформа хомӯш карда шудааст'
+                : lang === 'en'
+                ? 'Audio is disabled in platform settings'
+                : 'Звуковое сопровождение отключено в настройках профиля'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => updatePlatformSetting('soundEnabled', true)}
+            className="px-3 py-1 text-[11px] font-bold bg-amber-500 text-slate-950 rounded-lg hover:bg-amber-400 transition-colors shrink-0 cursor-pointer"
+          >
+            {lang === 'tj' ? 'Фаъол кардан' : lang === 'en' ? 'Enable' : 'Включить'}
+          </button>
+        </div>
+      )}
 
       {!isActive ? (
         <div className="p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-5 shadow-md">

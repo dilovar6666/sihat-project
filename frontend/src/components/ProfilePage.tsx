@@ -35,6 +35,7 @@ import { PRESET_AVATARS } from './UserAvatar'
 import { apiRequest } from '../api'
 import type { Language } from '../i18n'
 import type { SavedResult, UserProfile } from '../types'
+import { usePlatformSettings } from '../lib/settings'
 import {
   ResultReportView,
   unwrapMetrics,
@@ -147,9 +148,83 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [attachingEmail, setAttachingEmail] = useState(false)
 
   // Settings Toggles
-  const [privacyShield, setPrivacyShield] = useState(true)
-  const [pdfIncludeMethodology, setPdfIncludeMethodology] = useState(true)
-  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [platformSettings, updatePlatformSetting] = usePlatformSettings()
+
+  const privacyShield = platformSettings.privacyShield
+  const pdfIncludeMethodology = platformSettings.pdfIncludeMethodology
+  const soundEnabled = platformSettings.soundEnabled
+
+  const handleTogglePrivacyShield = () => {
+    const nextVal = !platformSettings.privacyShield
+    updatePlatformSetting('privacyShield', nextVal)
+    if (nextVal) {
+      onNotify(
+        lang === 'tj'
+          ? 'Сабт танҳо бо розигӣ фаъол шуд: натиҷаҳо бе пахши «Сабт кардан» нигоҳ дошта намешаванд'
+          : lang === 'en'
+          ? 'Explicit consent save enabled: results will only save when you click Save'
+          : 'Сохранение только с явного согласия включено: результаты не попадут в базу без вашего нажатия',
+        'success'
+      )
+    } else {
+      onNotify(
+        lang === 'tj'
+          ? 'Сабти худкор фаъол шуд: натиҷаҳои машқҳо пас аз анҷом ба таври худкор сабт мешаванд'
+          : lang === 'en'
+          ? 'Auto-save enabled: test results will automatically save to your personal archive'
+          : 'Автосохранение включено: завершённые тесты будут автоматически записываться в архив',
+        'info'
+      )
+    }
+  }
+
+  const handleTogglePdfMethodology = () => {
+    const nextVal = !platformSettings.pdfIncludeMethodology
+    updatePlatformSetting('pdfIncludeMethodology', nextVal)
+    if (nextVal) {
+      onNotify(
+        lang === 'tj'
+          ? 'Шиносномаи методӣ ва маҳдудиятҳо ба протоколи PDF дохил карда мешаванд'
+          : lang === 'en'
+          ? 'Methodology passport and equipment constraints will be included in exported PDFs'
+          : 'Паспорт методики и ограничения оборудования будут включаться в скачиваемый PDF-отчёт',
+        'success'
+      )
+    } else {
+      onNotify(
+        lang === 'tj'
+          ? 'Ҳолати мухтасар: шиносномаи методӣ аз протоколи PDF хориҷ карда шуд'
+          : lang === 'en'
+          ? 'Compact mode: methodology passport and constraints excluded from exported PDFs'
+          : 'Компактный режим: паспорт методики и ограничения исключены из PDF-отчёта',
+        'info'
+      )
+    }
+  }
+
+  const handleToggleSound = () => {
+    const nextVal = !platformSettings.soundEnabled
+    updatePlatformSetting('soundEnabled', nextVal)
+    if (nextVal) {
+      onNotify(
+        lang === 'tj'
+          ? 'Садо ва синтези сигналҳо дар машқҳои шунавоӣ фаъол шуд'
+          : lang === 'en'
+          ? 'Sound synthesis and audio signals enabled in hearing exercises'
+          : 'Звуковое сопровождение и синтез аудиосигналов в тестах на слух включены',
+        'success'
+      )
+    } else {
+      onNotify(
+        lang === 'tj'
+          ? 'Садо хомӯш карда шуд (ҳолати бесадои машқҳо)'
+          : lang === 'en'
+          ? 'Sound muted in hearing exercises (silent mode)'
+          : 'Звуковое сопровождение отключено (тихий режим упражнений)',
+        'info'
+      )
+    }
+  }
 
   // Security password reset
   const [resettingPassword, setResettingPassword] = useState(false)
@@ -1639,7 +1714,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setPrivacyShield(!privacyShield)}
+                    role="switch"
+                    aria-checked={privacyShield}
+                    aria-label={t.privacyShieldTitle}
+                    onClick={handleTogglePrivacyShield}
                     className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
                       privacyShield ? 'bg-[#17A884]' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
@@ -1661,7 +1739,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setPdfIncludeMethodology(!pdfIncludeMethodology)}
+                    role="switch"
+                    aria-checked={pdfIncludeMethodology}
+                    aria-label={t.pdfMethodTitle}
+                    onClick={handleTogglePdfMethodology}
                     className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
                       pdfIncludeMethodology ? 'bg-[#17A884]' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
@@ -1683,7 +1764,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setSoundEnabled(!soundEnabled)}
+                    role="switch"
+                    aria-checked={soundEnabled}
+                    aria-label={t.soundTitle}
+                    onClick={handleToggleSound}
                     className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
                       soundEnabled ? 'bg-[#17A884]' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
