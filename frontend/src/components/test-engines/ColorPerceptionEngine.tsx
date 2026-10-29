@@ -4,6 +4,14 @@ import {
   RotateCcw,
   SunMedium,
   Sparkles,
+  Circle,
+  Square,
+  Triangle,
+  Star,
+  Diamond,
+  Plus,
+  Heart,
+  EyeOff,
 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
@@ -368,6 +376,35 @@ export const ColorPerceptionEngine: React.FC<InteractiveEngineProps> = ({
     shapeLabels: {} as Record<string, string>,
   }
 
+  // Visual choices (filter out 'none' to keep exactly 3 top choices)
+  const visualOptions = useMemo(() => {
+    return (currentPlate.options || []).filter((opt) => opt !== 'none')
+  }, [currentPlate])
+
+  const renderShapeIcon = (opt: string) => {
+    const s = opt.toLowerCase()
+    const iconClass =
+      'w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform duration-200'
+    switch (s) {
+      case 'circle':
+        return <Circle className={iconClass} />
+      case 'square':
+        return <Square className={iconClass} />
+      case 'triangle':
+        return <Triangle className={iconClass} />
+      case 'star':
+        return <Star className={iconClass} />
+      case 'diamond':
+        return <Diamond className={iconClass} />
+      case 'cross':
+        return <Plus className={iconClass} />
+      case 'heart':
+        return <Heart className={iconClass} />
+      default:
+        return null
+    }
+  }
+
   const getOptionLabel = useCallback(
     (opt: string) => {
       if (opt === 'none') return t.noneOption
@@ -423,25 +460,23 @@ export const ColorPerceptionEngine: React.FC<InteractiveEngineProps> = ({
     [answers, currentIndex, currentPlate.id, lang, onComplete, plates, startTime, totalPlates]
   )
 
-  // Keyboard shortcut listener (1..5)
+  // Keyboard shortcut listener (1..3 for choices, 0 or Space for "none")
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!currentPlate?.options) return
-      const opts = currentPlate.options
       const key = e.key
-      if (key >= '1' && key <= String(opts.length)) {
+      if (key >= '1' && key <= '3') {
         const idx = parseInt(key, 10) - 1
-        if (opts[idx]) {
-          handleSelectOption(opts[idx])
+        if (visualOptions[idx]) {
+          handleSelectOption(visualOptions[idx])
         }
       } else if (key === '0' || key === ' ') {
-        const noneOpt = opts.find((o) => o === 'none')
-        if (noneOpt) handleSelectOption(noneOpt)
+        e.preventDefault()
+        handleSelectOption('none')
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentPlate, handleSelectOption])
+  }, [handleSelectOption, visualOptions])
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
@@ -498,37 +533,61 @@ export const ColorPerceptionEngine: React.FC<InteractiveEngineProps> = ({
 
       {/* Main Plate Presentation */}
       <Card className="p-8 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xl flex flex-col items-center">
-        <div className="my-2 relative flex items-center justify-center">
-          <PseudoisochromaticCanvas plate={currentPlate} size={280} />
+        <div className="my-2 relative flex items-center justify-center p-3 rounded-full bg-slate-100/50 dark:bg-slate-800/30 border border-slate-200/50 dark:border-slate-700/50 shadow-inner">
+          <PseudoisochromaticCanvas plate={currentPlate} size={300} />
         </div>
 
         <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-6 mb-4 text-center">
           {t.question}
         </p>
 
-        {/* Options grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-md">
-          {currentPlate.options.map((opt, i) => {
-            const isNone = opt === 'none'
+        {/* 3 Visual Options on top */}
+        <div className="grid grid-cols-3 gap-3 w-full max-w-lg">
+          {visualOptions.map((opt, i) => {
+            const shapeIcon = renderShapeIcon(opt)
+            const label = getOptionLabel(opt)
+
             return (
               <button
                 key={opt}
                 type="button"
                 onClick={() => handleSelectOption(opt)}
-                className={`py-3.5 px-4 rounded-2xl font-bold text-base transition-all duration-200 border text-center flex flex-col items-center justify-center gap-1 shadow-sm active:scale-95 ${
-                  isNone
-                    ? 'col-span-2 sm:col-span-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300'
-                    : 'bg-white hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-emerald-950/30 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white hover:border-emerald-500 dark:hover:border-emerald-500/70 hover:shadow-emerald-500/10'
-                }`}
+                className="group relative flex flex-col items-center justify-center p-3 rounded-2xl bg-white dark:bg-slate-800/90 border-2 border-slate-200/90 dark:border-slate-700 hover:border-emerald-500/80 dark:hover:border-emerald-500 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 shadow-xs hover:shadow-md hover:shadow-emerald-500/10 active:scale-[0.97] transition-all duration-200 cursor-pointer min-h-[84px] sm:min-h-[94px]"
               >
-                <span className="text-lg">{getOptionLabel(opt)}</span>
-                <span className="text-[10px] text-slate-400 font-normal">
-                  {isNone ? '[0 / Space]' : `[${i + 1}]`}
+                {shapeIcon ? (
+                  <>
+                    <div className="mb-1">{shapeIcon}</div>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 text-center leading-tight tracking-tight break-words px-1 max-w-full">
+                      {label}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 group-hover:scale-105 transition-transform">
+                    {opt}
+                  </span>
+                )}
+                <span className="mt-1 text-[10px] font-mono font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/60 px-1.5 py-0.5 rounded">
+                  [{i + 1}]
                 </span>
               </button>
             )
           })}
         </div>
+
+        {/* Dedicated "Ничего не вижу" at the VERY BOTTOM */}
+        <button
+          type="button"
+          onClick={() => handleSelectOption('none')}
+          className="w-full max-w-lg mt-3 py-3 px-4 rounded-2xl border border-dashed border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600 bg-slate-50/80 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all duration-200 shadow-xs flex items-center justify-between gap-3 active:scale-[0.99] cursor-pointer"
+        >
+          <div className="flex items-center gap-2">
+            <EyeOff className="w-4 h-4 text-slate-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold">{t.noneOption}</span>
+          </div>
+          <span className="text-[10px] sm:text-[11px] font-mono font-medium text-slate-400 dark:text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-md shadow-xs">
+            [0 / Space]
+          </span>
+        </button>
       </Card>
     </div>
   )
