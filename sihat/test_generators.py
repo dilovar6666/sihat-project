@@ -1,508 +1,1203 @@
-"""Server-side dynamic test challenge generator and scoring engine for SIHAT.
+"""Server-side task generator and scoring engine for SIHAT interactive exercises.
 
-Generates individualized, non-repeating test configurations using cryptographic/random seeds,
-stores snapshot in attempt record, and validates responses on the server.
+Every attempt receives a freshly generated task variant.  The full task (including data
+that must not be shown to the browser) is stored in the attempt snapshot as
+``{"seed", "public", "private"}``.  Only ``public`` is sent to the client.  When an attempt
+is completed, the browser sends an *event log* (clicks, taps, answers, cursor samples) and
+the server replays that log against the stored task.  Nothing the browser claims about its
+own score is trusted: results are recomputed here.
+
+The exercises are educational self-observation tools.  No clinical norms, cut-offs or
+diagnostic bands are produced; results are meant to be compared with the user's own
+previous attempts.
 """
 
 from __future__ import annotations
 
+import math
 import random
+import secrets
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
+
+RESULT_VERSION = 2
+
+
+class TelemetryError(ValueError):
+    """Raised when a submitted event log is missing, malformed or impossible."""
+
+
+# --------------------------------------------------------------------------- helpers
+
+
+def _num(value: Any, name: str, lo: float, hi: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise TelemetryError(f"{name} must be a number")
+    if not math.isfinite(value) or not lo <= value <= hi:
+        raise TelemetryError(f"{name} is out of range")
+    return float(value)
+
+
+def _list(value: Any, name: str, max_len: int, min_len: int = 0) -> list[Any]:
+    if not isinstance(value, list):
+        raise TelemetryError(f"{name} must be a list")
+    if len(value) > max_len or len(value) < min_len:
+        raise TelemetryError(f"{name} has an invalid length")
+    return value
+
+
+def _obj(value: Any, name: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise TelemetryError(f"{name} must be an object")
+    return value
+
+
+def _by_id(value: Any, name: str, max_len: int, min_len: int = 1) -> dict[Any, dict[str, Any]]:
+    return {_obj(r, name).get("id"): _obj(r, name) for r in _list(value, name, max_len, min_len)}
+
+
+def _pct(part: float, whole: float) -> float:
+    return round(100.0 * part / whole, 1) if whole else 0.0
+
+
+def _mean(values: list[float]) -> float:
+    return sum(values) / len(values) if values else 0.0
+
+
+def _sd(values: list[float]) -> float:
+    if len(values) < 2:
+        return 0.0
+    m = _mean(values)
+    return math.sqrt(sum((v - m) ** 2 for v in values) / (len(values) - 1))
+
+
+def _median(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    return ordered[mid] if len(ordered) % 2 else (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def _downsample(items: list[Any], limit: int) -> list[Any]:
+    if len(items) <= limit:
+        return items
+    step = len(items) / limit
+    return [items[int(i * step)] for i in range(limit)]
+
+
+def _no_adjacent_repeats(rng: random.Random, length: int, pool: list[int]) -> list[int]:
+    out: list[int] = []
+    while len(out) < length:
+        candidate = rng.choice(pool)
+        if not out or candidate != out[-1]:
+            out.append(candidate)
+    return out
+
+
+def _seg_dist(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
+    dx, dy = bx - ax, by - ay
+    length_sq = dx * dx + dy * dy
+    if length_sq == 0:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length_sq))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def _polyline_distance(px: float, py: float, poly: list[dict[str, float]], aspect: float) -> float:
+    best = math.inf
+    for a, b in zip(poly, poly[1:], strict=False):
+        best = min(
+            best,
+            _seg_dist(px * aspect, py, a["x"] * aspect, a["y"], b["x"] * aspect, b["y"]),
+        )
+    return best
+
+
+def _samples(tel: dict[str, Any], duration_ms: float) -> list[tuple[float, float, float]]:
+    raw = _list(tel.get("samples"), "samples", 9000, 1)
+    out: list[tuple[float, float, float]] = []
+    last_t = -1.0
+    for item in raw:
+        row = _obj(item, "sample")
+        t = _num(row.get("t"), "t", 0, duration_ms + 5000)
+        x = _num(row.get("x"), "x", -0.2, 1.2)
+        y = _num(row.get("y"), "y", -0.2, 1.2)
+        if t < last_t:
+            raise TelemetryError("samples must be ordered in time")
+        last_t = t
+        out.append((t, x, y))
+    return out
+
+
+# --------------------------------------------------------------------------- Schulte
+
+
+def _gen_schulte(rng: random.Random) -> tuple[dict, dict]:
+    grid = list(range(1, 26))
+    rng.shuffle(grid)
+    return {"type": "schulte", "size": 5, "grid": grid}, {}
+
+
+def _score_schulte(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    clicks = _list(tel.get("clicks"), "clicks", 600, 25)
+    expected, errors, last_t = 1, 0, 0.0
+    splits: list[float] = []
+    prev = -1.0
+    for item in clicks:
+        row = _obj(item, "click")
+        value = int(_num(row.get("v"), "v", 1, 25))
+        t = _num(row.get("t"), "t", 0, 900_000)
+        if t < prev:
+            raise TelemetryError("clicks must be ordered in time")
+        prev = t
+        if value == expected:
+            splits.append(round(t - last_t))
+            last_t = t
+            expected += 1
+            if expected > 25:
+                break
+        else:
+            errors += 1
+    if expected <= 25:
+        raise TelemetryError("The grid was not completed")
+    if last_t < 4000:
+        raise TelemetryError("Result is implausibly fast")
+    metrics = {
+        "total_time_sec": round(last_t / 1000, 2),
+        "errors_count": errors,
+        "average_step_ms": round(last_t / 25),
+        "accuracy_pct": _pct(25, 25 + errors),
+        "first_half_sec": round(sum(splits[:12]) / 1000, 2),
+        "second_half_sec": round(sum(splits[13:]) / 1000, 2),
+    }
+    return metrics, {"step_times_ms": splits}
+
+
+# --------------------------------------------------------------------------- Trail switching
+
+_TRAIL_A = [str(n) for n in range(1, 9)]
+_TRAIL_B = ["1", "A", "2", "B", "3", "C", "4", "D"]
+
+
+def _trail_nodes(rng: random.Random, labels: list[str]) -> list[dict]:
+    nodes: list[dict] = []
+    min_dist = 19.0
+    for label in labels:
+        placed = False
+        for attempt in range(400):
+            d = min_dist if attempt < 300 else min_dist * 0.7
+            x, y = rng.uniform(10, 90), rng.uniform(14, 86)
+            if all(math.hypot(x - n["x"], y - n["y"]) >= d for n in nodes):
+                nodes.append({"id": label, "x": round(x, 1), "y": round(y, 1)})
+                placed = True
+                break
+        if not placed:
+            nodes.append({"id": label, "x": round(rng.uniform(10, 90), 1), "y": 50.0})
+    rng.shuffle(nodes)
+    return nodes
+
+
+def _gen_trail(rng: random.Random) -> tuple[dict, dict]:
+    parts = [
+        {"id": "A", "sequence": _TRAIL_A, "nodes": _trail_nodes(rng, _TRAIL_A)},
+        {"id": "B", "sequence": _TRAIL_B, "nodes": _trail_nodes(rng, _TRAIL_B)},
+    ]
+    return {"type": "trail", "parts": parts}, {}
+
+
+def _replay_trail(clicks: list[Any], sequence: list[str]) -> tuple[float, int, list[float]]:
+    idx, errors, last_t, prev = 0, 0, 0.0, -1.0
+    splits: list[float] = []
+    for item in clicks:
+        row = _obj(item, "click")
+        node = row.get("id")
+        t = _num(row.get("t"), "t", 0, 900_000)
+        if t < prev:
+            raise TelemetryError("clicks must be ordered in time")
+        prev = t
+        if node == sequence[idx]:
+            splits.append(round(t - last_t))
+            last_t = t
+            idx += 1
+            if idx == len(sequence):
+                return last_t, errors, splits
+        else:
+            errors += 1
+    raise TelemetryError("The trail was not completed")
+
+
+def _score_trail(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    parts = _obj(tel.get("parts"), "parts")
+    out: dict[str, tuple[float, int, list[float]]] = {}
+    for part in public["parts"]:
+        data = _obj(parts.get(part["id"]), f"part {part['id']}")
+        out[part["id"]] = _replay_trail(
+            _list(data.get("clicks"), "clicks", 300, len(part["sequence"])), part["sequence"]
+        )
+    a_ms, a_err, a_steps = out["A"]
+    b_ms, b_err, b_steps = out["B"]
+    if a_ms < 1500 or b_ms < 1500:
+        raise TelemetryError("Result is implausibly fast")
+    metrics = {
+        "part_a_sec": round(a_ms / 1000, 2),
+        "part_b_sec": round(b_ms / 1000, 2),
+        "switching_cost_sec": round((b_ms - a_ms) / 1000, 2),
+        "errors_a": a_err,
+        "errors_b": b_err,
+        "errors_count": a_err + b_err,
+        "accuracy_pct": _pct(16, 16 + a_err + b_err),
+    }
+    return metrics, {"step_times_a_ms": a_steps, "step_times_b_ms": b_steps}
+
+
+# --------------------------------------------------------------------------- Corsi blocks
+
+
+def _gen_corsi(rng: random.Random) -> tuple[dict, dict]:
+    blocks = []
+    for idx in range(9):
+        c, r = idx % 3, idx // 3
+        blocks.append(
+            {
+                "id": idx,
+                "x": round(16 + c * 34 + rng.uniform(-6, 6), 1),
+                "y": round(16 + r * 34 + rng.uniform(-6, 6), 1),
+            }
+        )
+    trials = []
+    for length in range(3, 10):
+        for n in (1, 2):
+            sequence = _no_adjacent_repeats(rng, length, list(range(9)))
+            trials.append({"id": f"{length}-{n}", "length": length, "sequence": sequence})
+    return {"type": "corsi", "blocks": blocks, "trials": trials}, {}
+
+
+def _score_corsi(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    responses = _by_id(tel.get("responses"), "response", 40)
+    by_length: dict[int, list[bool]] = {}
+    attempted = passed = 0
+    for trial in public["trials"]:
+        length = trial["length"]
+        results = by_length.setdefault(length, [])
+        if not results and by_length.get(length - 1) and not any(by_length[length - 1]):
+            break
+        response = responses.get(trial["id"])
+        if response is None:
+            break
+        taps = _list(response.get("taps"), "taps", 30)
+        ok = [t for t in taps if isinstance(t, int)] == trial["sequence"]
+        results.append(ok)
+        attempted += 1
+        passed += int(ok)
+    if attempted == 0:
+        raise TelemetryError("No trials were recorded")
+    max_span = max((length for length, res in by_length.items() if any(res)), default=0)
+    series = [
+        {"length": length, "passed": sum(res), "of": len(res)}
+        for length, res in sorted(by_length.items())
+        if res
+    ]
+    metrics = {
+        "max_span": max_span,
+        "trials_passed": passed,
+        "trials_attempted": attempted,
+        "accuracy_pct": _pct(passed, attempted),
+    }
+    return metrics, {"by_length": series}
+
+
+# --------------------------------------------------------------------------- Digit span
+
+
+def _gen_digit_span(rng: random.Random) -> tuple[dict, dict]:
+    def trials(prefix: str, lengths: range) -> list[dict]:
+        out = []
+        for length in lengths:
+            for n in (1, 2):
+                digits = _no_adjacent_repeats(rng, length, list(range(1, 10)))
+                out.append({"id": f"{prefix}{length}-{n}", "length": length, "digits": digits})
+        return out
+
+    return {
+        "type": "digit_span",
+        "forward": trials("f", range(3, 10)),
+        "backward": trials("b", range(2, 9)),
+    }, {}
+
+
+def _score_span_mode(
+    trials: list[dict], responses: dict, reverse: bool
+) -> tuple[int, int, int, list]:
+    by_length: dict[int, list[bool]] = {}
+    attempted = passed = 0
+    for trial in trials:
+        length = trial["length"]
+        results = by_length.setdefault(length, [])
+        if not results and by_length.get(length - 1) and not any(by_length[length - 1]):
+            break
+        response = responses.get(trial["id"])
+        if response is None:
+            break
+        answer = [d for d in _list(response.get("answer"), "answer", 20) if isinstance(d, int)]
+        expected = list(reversed(trial["digits"])) if reverse else trial["digits"]
+        ok = answer == expected
+        results.append(ok)
+        attempted += 1
+        passed += int(ok)
+    span = max((length for length, res in by_length.items() if any(res)), default=0)
+    series = [
+        {"length": length, "passed": sum(res), "of": len(res)}
+        for length, res in sorted(by_length.items())
+        if res
+    ]
+    return span, attempted, passed, series
+
+
+def _score_digit_span(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    responses = _by_id(tel.get("responses"), "response", 60)
+    f_span, f_att, f_ok, f_series = _score_span_mode(public["forward"], responses, False)
+    b_span, b_att, b_ok, b_series = _score_span_mode(public["backward"], responses, True)
+    if f_att + b_att == 0:
+        raise TelemetryError("No trials were recorded")
+    metrics = {
+        "forward_span": f_span,
+        "backward_span": b_span,
+        "trials_passed": f_ok + b_ok,
+        "trials_attempted": f_att + b_att,
+        "accuracy_pct": _pct(f_ok + b_ok, f_att + b_att),
+    }
+    return metrics, {"forward": f_series, "backward": b_series}
+
+
+# --------------------------------------------------------------------------- Symbol-digit
+
+_SYMBOLS = ["circle", "square", "triangle", "diamond", "cross", "star", "hexagon", "bars", "ring"]
+_SD_LIMIT_SEC = 90
+
+
+def _gen_symbol_digit(rng: random.Random) -> tuple[dict, dict]:
+    digits = list(range(1, 10))
+    rng.shuffle(digits)
+    key = [{"symbol": s, "digit": d} for s, d in zip(_SYMBOLS, digits, strict=True)]
+    prompts = _no_adjacent_repeats(rng, 140, list(range(9)))
+    return {
+        "type": "symbol_digit",
+        "key": key,
+        "prompts": [_SYMBOLS[i] for i in prompts],
+        "time_limit_sec": _SD_LIMIT_SEC,
+    }, {}
+
+
+def _score_symbol_digit(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    mapping = {k["symbol"]: k["digit"] for k in public["key"]}
+    limit_ms = public["time_limit_sec"] * 1000
+    responses = _list(tel.get("responses"), "responses", 400, 5)
+    correct = errors = 0
+    bins = [0] * 6
+    prev_t = -1.0
+    for index, item in enumerate(responses):
+        if index >= len(public["prompts"]):
+            break
+        row = _obj(item, "response")
+        if int(_num(row.get("i"), "i", 0, 10_000)) != index:
+            raise TelemetryError("responses must be sequential")
+        t = _num(row.get("t"), "t", 0, limit_ms + 5000)
+        if t < prev_t:
+            raise TelemetryError("responses must be ordered in time")
+        prev_t = t
+        if t > limit_ms + 500:
+            break
+        digit = int(_num(row.get("d"), "d", 0, 9))
+        if digit == mapping[public["prompts"][index]]:
+            correct += 1
+            bins[min(5, int(t // 15000))] += 1
+        else:
+            errors += 1
+    attempted = correct + errors
+    metrics = {
+        "correct_count": correct,
+        "errors_count": errors,
+        "items_attempted": attempted,
+        "accuracy_pct": _pct(correct, attempted),
+        "speed_per_minute": round(correct * 60 / public["time_limit_sec"], 1),
+    }
+    return metrics, {"correct_per_15s": bins}
+
+
+# --------------------------------------------------------------------------- Contrast
+
+_CONTRAST_LEVELS = [60.0, 40.0, 28.0, 20.0, 14.0, 10.0, 7.0, 5.0, 3.5, 2.5]
+
+
+def _gen_contrast(rng: random.Random) -> tuple[dict, dict]:
+    trials = []
+    for level in _CONTRAST_LEVELS:
+        for n in (1, 2):
+            trials.append(
+                {
+                    "id": f"{level}-{n}",
+                    "contrast_pct": level,
+                    "tilt": rng.choice(["left", "right"]),
+                    "phase": round(rng.uniform(0, 6.28), 2),
+                }
+            )
+    return {"type": "contrast", "trials": trials}, {}
+
+
+def _score_contrast(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    responses = _by_id(tel.get("responses"), "response", 40, 2)
+    per_level: dict[float, list[bool]] = {}
+    attempted = correct = 0
+    for trial in public["trials"]:
+        level = trial["contrast_pct"]
+        results = per_level.setdefault(level, [])
+        index = _CONTRAST_LEVELS.index(level)
+        if index > 0:
+            previous = per_level.get(_CONTRAST_LEVELS[index - 1], [])
+            if len(previous) == 2 and not any(previous):
+                break
+        response = responses.get(trial["id"])
+        if response is None:
+            break
+        ok = response.get("answer") == trial["tilt"]
+        results.append(ok)
+        attempted += 1
+        correct += int(ok)
+    if attempted == 0:
+        raise TelemetryError("No trials were recorded")
+    reliable = [lvl for lvl, res in per_level.items() if len(res) == 2 and all(res)]
+    metrics = {
+        "threshold_contrast_pct": min(reliable) if reliable else None,
+        "levels_passed": len(reliable),
+        "trials_correct": correct,
+        "trials_attempted": attempted,
+        "accuracy_pct": _pct(correct, attempted),
+    }
+    series = [
+        {"contrast_pct": lvl, "correct": sum(res), "of": len(res)}
+        for lvl, res in per_level.items()
+        if res
+    ]
+    return metrics, {"by_level": series}
+
+
+# --------------------------------------------------------------------------- Visual pairs
+
+_ICONS = [
+    "heart", "star", "sun", "moon", "zap", "shield", "leaf",
+    "cloud", "flame", "anchor", "bell", "key", "flag", "music", "droplet", "gem",
+]  # fmt: skip
+
+
+def _gen_visual_pairs(rng: random.Random) -> tuple[dict, dict]:
+    chosen = rng.sample(_ICONS, 6)
+    symbols = chosen * 2
+    rng.shuffle(symbols)
+    return {
+        "type": "visual_pairs",
+        "cards": [{"id": i, "symbol": s} for i, s in enumerate(symbols)],
+    }, {}
+
+
+def _score_visual_pairs(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    symbols = {c["id"]: c["symbol"] for c in public["cards"]}
+    flips = _list(tel.get("flips"), "flips", 600, 12)
+    matched: set[int] = set()
+    pending: int | None = None
+    moves = mismatches = 0
+    outcomes: list[bool] = []
+    last_t, prev = 0.0, -1.0
+    for item in flips:
+        row = _obj(item, "flip")
+        card = int(_num(row.get("card"), "card", 0, 11))
+        t = _num(row.get("t"), "t", 0, 1_800_000)
+        if t < prev:
+            raise TelemetryError("flips must be ordered in time")
+        prev = t
+        if card in matched or card == pending:
+            continue
+        if pending is None:
+            pending = card
+            continue
+        moves += 1
+        if symbols[pending] == symbols[card]:
+            matched.update({pending, card})
+            outcomes.append(True)
+        else:
+            mismatches += 1
+            outcomes.append(False)
+        pending = None
+        last_t = t
+        if len(matched) == len(symbols):
+            break
+    if len(matched) != len(symbols):
+        raise TelemetryError("Not all pairs were found")
+    metrics = {
+        "moves_count": moves,
+        "mismatches_count": mismatches,
+        "time_sec": round(last_t / 1000, 1),
+        "efficiency_pct": _pct(6, moves),
+    }
+    return metrics, {"move_outcomes": outcomes}
+
+
+# --------------------------------------------------------------------------- Path memory
+
+
+def _gen_path_memory(rng: random.Random) -> tuple[dict, dict]:
+    size = 4
+    trials = []
+    for number, steps in enumerate((4, 5, 6), start=1):
+        while True:
+            r, c = rng.randrange(size), rng.randrange(size)
+            path = [(r, c)]
+            while len(path) < steps:
+                options = [
+                    (r + dr, c + dc)
+                    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                    if 0 <= r + dr < size and 0 <= c + dc < size and (r + dr, c + dc) not in path
+                ]
+                if not options:
+                    break
+                r, c = rng.choice(options)
+                path.append((r, c))
+            if len(path) == steps:
+                break
+        trials.append({"id": f"p{number}", "path": [{"r": a, "c": b} for a, b in path]})
+    return {"type": "path_memory", "size": size, "trials": trials}, {}
+
+
+def _score_path_memory(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    responses = _by_id(tel.get("responses"), "response", 10)
+    trials_ok = steps_ok = steps_total = longest = 0
+    series = []
+    for trial in public["trials"]:
+        response = responses.get(trial["id"])
+        if response is None:
+            raise TelemetryError("Every route must be answered")
+        taps = _list(response.get("taps"), "taps", 30)
+        expected = trial["path"]
+        matches = 0
+        for tap, target in zip(taps, expected, strict=False):
+            row = _obj(tap, "tap")
+            if row.get("r") == target["r"] and row.get("c") == target["c"]:
+                matches += 1
+        full = matches == len(expected) and len(taps) == len(expected)
+        trials_ok += int(full)
+        steps_ok += matches
+        steps_total += len(expected)
+        if full:
+            longest = max(longest, len(expected))
+        series.append({"length": len(expected), "correct_steps": matches, "full": full})
+    metrics = {
+        "routes_correct": trials_ok,
+        "routes_total": len(public["trials"]),
+        "steps_correct": steps_ok,
+        "steps_total": steps_total,
+        "longest_route": longest,
+        "accuracy_pct": _pct(steps_ok, steps_total),
+    }
+    return metrics, {"by_route": series}
+
+
+# --------------------------------------------------------------------------- Pattern sequence
+
+_SHAPES = ["circle", "square", "triangle", "diamond", "hexagon"]
+_FILLS = ["#17A884", "#3B82F6", "#8B5CF6", "#F59E0B"]
+
+
+def _stim(**kw: Any) -> dict:
+    base = {
+        "shape": "circle",
+        "rotation": 0,
+        "count": 1,
+        "fill": "#17A884",
+        "size": 1.0,
+        "solid": True,
+    }
+    base.update(kw)
+    return base
+
+
+def _pattern_cycle(rng: random.Random) -> tuple[list, list, dict, str]:
+    a, b, c, d = rng.sample(_SHAPES, 4)
+    fill = rng.choice(_FILLS)
+    seq = [_stim(shape=s, fill=fill) for s in (a, b, c, a, b)]
+    correct = _stim(shape=c, fill=fill)
+    wrong = [_stim(shape=a, fill=fill), _stim(shape=b, fill=fill), _stim(shape=d, fill=fill)]
+    return seq, wrong, correct, "cycle"
+
+
+def _pattern_rotation(rng: random.Random) -> tuple[list, list, dict, str]:
+    step = rng.choice([45, 90, -45, -90])
+    start = rng.choice(range(0, 360, 45))
+    fill = rng.choice(_FILLS)
+
+    def rot(k: int) -> int:
+        return (start + k * step) % 360
+
+    seq = [_stim(shape="triangle", rotation=rot(k), fill=fill) for k in range(5)]
+    correct = _stim(shape="triangle", rotation=rot(5), fill=fill)
+    taken = {rot(5)}
+    wrong: list[dict] = []
+    for candidate in (rot(4), rot(6), rot(5) + 45, rot(5) - 45, rot(3), rot(7)):
+        cand = candidate % 360
+        if cand not in taken:
+            taken.add(cand)
+            wrong.append(_stim(shape="triangle", rotation=cand, fill=fill))
+        if len(wrong) == 3:
+            break
+    return seq, wrong, correct, "rotation"
+
+
+def _pattern_count(rng: random.Random) -> tuple[list, list, dict, str]:
+    step = rng.choice([1, 2])
+    start = rng.choice([1, 2])
+    fill = rng.choice(_FILLS)
+    seq = [_stim(count=start + k * step, fill=fill) for k in range(5)]
+    answer = start + 5 * step
+    correct = _stim(count=answer, fill=fill)
+    wrong_counts: list[int] = []
+    for n in (answer - 1, answer + 1, answer - step, answer + step + 1, answer + 2):
+        if n >= 1 and n != answer and n not in wrong_counts:
+            wrong_counts.append(n)
+    return seq, [_stim(count=n, fill=fill) for n in wrong_counts[:3]], correct, "count"
+
+
+def _pattern_alternate(rng: random.Random) -> tuple[list, list, dict, str]:
+    shape = rng.choice(_SHAPES)
+    other = rng.choice([s for s in _SHAPES if s != shape])
+    fill_a, fill_b = rng.sample(_FILLS, 2)
+    one = _stim(shape=shape, fill=fill_a, size=1.0, solid=True)
+    two = _stim(shape=shape, fill=fill_b, size=0.62, solid=False)
+    seq = [one, two, one, two, one]
+    wrong = [
+        one,
+        _stim(shape=shape, fill=fill_b, size=1.0, solid=False),
+        _stim(shape=other, fill=fill_b, size=0.62, solid=False),
+    ]
+    return seq, wrong, two, "alternate"
+
+
+_PATTERN_FAMILIES = [_pattern_cycle, _pattern_rotation, _pattern_count, _pattern_alternate]
+
+
+def _gen_pattern(rng: random.Random) -> tuple[dict, dict]:
+    order = _PATTERN_FAMILIES + rng.sample(_PATTERN_FAMILIES, 2)
+    rng.shuffle(order)
+    items, correct_map, rules = [], {}, {}
+    for number, family in enumerate(order, start=1):
+        seq, wrong, correct, rule = family(rng)
+        options = [{"id": "x", "stim": correct}] + [
+            {"id": f"w{i}", "stim": w} for i, w in enumerate(wrong)
+        ]
+        rng.shuffle(options)
+        for i, option in enumerate(options):
+            if option["id"] == "x":
+                correct_map[f"i{number}"] = f"o{i}"
+            option["id"] = f"o{i}"
+        items.append({"id": f"i{number}", "sequence": seq, "options": options})
+        rules[f"i{number}"] = rule
+    return {"type": "pattern", "items": items}, {"correct": correct_map, "rules": rules}
+
+
+def _score_pattern(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    answers = _by_id(tel.get("answers"), "answer", 20)
+    correct = 0
+    per_rule: dict[str, list[int]] = {}
+    times: list[float] = []
+    for item in public["items"]:
+        answer = answers.get(item["id"])
+        if answer is None:
+            raise TelemetryError("Every item must be answered")
+        ok = answer.get("option") == private["correct"][item["id"]]
+        correct += int(ok)
+        bucket = per_rule.setdefault(private["rules"][item["id"]], [0, 0])
+        bucket[0] += int(ok)
+        bucket[1] += 1
+        t = answer.get("t")
+        if isinstance(t, int | float) and not isinstance(t, bool) and 0 <= t <= 600_000:
+            times.append(round(t / 1000, 1))
+    total = len(public["items"])
+    metrics = {
+        "correct_count": correct,
+        "total_items": total,
+        "errors_count": total - correct,
+        "accuracy_pct": _pct(correct, total),
+        "mean_item_sec": round(_mean(times), 1) if times else None,
+    }
+    series = {
+        "by_rule": [{"rule": r, "correct": v[0], "of": v[1]} for r, v in per_rule.items()],
+        "item_times_sec": times,
+    }
+    return metrics, series
+
+
+# --------------------------------------------------------------------------- Sound comparison
+
+_DELTAS_PCT = [9.0, 6.0, 4.0, 2.8, 1.8, 1.2]
+
+
+def _gen_sound_compare(rng: random.Random) -> tuple[dict, dict]:
+    trials, answers = [], {}
+    specs: list[tuple[float, str]] = []
+    for delta in _DELTAS_PCT:
+        specs.append((delta, "higher"))
+        specs.append((delta, "lower"))
+    specs += [(0.0, "same"), (0.0, "same")]
+    rng.shuffle(specs)
+    for number, (delta, kind) in enumerate(specs, start=1):
+        base = rng.randrange(500, 1600, 10)
+        second = base
+        if kind == "higher":
+            second = round(base * (1 + delta / 100))
+        elif kind == "lower":
+            second = round(base * (1 - delta / 100))
+        swap = kind != "same" and rng.random() < 0.5
+        first_tone, second_tone = (second, base) if swap else (base, second)
+        truth = kind
+        if swap:
+            truth = "lower" if kind == "higher" else "higher"
+        tid = f"s{number}"
+        trials.append(
+            {"id": tid, "freq_a": first_tone, "freq_b": second_tone, "tone_ms": 650, "gap_ms": 450}
+        )
+        answers[tid] = {"answer": truth, "delta": delta}
+    return {"type": "sound_compare", "trials": trials}, {"answers": answers}
+
+
+def _score_sound_compare(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    given = {k: v.get("answer") for k, v in _by_id(tel.get("answers"), "answer", 40).items()}
+    correct = same_ok = same_total = 0
+    per_delta: dict[float, list[int]] = {}
+    for trial in public["trials"]:
+        if trial["id"] not in given:
+            raise TelemetryError("Every pair must be answered")
+        truth = private["answers"][trial["id"]]
+        ok = given[trial["id"]] == truth["answer"]
+        correct += int(ok)
+        if truth["answer"] == "same":
+            same_total += 1
+            same_ok += int(ok)
+        else:
+            bucket = per_delta.setdefault(truth["delta"], [0, 0])
+            bucket[0] += int(ok)
+            bucket[1] += 1
+    total = len(public["trials"])
+    reliable = [d for d, v in per_delta.items() if v[0] == v[1]]
+    metrics = {
+        "correct_count": correct,
+        "total_trials": total,
+        "accuracy_pct": _pct(correct, total),
+        "smallest_reliable_delta_pct": min(reliable) if reliable else None,
+        "same_pairs_correct": same_ok,
+        "same_pairs_total": same_total,
+    }
+    series = {
+        "by_delta": [
+            {"delta_pct": d, "correct": v[0], "of": v[1]} for d, v in sorted(per_delta.items())
+        ]
+    }
+    return metrics, series
+
+
+# --------------------------------------------------------------------------- Digits in noise
+
+_NOISE_LEVELS = [1, 2, 3, 4, 5]
+
+
+def _gen_digits_noise(rng: random.Random) -> tuple[dict, dict]:
+    trials = []
+    n = 0
+    for level in _NOISE_LEVELS:
+        for _ in range(2):
+            n += 1
+            trials.append(
+                {"id": f"d{n}", "noise_level": level, "digits": rng.sample(range(1, 10), 3)}
+            )
+    return {"type": "digits_noise", "trials": trials}, {}
+
+
+def _score_digits_noise(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    answers = _by_id(tel.get("answers"), "answer", 20)
+    digits_ok = exact = 0
+    per_level: dict[int, list[int]] = {}
+    for trial in public["trials"]:
+        answer = answers.get(trial["id"])
+        if answer is None:
+            raise TelemetryError("Every item must be answered")
+        given = [d for d in _list(answer.get("answer"), "answer", 6) if isinstance(d, int)]
+        matches = sum(1 for g, e in zip(given, trial["digits"], strict=False) if g == e)
+        digits_ok += matches
+        exact += int(matches == 3 and len(given) == 3)
+        bucket = per_level.setdefault(trial["noise_level"], [0, 0])
+        bucket[0] += matches
+        bucket[1] += 3
+    total_digits = 3 * len(public["trials"])
+    metrics = {
+        "digits_correct": digits_ok,
+        "digits_total": total_digits,
+        "triplets_exact": exact,
+        "triplets_total": len(public["trials"]),
+        "accuracy_pct": _pct(digits_ok, total_digits),
+    }
+    series = {
+        "by_noise": [
+            {"noise_level": lvl, "correct": v[0], "of": v[1]}
+            for lvl, v in sorted(per_level.items())
+        ]
+    }
+    return metrics, series
+
+
+# --------------------------------------------------------------------------- Simple reaction
+
+
+def _gen_reaction(rng: random.Random) -> tuple[dict, dict]:
+    return {
+        "type": "reaction",
+        "trials": [{"id": f"r{i + 1}", "delay_ms": rng.randint(1400, 4200)} for i in range(8)],
+    }, {}
+
+
+def _score_reaction(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    rows = _by_id(tel.get("trials"), "trial", 20)
+    rts: list[float] = []
+    anticipations = 0
+    for trial in public["trials"]:
+        row = rows.get(trial["id"])
+        if row is None:
+            raise TelemetryError("Every trial must be recorded")
+        if row.get("early") is True:
+            anticipations += 1
+            continue
+        rt = _num(row.get("rt_ms"), "rt_ms", 0, 10_000)
+        if rt < 100:
+            anticipations += 1
+        else:
+            rts.append(round(rt))
+    if len(rts) < 3:
+        raise TelemetryError("Too few valid trials; please repeat the exercise")
+    metrics = {
+        "mean_rt_ms": round(_mean(rts)),
+        "median_rt_ms": round(_median(rts)),
+        "best_rt_ms": round(min(rts)),
+        "slowest_rt_ms": round(max(rts)),
+        "variability_ms": round(_sd(rts)),
+        "anticipations_count": anticipations,
+        "lapses_count": sum(1 for r in rts if r > 500),
+        "valid_trials": len(rts),
+    }
+    return metrics, {"rt_ms": rts}
+
+
+# --------------------------------------------------------------------------- Go / No-Go
+
+_GNG_TRIALS = 40
+
+
+def _gen_go_no_go(rng: random.Random) -> tuple[dict, dict]:
+    while True:
+        kinds = ["go"] * 30 + ["nogo"] * 10
+        rng.shuffle(kinds)
+        ok = all(k == "go" for k in kinds[:3])
+        for i in range(len(kinds) - 3):
+            if kinds[i : i + 4] == ["nogo"] * 4:
+                ok = False
+        if ok:
+            break
+    trials = [
+        {"id": i + 1, "kind": kind, "isi_ms": rng.randint(700, 1400), "show_ms": 800}
+        for i, kind in enumerate(kinds)
+    ]
+    return {"type": "go_no_go", "trials": trials}, {}
+
+
+def _score_go_no_go(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    rows = {
+        int(_num(_obj(r, "trial").get("id"), "id", 1, 500)): _obj(r, "trial")
+        for r in _list(tel.get("responses"), "responses", 80, _GNG_TRIALS)
+    }
+    hits = omissions = commissions = rejections = 0
+    rts: list[float] = []
+    quarter_errors = [0, 0, 0, 0]
+    for trial in public["trials"]:
+        row = rows.get(trial["id"])
+        if row is None:
+            raise TelemetryError("Every trial must be recorded")
+        pressed = row.get("pressed") is True
+        quarter = min(3, (trial["id"] - 1) * 4 // len(public["trials"]))
+        if trial["kind"] == "go":
+            if pressed:
+                hits += 1
+                rts.append(round(_num(row.get("rt_ms"), "rt_ms", 0, 5000)))
+            else:
+                omissions += 1
+                quarter_errors[quarter] += 1
+        elif pressed:
+            commissions += 1
+            quarter_errors[quarter] += 1
+        else:
+            rejections += 1
+    metrics = {
+        "go_hits": hits,
+        "omissions_count": omissions,
+        "commission_errors": commissions,
+        "correct_rejections": rejections,
+        "mean_rt_ms": round(_mean(rts)) if rts else None,
+        "variability_ms": round(_sd(rts)) if rts else None,
+        "inhibition_pct": _pct(rejections, commissions + rejections),
+        "accuracy_pct": _pct(hits + rejections, len(public["trials"])),
+    }
+    return metrics, {"rt_ms": rts, "errors_by_quarter": quarter_errors}
+
+
+# --------------------------------------------------------------------------- Pursuit tracking
+
+_ASPECT = 1.6
+_PURSUIT_SEC = 20
+
+
+def _pursuit_target(p: dict, t_ms: float) -> tuple[float, float]:
+    frac = t_ms / (p["duration_sec"] * 1000)
+    x = 0.5 + p["ax"] * math.sin(2 * math.pi * p["fx"] * frac + p["px"])
+    y = 0.5 + p["ay"] * math.sin(2 * math.pi * p["fy"] * frac + p["py"])
+    return x, y
+
+
+def _gen_pursuit(rng: random.Random) -> tuple[dict, dict]:
+    fx, fy = rng.choice([(2, 3), (3, 2), (1, 2), (2, 1), (3, 1), (1, 3)])
+    return {
+        "type": "pursuit",
+        "aspect": _ASPECT,
+        "duration_sec": _PURSUIT_SEC,
+        "radius": 0.09,
+        "target": {
+            "fx": fx,
+            "fy": fy,
+            "px": round(rng.uniform(0, 6.28), 3),
+            "py": round(rng.uniform(0, 6.28), 3),
+            "ax": 0.36,
+            "ay": 0.3,
+            "duration_sec": _PURSUIT_SEC,
+        },
+    }, {}
+
+
+def _score_pursuit(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    duration_ms = public["duration_sec"] * 1000
+    samples = [s for s in _samples(tel, duration_ms) if s[0] <= duration_ms]
+    if len(samples) < 150 or samples[-1][0] - samples[0][0] < duration_ms * 0.8:
+        raise TelemetryError("Not enough tracking data was recorded")
+    distances: list[float] = []
+    on_target = 0
+    per_second: list[list[float]] = [[] for _ in range(public["duration_sec"])]
+    for t, x, y in samples:
+        tx, ty = _pursuit_target(public["target"], t)
+        dist = math.hypot((x - tx) * public["aspect"], y - ty)
+        distances.append(dist)
+        on_target += int(dist <= public["radius"])
+        per_second[min(public["duration_sec"] - 1, int(t // 1000))].append(dist)
+    metrics = {
+        "time_on_target_pct": _pct(on_target, len(samples)),
+        "deviation_rmse_pct": round(100 * math.sqrt(_mean([d * d for d in distances])), 1),
+        "mean_deviation_pct": round(100 * _mean(distances), 1),
+        "tracking_duration_sec": public["duration_sec"],
+    }
+    series = {
+        "deviation_per_second": [round(100 * _mean(b), 1) if b else 0 for b in per_second],
+        "track": [
+            {"t": round(t), "x": round(x, 3), "y": round(y, 3)}
+            for t, x, y in _downsample(samples, 120)
+        ],
+    }
+    return metrics, series
+
+
+# --------------------------------------------------------------------------- Cursor path
+
+
+def _catmull(points: list[tuple[float, float]], per: int = 10) -> list[dict[str, float]]:
+    pts = [points[0], *points, points[-1]]
+    out: list[dict[str, float]] = []
+    for i in range(1, len(pts) - 2):
+        p0, p1, p2, p3 = pts[i - 1], pts[i], pts[i + 1], pts[i + 2]
+        for k in range(per):
+            t = k / per
+            t2, t3 = t * t, t * t * t
+            coords = []
+            for axis in (0, 1):
+                coords.append(
+                    0.5
+                    * (
+                        2 * p1[axis]
+                        + (-p0[axis] + p2[axis]) * t
+                        + (2 * p0[axis] - 5 * p1[axis] + 4 * p2[axis] - p3[axis]) * t2
+                        + (-p0[axis] + 3 * p1[axis] - 3 * p2[axis] + p3[axis]) * t3
+                    )
+                )
+            out.append({"x": round(coords[0], 4), "y": round(coords[1], 4)})
+    out.append({"x": round(points[-1][0], 4), "y": round(points[-1][1], 4)})
+    return out
+
+
+def _gen_cursor_path(rng: random.Random) -> tuple[dict, dict]:
+    count = 7
+    ys: list[float] = []
+    while len(ys) < count:
+        y = rng.uniform(0.22, 0.78)
+        if not ys or abs(y - ys[-1]) >= 0.18:
+            ys.append(y)
+    xs = [0.07 + i * (0.86 / (count - 1)) for i in range(count)]
+    path = _catmull(list(zip(xs, ys, strict=True)))
+    return {
+        "type": "cursor_path",
+        "aspect": _ASPECT,
+        "half_width": 0.065,
+        "path": path,
+        "start": path[0],
+        "end": path[-1],
+    }, {}
+
+
+def _score_cursor_path(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    samples = _samples(tel, 120_000)
+    path, aspect, half = public["path"], public["aspect"], public["half_width"]
+    start, end = public["start"], public["end"]
+
+    def near(point: dict, x: float, y: float) -> bool:
+        return math.hypot((x - point["x"]) * aspect, y - point["y"]) <= half * 1.6
+
+    begin_index = next((i for i, s in enumerate(samples) if near(start, s[1], s[2])), None)
+    if begin_index is None:
+        raise TelemetryError("The route was not started at the start point")
+    finish_index = next(
+        (i for i in range(begin_index, len(samples)) if near(end, samples[i][1], samples[i][2])),
+        None,
+    )
+    if finish_index is None:
+        raise TelemetryError("The route was not completed")
+    run = samples[begin_index : finish_index + 1]
+    duration = (run[-1][0] - run[0][0]) / 1000
+    if duration < 1.2 or len(run) < 10:
+        raise TelemetryError("Result is implausibly fast")
+    inside = exits = 0
+    was_inside = True
+    distances: list[float] = []
+    bins: list[list[float]] = [[] for _ in range(20)]
+    for _t, x, y in run:
+        dist = _polyline_distance(x, y, path, aspect)
+        distances.append(dist)
+        is_inside = dist <= half
+        inside += int(is_inside)
+        if was_inside and not is_inside:
+            exits += 1
+        was_inside = is_inside
+        bins[max(0, min(19, int((x - 0.07) / 0.86 * 20)))].append(dist)
+    metrics = {
+        "completion_time_sec": round(duration, 1),
+        "in_corridor_pct": _pct(inside, len(run)),
+        "boundary_exits": exits,
+        "mean_deviation_pct": round(100 * _mean(distances), 1),
+    }
+    series = {
+        "deviation_along_path": [round(100 * _mean(b), 1) if b else 0 for b in bins],
+        "track": [{"x": round(x, 3), "y": round(y, 3)} for _t, x, y in _downsample(run, 160)],
+    }
+    return metrics, series
+
+
+# --------------------------------------------------------------------------- registry
+
+
+@dataclass(frozen=True)
+class Engine:
+    kind: str
+    generate: Callable[[random.Random], tuple[dict, dict]]
+    score: Callable[[dict, dict, dict], tuple[dict, dict]]
+    primary: str
+    better: str  # "lower" | "higher"
+
+
+ENGINES: dict[str, Engine] = {
+    "attention-concentration": Engine(
+        "schulte", _gen_schulte, _score_schulte, "total_time_sec", "lower"
+    ),
+    "attention-switching": Engine(
+        "trail", _gen_trail, _score_trail, "switching_cost_sec", "lower"
+    ),
+    "visual-memory": Engine("corsi", _gen_corsi, _score_corsi, "max_span", "higher"),
+    "short-term-memory": Engine(
+        "digit_span", _gen_digit_span, _score_digit_span, "forward_span", "higher"
+    ),
+    "information-processing-speed": Engine(
+        "symbol_digit", _gen_symbol_digit, _score_symbol_digit, "correct_count", "higher"
+    ),
+    "contrast-sensitivity": Engine(
+        "contrast", _gen_contrast, _score_contrast, "threshold_contrast_pct", "lower"
+    ),
+    "visual-pairs": Engine(
+        "visual_pairs", _gen_visual_pairs, _score_visual_pairs, "moves_count", "lower"
+    ),
+    "path-memory": Engine(
+        "path_memory", _gen_path_memory, _score_path_memory, "steps_correct", "higher"
+    ),
+    "pattern-matrix": Engine("pattern", _gen_pattern, _score_pattern, "correct_count", "higher"),
+    "sound-discrimination": Engine(
+        "sound_compare", _gen_sound_compare, _score_sound_compare, "accuracy_pct", "higher"
+    ),
+    "speech-in-noise": Engine(
+        "digits_noise", _gen_digits_noise, _score_digits_noise, "digits_correct", "higher"
+    ),
+    "reaction-speed": Engine("reaction", _gen_reaction, _score_reaction, "mean_rt_ms", "lower"),
+    "go-no-go": Engine("go_no_go", _gen_go_no_go, _score_go_no_go, "accuracy_pct", "higher"),
+    "mouse-eye-coordination": Engine(
+        "pursuit", _gen_pursuit, _score_pursuit, "time_on_target_pct", "higher"
+    ),
+    "cursor-path": Engine(
+        "cursor_path", _gen_cursor_path, _score_cursor_path, "in_corridor_pct", "higher"
+    ),
+}
+
+ENGINE_SLUGS = frozenset(ENGINES)
 
 
 def generate_challenge(slug: str, seed: int | None = None) -> dict[str, Any]:
-    """Generate an individualized, deterministic-by-seed challenge configuration for an attempt."""
-    rng = random.Random(seed)
+    """Create a fresh task variant: ``{"seed", "public", "private"}``."""
+    actual_seed = secrets.randbits(62) if seed is None else seed
+    engine = ENGINES.get(slug)
+    if engine is None:
+        return {"seed": actual_seed, "public": {"type": "standard_exercise"}, "private": {}}
+    public, private = engine.generate(random.Random(actual_seed))
+    return {"seed": actual_seed, "public": public, "private": private}
 
-    if slug == "attention-concentration":
-        # Schulte 5x5: numbers 1-25 shuffled randomly
-        nums = list(range(1, 26))
-        rng.shuffle(nums)
-        return {
-            "type": "schulte_5x5",
-            "grid_size": 5,
-            "grid": nums,
-            "target_min": 1,
-            "target_max": 25,
-        }
 
-    if slug == "attention-switching":
-        # Trail Making-like alternating numbers and letters (1-A-2-B-3-C-4-D-5-E-6-F)
-        # Positions scattered on a normalized 0-100 canvas without collisions
-        sequence = ["1", "A", "2", "B", "3", "C", "4", "D", "5", "E", "6", "F", "7", "G"]
-        nodes = []
-        occupied: list[tuple[float, float]] = []
+def public_challenge(challenge: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Return the browser-safe part of a stored challenge (supports pre-v2 snapshots)."""
+    if not isinstance(challenge, dict):
+        return None
+    if "public" in challenge and "private" in challenge:
+        return challenge["public"]
+    return challenge
 
-        for item in sequence:
-            # Pick non-overlapping (x, y) coordinates
-            for _ in range(100):
-                x = rng.uniform(10.0, 90.0)
-                y = rng.uniform(15.0, 85.0)
-                if all((x - ox) ** 2 + (y - oy) ** 2 >= 180.0 for ox, oy in occupied):
-                    occupied.append((x, y))
-                    nodes.append({
-                        "id": item,
-                        "label": item,
-                        "is_letter": item.isalpha(),
-                        "x": round(x, 1),
-                        "y": round(y, 1),
-                    })
-                    break
 
-        return {
-            "type": "trail_switching",
-            "expected_sequence": sequence,
-            "nodes": nodes,
-        }
-
-    if slug == "visual-memory":
-        # Corsi Block-Tapping: 9 tiles on grid with random span sequences (lengths 3 to 7)
-        block_positions = []
-        grid_slots = [(c * 30 + rng.uniform(2, 10), r * 30 + rng.uniform(2, 10)) for r in range(3) for c in range(3)]
-        rng.shuffle(grid_slots)
-        for i, (x, y) in enumerate(grid_slots[:9]):
-            block_positions.append({"id": i, "x": round(x + 5, 1), "y": round(y + 5, 1)})
-
-        trials = []
-        for span_len in range(3, 8):
-            trials.append([rng.randint(0, 8) for _ in range(span_len)])
-
-        return {
-            "type": "corsi_blocks",
-            "blocks": block_positions,
-            "trials": trials,
-            "span_start": 3,
-            "span_max": 7,
-        }
-
-    if slug == "short-term-memory":
-        # Digit Span Forward & Backward: sequences of digits 0-9
-        forward_trials = []
-        for span in range(3, 9):
-            forward_trials.append([rng.randint(0, 9) for _ in range(span)])
-
-        backward_trials = []
-        for span in range(3, 8):
-            backward_trials.append([rng.randint(0, 9) for _ in range(span)])
-
-        return {
-            "type": "digit_span",
-            "forward_trials": forward_trials,
-            "backward_trials": backward_trials,
-        }
-
-    if slug == "information-processing-speed":
-        # Symbol-Digit Modalities Test: 9 distinct geometric glyphs mapped to digits 1-9
-        glyphs = ["■", "▲", "◆", "●", "★", "✚", "⬡", "✦", "◬"]
-        digits = list(range(1, 10))
-        rng.shuffle(digits)
-        key_mapping = [{"symbol": glyphs[i], "digit": digits[i]} for i in range(9)]
-
-        # 30 randomized symbol prompts
-        test_sequence = [rng.choice(glyphs) for _ in range(30)]
-
-        return {
-            "type": "symbol_digit",
-            "key": key_mapping,
-            "prompts": test_sequence,
-            "time_limit_sec": 60,
-        }
-
-    if slug == "contrast-sensitivity":
-        # Contrast discrimination: 6 levels of decreasing contrast
-        sloan_letters = ["C", "D", "H", "K", "N", "O", "R", "S", "V", "Z"]
-        contrast_levels = [100.0, 50.0, 25.0, 12.5, 6.2, 3.1]
-        levels = []
-        for lvl in contrast_levels:
-            chosen = rng.sample(sloan_letters, 3)
-            levels.append({
-                "contrast_pct": lvl,
-                "letters": chosen,
-            })
-        return {
-            "type": "contrast_discrimination",
-            "levels": levels,
-        }
-
-    if slug == "visual-pairs":
-        # Memory Card Matching: 6 pairs (12 cards) with distinct symbols
-        icons = ["heart", "star", "sun", "moon", "zap", "shield"]
-        cards = []
-        for idx, icon in enumerate(icons):
-            cards.append({"card_id": idx * 2, "pair_id": idx, "symbol": icon})
-            cards.append({"card_id": idx * 2 + 1, "pair_id": idx, "symbol": icon})
-        rng.shuffle(cards)
-        return {
-            "type": "visual_pairs",
-            "pairs_count": len(icons),
-            "cards": cards,
-        }
-
-    if slug == "path-memory":
-        # Maze/Path Memory: 4x4 grid with a hidden contiguous pathway of 5 steps
-        path = [(0, 0)]
-        curr_r, curr_c = 0, 0
-        for _ in range(5):
-            moves = []
-            if curr_r > 0:
-                moves.append((curr_r - 1, curr_c))
-            if curr_r < 3:
-                moves.append((curr_r + 1, curr_c))
-            if curr_c > 0:
-                moves.append((curr_r, curr_c - 1))
-            if curr_c < 3:
-                moves.append((curr_r, curr_c + 1))
-            valid = [m for m in moves if m not in path]
-            if not valid:
-                break
-            nxt = rng.choice(valid)
-            path.append(nxt)
-            curr_r, curr_c = nxt
-
-        return {
-            "type": "path_memory",
-            "grid_size": 4,
-            "path": [{"row": r, "col": c} for r, c in path],
-        }
-
-    if slug == "pattern-matrix":
-        # Matrix rule completion: shape progression
-        shapes = ["circle", "square", "triangle", "diamond"]
-        colors = ["#17A884", "#2EC4A7", "#3b82f6", "#8b5cf6"]
-        questions = []
-        for q_idx in range(4):
-            sh_order = list(shapes)
-            rng.shuffle(sh_order)
-            cl = colors[q_idx % len(colors)]
-            questions.append({
-                "id": f"q_{q_idx + 1}",
-                "sequence": [
-                    {"shape": sh_order[0], "color": cl},
-                    {"shape": sh_order[1], "color": cl},
-                    {"shape": sh_order[2], "color": cl},
-                ],
-                "missing": {"shape": sh_order[3], "color": cl},
-                "options": [
-                    {"id": "opt_a", "shape": sh_order[3], "color": cl},
-                    {"id": "opt_b", "shape": sh_order[0], "color": cl},
-                    {"id": "opt_c", "shape": sh_order[1], "color": cl},
-                    {"id": "opt_d", "shape": sh_order[2], "color": cl},
-                ],
-                "correct_option": "opt_a",
-            })
-        return {
-            "type": "pattern_matrix",
-            "questions": questions,
-        }
-
-    if slug == "sound-discrimination":
-        # Sound comparison: tone pairs (pitch difference 0 to 40 Hz)
-        trials = [
-            {"trial": 1, "freq_a": 1000, "freq_b": 1040, "diff": "higher"},
-            {"trial": 2, "freq_a": 800, "freq_b": 760, "diff": "lower"},
-            {"trial": 3, "freq_a": 1200, "freq_b": 1200, "diff": "same"},
-            {"trial": 4, "freq_a": 1500, "freq_b": 1550, "diff": "higher"},
-            {"trial": 5, "freq_a": 600, "freq_b": 560, "diff": "lower"},
-        ]
-        rng.shuffle(trials)
-        return {
-            "type": "sound_comparison",
-            "trials": trials,
-        }
-
-    if slug == "speech-in-noise":
-        phrases = [
-            {"id": "p1", "text": "Белый самолет приземлился вовремя", "snr_db": 10, "target_words": ["самолет", "вовремя"]},
-            {"id": "p2", "text": "Утренний поезд прибывает на первый путь", "snr_db": 6, "target_words": ["поезд", "первый"]},
-            {"id": "p3", "text": "Зеленый сигнал светофора горит ярко", "snr_db": 3, "target_words": ["зеленый", "горит"]},
-        ]
-        return {
-            "type": "speech_in_noise",
-            "phrases": phrases,
-        }
-
-    if slug == "reaction-speed":
-        # Simple reaction time: 5 trials with randomized foreperiod delays
-        trials = [{"trial": i + 1, "delay_ms": rng.randint(1500, 3200)} for i in range(5)]
-        return {
-            "type": "simple_reaction",
-            "trials": trials,
-        }
-
-    if slug == "go-no-go":
-        # Go/No-Go: 15 items (11 Go, 4 No-Go in randomized order)
-        items = ["go"] * 11 + ["no-go"] * 4
-        rng.shuffle(items)
-        sequence = [{"id": idx + 1, "type": t, "delay_ms": rng.randint(800, 1600)} for idx, t in enumerate(items)]
-        return {
-            "type": "go_no_go",
-            "sequence": sequence,
-        }
-
-    if slug == "mouse-eye-coordination":
-        # Pursuit tracking target with harmonic parameters
-        return {
-            "type": "pursuit_tracking",
-            "duration_sec": 20,
-            "trajectory": {
-                "type": "lissajous",
-                "freq_x": rng.choice([2, 3]),
-                "freq_y": rng.choice([1, 2]),
-                "phase": round(rng.uniform(0.5, 2.0), 2),
-            },
-        }
-
-    if slug == "cursor-path":
-        # Steering corridor path waypoints
-        waypoints = [
-            {"x": 10, "y": 50, "radius": 24},
-            {"x": 30, "y": 25, "radius": 22},
-            {"x": 55, "y": 75, "radius": 20},
-            {"x": 75, "y": 35, "radius": 20},
-            {"x": 90, "y": 50, "radius": 22},
-        ]
-        return {
-            "type": "cursor_path",
-            "waypoints": waypoints,
-            "corridor_width_px": 42,
-        }
-
-    if slug == "anxiety":
-        # GAD-7 standard items
-        return {
-            "type": "gad7_questionnaire",
-            "items_count": 7,
-            "scale_max": 21,
-        }
-
-    # Default fallback
+def score_attempt(
+    slug: str, challenge: dict[str, Any], telemetry: dict[str, Any]
+) -> dict[str, Any]:
+    """Recompute results from an event log.  Raises :class:`TelemetryError` on bad input."""
+    engine = ENGINES.get(slug)
+    if engine is None:
+        return {"version": RESULT_VERSION, "engine": "questionnaire", "metrics": {}, "series": {}}
+    if "public" not in challenge or "private" not in challenge:
+        raise TelemetryError("This attempt was created by an older version; please start again")
+    metrics, series = engine.score(challenge["public"], challenge["private"], telemetry)
     return {
-        "type": "standard_exercise",
-        "seed": seed,
-    }
-
-
-def score_attempt(slug: str, challenge: dict[str, Any], user_data: dict[str, Any]) -> dict[str, Any]:
-    """Calculate verified, server-side scores without trusting arbitrary client claims."""
-    metrics: dict[str, Any] = {}
-    summary = "Упражнение успешно завершено."
-
-    if slug == "attention-concentration":
-        # Schulte 5x5: time, errors, pace
-        total_time_ms = float(user_data.get("total_time_ms", 30000))
-        error_count = int(user_data.get("error_count", 0))
-        latencies = user_data.get("latencies_ms", [])
-        avg_step_ms = round(total_time_ms / 25, 1)
-
-        metrics = {
-            "total_time_sec": round(total_time_ms / 1000, 2),
-            "errors_count": error_count,
-            "average_step_ms": avg_step_ms,
-            "accuracy_pct": round(max(0, 100 - error_count * 4), 1),
-            "efficiency_work_er": round(total_time_ms / 1000, 1),
-            "fatigue_resistance_pu": round(float(user_data.get("fatigue_resistance_pu", 1.0)), 2),
-            "latencies_ms": latencies[:25] if isinstance(latencies, list) else [],
-        }
-        summary = f"Сетка 5×5 пройдена за {metrics['total_time_sec']} с при {error_count} ошибках."
-
-    elif slug == "attention-switching":
-        duration_ms = float(user_data.get("total_time_ms", 40000))
-        errors = int(user_data.get("error_count", 0))
-        correct_nodes = int(user_data.get("correct_nodes", 14))
-
-        metrics = {
-            "total_time_sec": round(duration_ms / 1000, 2),
-            "errors_count": errors,
-            "correct_nodes": correct_nodes,
-            "accuracy_pct": round((correct_nodes / max(1, correct_nodes + errors)) * 100, 1),
-            "switching_cost_ms": round(float(user_data.get("switching_cost_ms", duration_ms * 0.4)), 1),
-        }
-        summary = f"Чередование пройдено за {metrics['total_time_sec']} с. Точность: {metrics['accuracy_pct']}%."
-
-    elif slug == "visual-memory":
-        max_span = int(user_data.get("max_span", 5))
-        success_rounds = int(user_data.get("success_rounds", 3))
-
-        metrics = {
-            "max_spatial_span": max_span,
-            "successful_rounds": success_rounds,
-            "errors_count": int(user_data.get("error_count", 0)),
-            "accuracy_pct": round(min(100.0, max_span * 16.6), 1),
-        }
-        summary = f"Достигнутый объем пространственной памяти: {max_span} блоков."
-
-    elif slug == "short-term-memory":
-        forward_span = int(user_data.get("forward_span", 6))
-        backward_span = int(user_data.get("backward_span", 5))
-
-        metrics = {
-            "forward_span": forward_span,
-            "backward_span": backward_span,
-            "total_recalled": forward_span + backward_span,
-            "accuracy_pct": round(min(100.0, (forward_span + backward_span) * 8.3), 1),
-        }
-        summary = f"Прямой ряд: {forward_span} цифр, обратный ряд: {backward_span} цифр."
-
-    elif slug == "information-processing-speed":
-        correct_count = int(user_data.get("correct_count", 24))
-        error_count = int(user_data.get("error_count", 1))
-        duration_sec = float(user_data.get("duration_sec", 60.0))
-
-        metrics = {
-            "items_processed": correct_count + error_count,
-            "correct_substitutions": correct_count,
-            "errors_count": error_count,
-            "accuracy_pct": round((correct_count / max(1, correct_count + error_count)) * 100, 1),
-            "speed_per_minute": round((correct_count / max(1.0, duration_sec)) * 60, 1),
-        }
-        summary = f"Сопоставлено {correct_count} символов со скоростью {metrics['speed_per_minute']} зн/мин."
-
-    elif slug == "contrast-sensitivity":
-        levels_passed = int(user_data.get("levels_passed", 5))
-        lowest_contrast = float(user_data.get("lowest_contrast_pct", 6.2))
-
-        metrics = {
-            "levels_completed": levels_passed,
-            "lowest_detected_contrast_pct": lowest_contrast,
-            "accuracy_pct": round(min(100.0, levels_passed * 16.6), 1),
-            "display_advisory": "Оценка носит ознакомительный характер на некалиброванном мониторе.",
-        }
-        summary = f"Распознан контраст вплоть до {lowest_contrast}%."
-
-    elif slug == "visual-pairs":
-        moves_count = int(user_data.get("moves_count", 10))
-        pairs_found = int(user_data.get("pairs_found", 6))
-        duration_sec = float(user_data.get("duration_sec", 25.0))
-
-        metrics = {
-            "pairs_found": pairs_found,
-            "total_moves": moves_count,
-            "efficiency_ratio": round(pairs_found / max(1, moves_count), 2),
-            "duration_sec": round(duration_sec, 1),
-        }
-        summary = f"Найдено {pairs_found} пар за {moves_count} ходов ({round(duration_sec, 1)} с)."
-
-    elif slug == "path-memory":
-        steps_correct = int(user_data.get("steps_correct", 5))
-        total_steps = int(user_data.get("total_steps", 5))
-
-        metrics = {
-            "path_reproduced_steps": steps_correct,
-            "total_path_steps": total_steps,
-            "accuracy_pct": round((steps_correct / max(1, total_steps)) * 100, 1),
-        }
-        summary = f"Воспроизведено {steps_correct} из {total_steps} шагов маршрута."
-
-    elif slug == "pattern-matrix":
-        correct_answers = int(user_data.get("correct_answers", 3))
-        total_questions = int(user_data.get("total_questions", 4))
-
-        metrics = {
-            "correct_answers": correct_answers,
-            "total_questions": total_questions,
-            "accuracy_pct": round((correct_answers / max(1, total_questions)) * 100, 1),
-        }
-        summary = f"Верно определено {correct_answers} из {total_questions} закономерностей."
-
-    elif slug == "sound-discrimination":
-        correct_trials = int(user_data.get("correct_trials", 4))
-        total_trials = int(user_data.get("total_trials", 5))
-
-        metrics = {
-            "correct_trials": correct_trials,
-            "total_trials": total_trials,
-            "accuracy_pct": round((correct_trials / max(1, total_trials)) * 100, 1),
-        }
-        summary = f"Точность различения высоты звука: {metrics['accuracy_pct']}%."
-
-    elif slug == "speech-in-noise":
-        words_identified = int(user_data.get("words_identified", 5))
-        words_total = int(user_data.get("words_total", 6))
-
-        metrics = {
-            "words_identified": words_identified,
-            "words_total": words_total,
-            "accuracy_pct": round((words_identified / max(1, words_total)) * 100, 1),
-        }
-        summary = f"Распознано {words_identified} из {words_total} речевых маркеров в шуме."
-
-    elif slug == "reaction-speed":
-        mean_rt = float(user_data.get("mean_reaction_time_ms", 240.0))
-        fastest_rt = float(user_data.get("fastest_reaction_time_ms", 195.0))
-        premature_count = int(user_data.get("premature_clicks", 0))
-
-        metrics = {
-            "mean_reaction_time_ms": round(mean_rt, 1),
-            "fastest_reaction_time_ms": round(fastest_rt, 1),
-            "premature_clicks": premature_count,
-            "trials_completed": int(user_data.get("trials_completed", 5)),
-        }
-        summary = f"Среднее время реакции: {metrics['mean_reaction_time_ms']} мс (лучшее: {metrics['fastest_reaction_time_ms']} мс)."
-
-    elif slug == "go-no-go":
-        correct_go = int(user_data.get("correct_go", 11))
-        omissions = int(user_data.get("omissions", 0))
-        false_alarms = int(user_data.get("false_alarms", 1))
-        mean_rt = float(user_data.get("mean_reaction_time_ms", 280.0))
-
-        metrics = {
-            "correct_go_hits": correct_go,
-            "omission_errors": omissions,
-            "false_alarm_nogo": false_alarms,
-            "mean_reaction_time_ms": round(mean_rt, 1),
-            "inhibitory_control_pct": round(max(0, 100 - false_alarms * 20), 1),
-        }
-        summary = f"Успешное торможение: {metrics['inhibitory_control_pct']}%, время реакции: {metrics['mean_reaction_time_ms']} мс."
-
-    elif slug == "mouse-eye-coordination":
-        accuracy_pct = float(user_data.get("accuracy_pct", 88.5))
-        rmse_px = float(user_data.get("rmse_pixels", 9.4))
-        duration_sec = float(user_data.get("duration_sec", 20.0))
-
-        metrics = {
-            "time_on_target_pct": round(accuracy_pct, 1),
-            "deviation_rmse_px": round(rmse_px, 1),
-            "tracking_duration_sec": round(duration_sec, 1),
-        }
-        summary = f"Удержание цели: {metrics['time_on_target_pct']}%, среднее отклонение: {metrics['deviation_rmse_px']} px."
-
-    elif slug == "cursor-path":
-        boundary_violations = int(user_data.get("boundary_violations", 2))
-        completion_time_sec = float(user_data.get("completion_time_sec", 14.5))
-
-        metrics = {
-            "boundary_violations": boundary_violations,
-            "completion_time_sec": round(completion_time_sec, 2),
-            "path_accuracy_pct": round(max(0, 100 - boundary_violations * 10), 1),
-        }
-        summary = f"Маршрут пройден за {metrics['completion_time_sec']} с ({boundary_violations} выхода за границу)."
-
-    elif slug == "anxiety":
-        score = int(user_data.get("total_score", 4))
-        severity = "Минимальная тревожность"
-        if score >= 15:
-            severity = "Выраженная тревожность"
-        elif score >= 10:
-            severity = "Умеренная тревожность"
-        elif score >= 5:
-            severity = "Легкая тревожность"
-
-        metrics = {
-            "gad7_score": score,
-            "max_score": 21,
-            "severity_band": severity,
-            "disclaimer": "Опросник носит ознакомительный характер и не является клиническим диагнозом.",
-        }
-        summary = f"Балл шкалы GAD-7: {score} из 21 ({severity})."
-
-    else:
-        # Generic fallback
-        metrics = {
-            "status": "completed",
-            "score": user_data.get("score", 1),
-        }
-
-    return {
-        "summary": summary,
+        "version": RESULT_VERSION,
+        "engine": engine.kind,
+        "primary": engine.primary,
+        "better": engine.better,
         "metrics": metrics,
+        "series": series,
     }

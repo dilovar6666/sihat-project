@@ -1,8 +1,9 @@
-from fastapi import Depends, FastAPI
+﻿from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sihat.admin import router as admin_router
 from sihat.assistant import router as assistant_router
+from sihat.attempts import guest_router as guest_attempts_router
 from sihat.attempts import router as attempts_router
 from sihat.auth import get_current_user
 from sihat.auth import router as auth_router
@@ -31,6 +32,7 @@ app.add_middleware(
 )
 app.include_router(auth_router)
 app.include_router(assistant_router)
+app.include_router(guest_attempts_router)
 app.include_router(attempts_router)
 app.include_router(results_router)
 app.include_router(catalog_router)
@@ -54,3 +56,4 @@ async def read_profile(user: User = Depends(get_current_user)) -> UserOutput:
         role=user.role,
         age_group=user.age_group,
     )
+
