@@ -293,7 +293,7 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
   }
 
   return (
-    <section id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative">
+    <section id="features" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative scroll-mt-24">
       {/* Ambient background glows */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-tr from-emerald-500/10 via-teal-500/5 to-cyan-500/10 blur-[120px] pointer-events-none -z-10" />
 
