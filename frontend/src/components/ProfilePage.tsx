@@ -116,6 +116,25 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [historySlugFilter, setHistorySlugFilter] = useState<string>('all')
   const [compareSlug, setCompareSlug] = useState<string>('all')
   const [inspectingResult, setInspectingResult] = useState<SavedResult | null>(null)
+  // Lock body scroll and listen for Escape key when inspecting result modal is open
+  useEffect(() => {
+    if (!inspectingResult) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setInspectingResult(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [inspectingResult])
+
 
   // Edit profile form state
   const [fullName, setFullName] = useState(user?.full_name || '')
@@ -710,40 +729,88 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
         {/* MAIN CONTENT AREA */}
         <main className="lg:col-span-9 space-y-6">
-          {/* Selected Result Report Drawer (if inspecting a specific saved result) */}
+          {/* Modal Dialog for Inspecting Saved Result Report */}
           {inspectingResult && (
-            <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-5 sm:p-6 shadow-md border-2 border-[#17A884]/40 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#1E302B]">
-                <Badge variant="emerald">{inspectingResult.test_title || inspectingResult.test_slug}</Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInspectingResult(null)}
-                  className="gap-1.5 text-xs"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>{t.closeReport}</span>
-                </Button>
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-fadeIn"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setInspectingResult(null)
+              }}
+            >
+              <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-white dark:bg-[#0E1715] rounded-3xl shadow-2xl border border-slate-200 dark:border-[#1E302B] overflow-hidden my-auto animate-scaleUp">
+                {/* Modal Sticky Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-[#1E302B] bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-[#17A884] flex items-center justify-center font-bold">
+                      <Eye className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        {inspectingResult.test_title || inspectingResult.test_slug}
+                        <Badge variant="emerald" className="text-[10px]">
+                          {inspectingResult.methodology_version ? `v${inspectingResult.methodology_version}` : 'v2.0'}
+                        </Badge>
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {new Date(inspectingResult.completed_at).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDownloadPdf(inspectingResult.id)}
+                      className="text-xs gap-1.5 hidden sm:flex"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#17A884]" />
+                      <span>{t.pdfBtn}</span>
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setInspectingResult(null)}
+                      className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      title={t.closeReport}
+                      aria-label="Закрыть"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Body with Scroll */}
+                <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
+                  <ResultReportView
+                    slug={inspectingResult.test_slug}
+                    title={inspectingResult.test_title || inspectingResult.test_slug}
+                    lang={lang}
+                    result={inspectingResult.result}
+                    completedAt={inspectingResult.completed_at}
+                    methodology={{
+                      name: inspectingResult.test_title || inspectingResult.test_slug,
+                      version: inspectingResult.methodology_version || '2.0',
+                    }}
+                    previousResults={results.filter(
+                      (r) => r.test_slug === inspectingResult.test_slug && r.id !== inspectingResult.id
+                    )}
+                    canSave={false}
+                    isSaved={true}
+                    onDownloadPdf={() => onDownloadPdf(inspectingResult.id)}
+                    onRetake={() => {
+                      setInspectingResult(null)
+                      onNavigate(`test/${inspectingResult.test_slug}`)
+                    }}
+                    compact={false}
+                  />
+                </div>
               </div>
-              <ResultReportView
-                slug={inspectingResult.test_slug}
-                title={inspectingResult.test_title || inspectingResult.test_slug}
-                lang={lang}
-                result={inspectingResult.result}
-                completedAt={inspectingResult.completed_at}
-                methodology={{
-                  name: inspectingResult.test_title || inspectingResult.test_slug,
-                  version: inspectingResult.methodology_version || '2.0',
-                }}
-                previousResults={results.filter(
-                  (r) => r.test_slug === inspectingResult.test_slug && r.id !== inspectingResult.id
-                )}
-                canSave={false}
-                isSaved={true}
-                onDownloadPdf={() => onDownloadPdf(inspectingResult.id)}
-                onRetake={() => onNavigate(`test/${inspectingResult.test_slug}`)}
-                compact={true}
-              />
             </div>
           )}
 

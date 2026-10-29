@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { FileDown, Trash2, Calendar, ShieldCheck, Eye, X } from 'lucide-react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
@@ -34,6 +34,24 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
   lang = 'ru',
 }) => {
   const [selectedRecord, setSelectedRecord] = useState<SavedResult | null>(null)
+  useEffect(() => {
+    if (!selectedRecord) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedRecord(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedRecord])
+
 
   const labels = {
     ru: {
@@ -126,38 +144,82 @@ export const HistorySection: React.FC<HistorySectionProps> = ({
         )}
       </div>
 
+      {/* Modal Dialog for Selected History Result Report */}
       {selectedRecord && (
-        <div className="mb-10 p-4 sm:p-6 rounded-3xl bg-zinc-50 dark:bg-zinc-900/50 border border-emerald-500/30 space-y-4">
-          <div className="flex items-center justify-between">
-            <Badge variant="emerald">{selectedRecord.test_title || selectedRecord.test_slug}</Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedRecord(null)}
-              className="gap-1.5 text-xs"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span>{labels.closeReport}</span>
-            </Button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-3 sm:p-6 overflow-y-auto animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedRecord(null)
+          }}
+        >
+          <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-white dark:bg-[#0E1715] rounded-3xl shadow-2xl border border-slate-200 dark:border-[#1E302B] overflow-hidden my-auto animate-scaleUp">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-[#1E302B] bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-[#17A884] flex items-center justify-center font-bold">
+                  <Eye className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    {selectedRecord.test_title || selectedRecord.test_slug}
+                    <Badge variant="emerald" className="text-[10px]">
+                      {selectedRecord.methodology_version ? `v${selectedRecord.methodology_version}` : 'v2.0'}
+                    </Badge>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {new Date(selectedRecord.completed_at).toLocaleString(lang === 'en' ? 'en-US' : 'ru-RU', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDownloadPdf(selectedRecord.id)}
+                  className="text-xs gap-1.5 hidden sm:flex"
+                >
+                  <FileDown className="w-3.5 h-3.5 text-[#17A884]" />
+                  <span>{labels.pdfBtn}</span>
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRecord(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={labels.closeReport}
+                  aria-label="Закрыть"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
+              <ResultReportView
+                slug={selectedRecord.test_slug}
+                title={selectedRecord.test_title || selectedRecord.test_slug}
+                lang={lang}
+                result={selectedRecord.result}
+                completedAt={selectedRecord.completed_at}
+                methodology={{
+                  name: selectedRecord.test_title || selectedRecord.test_slug,
+                  version: selectedRecord.methodology_version || '2.0',
+                }}
+                previousResults={results.filter(
+                  (r) => r.test_slug === selectedRecord.test_slug && r.id !== selectedRecord.id
+                )}
+                canSave={false}
+                isSaved={true}
+                onDownloadPdf={() => onDownloadPdf(selectedRecord.id)}
+                compact={false}
+              />
+            </div>
           </div>
-          <ResultReportView
-            slug={selectedRecord.test_slug}
-            title={selectedRecord.test_title || selectedRecord.test_slug}
-            lang={lang}
-            result={selectedRecord.result}
-            completedAt={selectedRecord.completed_at}
-            methodology={{
-              name: selectedRecord.test_title || selectedRecord.test_slug,
-              version: selectedRecord.methodology_version || '2.0',
-            }}
-            previousResults={results.filter(
-              (r) => r.test_slug === selectedRecord.test_slug && r.id !== selectedRecord.id
-            )}
-            canSave={false}
-            isSaved={true}
-            onDownloadPdf={() => onDownloadPdf(selectedRecord.id)}
-            compact={true}
-          />
         </div>
       )}
 
