@@ -486,8 +486,11 @@ def _score_contrast(public: dict, private: dict, tel: dict) -> tuple[dict, dict]
 # --------------------------------------------------------------------------- Visual pairs
 
 _ICONS = [
-    "heart", "star", "sun", "moon", "zap", "shield", "leaf",
-    "cloud", "flame", "anchor", "bell", "key", "flag", "music", "droplet", "gem",
+    "heart", "star", "sun", "moon", "zap", "shield", "leaf", "cloud",
+    "flame", "anchor", "bell", "key", "flag", "music", "droplet", "gem",
+    "crown", "rocket", "compass", "trophy", "palette", "camera", "gift", "coffee",
+    "fish", "bird", "cat", "dog", "bug", "flower", "rainbow", "sparkles",
+    "globe", "mountain", "trees", "apple", "feather", "smile", "umbrella",
 ]  # fmt: skip
 
 
