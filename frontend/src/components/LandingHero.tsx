@@ -290,10 +290,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
         </div>
 
         {/* Main Heading */}
-        <h1
-          className="font-bauhaus text-4xl sm:text-5xl lg:text-6xl text-zinc-900 dark:text-zinc-50 max-w-4xl mx-auto leading-[1.15] drop-shadow-sm"
-          style={{ fontFamily: "'Bauhaus 93', 'BauhausC', sans-serif" }}
-        >
+        <h1 className="font-manrope text-4xl sm:text-5xl lg:text-6xl font-extrabold text-zinc-900 dark:text-zinc-50 max-w-4xl mx-auto leading-[1.15] drop-shadow-sm tracking-tight">
           {heroTitle}{' '}
           <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500 dark:from-emerald-400 dark:via-teal-300 dark:to-cyan-400 bg-clip-text text-transparent">
             {heroHighlight}
