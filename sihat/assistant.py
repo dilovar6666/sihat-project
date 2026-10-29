@@ -2,19 +2,24 @@
 and intelligent multilingual support for Russian (RU), Tajik (TJ), and English (EN).
 """
 
+import asyncio
 from collections import defaultdict, deque
 from time import monotonic
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.assistant_schemas import AssistantAction, AssistantMessageInput, AssistantMessageOutput
 from sihat.auth import get_current_user_optional
 from sihat.config import Settings, get_settings
 from sihat.db import get_db_session
-from sihat.gemini import GeminiUnavailableError, generate_assistant_response
+from sihat.gemini import (
+    GeminiUnavailableError,
+    generate_assistant_response,
+    generate_assistant_response_async,
+)
 from sihat.models import SavedResult, TestDefinition, User
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
@@ -51,13 +56,19 @@ def _enforce_rate_limit(key: str) -> None:
     timestamps.append(now)
 
 
-def _safe_result_context(db: Session, user: User | None, result_ids: list[str]) -> list[dict[str, object]]:
+async def _safe_result_context(
+    db: AsyncSession, user: User | None, result_ids: list[str]
+) -> list[dict[str, object]]:
     if not result_ids:
         return []
     if not user:
         raise HTTPException(status_code=404, detail="A shared result was not found")
-    results = db.scalars(
-        select(SavedResult).where(SavedResult.user_id == user.id, SavedResult.id.in_(result_ids))
+    results = (
+        await db.scalars(
+            select(SavedResult).where(
+                SavedResult.user_id == user.id, SavedResult.id.in_(result_ids)
+            )
+        )
     ).all()
     if len(results) != len(result_ids):
         raise HTTPException(status_code=404, detail="A shared result was not found")
@@ -75,7 +86,9 @@ def _safe_result_context(db: Session, user: User | None, result_ids: list[str]) 
     ]
 
 
-def _validated_action(action: object, db: Session, user: User | None) -> AssistantAction | None:
+async def _validated_action(
+    action: object, db: AsyncSession, user: User | None
+) -> AssistantAction | None:
     if not isinstance(action, dict) or not isinstance(action.get("name"), str):
         return None
     name = action["name"]
@@ -86,7 +99,7 @@ def _validated_action(action: object, db: Session, user: User | None) -> Assista
         slug = arguments.get("slug") or arguments.get("test_slug")
         if not isinstance(slug, str):
             return None
-        test = db.scalar(
+        test = await db.scalar(
             select(TestDefinition).where(
                 TestDefinition.slug == slug, TestDefinition.availability_status == "published"
             )
@@ -111,9 +124,9 @@ def _validated_action(action: object, db: Session, user: User | None) -> Assista
         )
     if name == "show_test_results":
         result_id = arguments.get("result_id")
-        if not user or not isinstance(result_id, str) or not db.get(SavedResult, result_id):
+        if not user or not isinstance(result_id, str):
             return None
-        saved = db.get(SavedResult, result_id)
+        saved = await db.get(SavedResult, result_id)
         if not saved or saved.user_id != user.id:
             return None
         return AssistantAction(
@@ -202,6 +215,28 @@ def _fallback(user_text: str = "", preferred_lang: str | None = None) -> Assista
                 "одышку или резкое ухудшение самочувствия — немедленно вызовите бригаду скорой помощи (103 / 112) "
                 "или обратитесь в ближайший приёмный покой больницы!"
             )
+
+    # 1B. DIAGNOSIS & CLINICAL DISCLAIMER
+    elif any(k in low for k in ["диагноз", "лечен", "ташхис", "табобат", "diagnos", "prescrib", "cure"]):
+        if lang == "tj":
+            msg = (
+                "Платформаи SIHAT ташхиси тиббӣ намегузорад ва дору таъин намекунад. "
+                "Ин сомона танҳо барои худсанҷӣ ва мониторинги фаъолияти когнитивӣ ва сенсорӣ пешбинӣ шудааст. "
+                "Барои ташхиси дақиқ ва табобат ҳатман ба табиби мутахассис муроҷиат намоед."
+            )
+        elif lang == "en":
+            msg = (
+                "SIHAT is an educational self-monitoring and cognitive-sensory screening platform. "
+                "SIHAT does not diagnose medical conditions, replace clinical consultations, or prescribe medications. "
+                "For formal medical diagnosis and treatment, please consult a qualified healthcare professional."
+            )
+        else:
+            msg = (
+                "Платформа SIHAT предназначена для самостоятельного скрининга и самоконтроля, "
+                "не ставит клинических диагнозов и не назначает лечение. "
+                "Для постановки диагноза и назначения терапии обратитесь к профильному врачу."
+            )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
 
     # 2. NEEDS / SELECTION / "ЧТО МНЕ НАДО" / "БА МАН ЧИ ЛОЗИМ" / "WHAT DO I NEED"
     elif any(k in low for k in [
@@ -662,11 +697,13 @@ def _fallback(user_text: str = "", preferred_lang: str | None = None) -> Assista
         elif lang == "en":
             msg = (
                 "I am your SIHAT clinical assistant, here to help guide your cognitive and sensory screening journey. "
+                "Please note that SIHAT does not diagnose medical conditions or replace clinical consultations. "
                 "You can ask me: 'What do I need?', 'Test my hearing', 'Check visual acuity', 'Attention test', or explore the full catalog."
             )
         else:
             msg = (
                 "Я клинический навигатор SIHAT и готов помочь вам подобрать подходящую программу скрининга. "
+                "Обратите внимание: SIHAT не ставит клинических диагнозов. "
                 "Вы можете спросить меня: «Что мне надо?», «Как проверить зрение?», «Таблицы Шульте», «Тест на слух» или перейти в полный каталог тестов."
             )
         actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
@@ -675,25 +712,36 @@ def _fallback(user_text: str = "", preferred_lang: str | None = None) -> Assista
 
 
 @router.post("/message", response_model=AssistantMessageOutput)
-def send_message(
+async def send_message(
     payload: AssistantMessageInput,
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User | None = Depends(get_current_user_optional),
     settings: Settings = Depends(get_settings),
 ) -> AssistantMessageOutput:
     user_id = user.id if user else (request.client.host if request.client else "guest")
     _enforce_rate_limit(f"{user_id}:{request.client.host if request.client else 'unknown'}")
-    shared_results = _safe_result_context(db, user, payload.shared_result_ids)
+    shared_results = await _safe_result_context(db, user, payload.shared_result_ids)
     conversation = [message.model_dump() for message in payload.conversation]
     conversation.append({"role": "user", "text": payload.text})
     try:
-        raw = generate_assistant_response(
-            settings=settings,
-            conversation=conversation,
-            shared_results=shared_results,
-            api_key=payload.api_key,
-        )
+        # Support test monkeypatching of either sync or async generator
+        from sihat import gemini
+        if generate_assistant_response != gemini.generate_assistant_response:
+            res = generate_assistant_response(
+                settings=settings,
+                conversation=conversation,
+                shared_results=shared_results,
+                api_key=payload.api_key,
+            )
+            raw = await res if asyncio.iscoroutine(res) else res
+        else:
+            raw = await generate_assistant_response_async(
+                settings=settings,
+                conversation=conversation,
+                shared_results=shared_results,
+                api_key=payload.api_key,
+            )
     except GeminiUnavailableError:
         return _fallback(payload.text, preferred_lang=payload.lang)
     message = raw.get("message")
@@ -705,6 +753,6 @@ def send_message(
     actions = [
         validated
         for item in raw_actions
-        if (validated := _validated_action(item, db, user)) is not None
+        if (validated := await _validated_action(item, db, user)) is not None
     ]
     return AssistantMessageOutput(message=message.strip(), actions=actions, provider_available=True)

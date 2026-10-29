@@ -1,53 +1,15 @@
-from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from sihat import auth
-from sihat.config import Settings, get_settings
-from sihat.db import Base, get_db_session
-from sihat.main import app
+from sihat.config import Settings
 from sihat.models import GoogleIdentity, PasswordResetToken, User
-from sihat.rate_limit import clear_auth_rate_limits
 from sihat.security import hash_password, hash_token
-
-
-@pytest.fixture
-def client() -> Generator[TestClient, None, None]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    testing_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-    def override_db_session() -> Generator[Session, None, None]:
-        with testing_session() as session:
-            yield session
-
-    test_settings = Settings(
-        jwt_secret="test-only-jwt-secret-with-more-than-thirty-two-characters",
-        smtp_host="smtp.test",
-        smtp_username="test-user",
-        smtp_password="test-password",
-        smtp_from_email="noreply@test.invalid",
-        google_oauth_client_id=None,
-    )
-    app.dependency_overrides[get_db_session] = override_db_session
-    app.dependency_overrides[get_settings] = lambda: test_settings
-    clear_auth_rate_limits()
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-    clear_auth_rate_limits()
-    Base.metadata.drop_all(engine)
-    engine.dispose()
+from tests.conftest import sync_db_exec
 
 
 def register(client: TestClient) -> dict[str, str]:
@@ -133,11 +95,8 @@ def test_password_reset_invalidates_existing_sessions(client: TestClient) -> Non
     ).json()
 
     reset_token = "r" * 64
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_generator = db_dependency()
-    session = next(session_generator)
-    try:
-        user = session.get(User, registered["id"])
+    async def add_reset_token(session):
+        user = await session.get(User, registered["id"])
         assert user is not None
         session.add(
             PasswordResetToken(
@@ -146,9 +105,7 @@ def test_password_reset_invalidates_existing_sessions(client: TestClient) -> Non
                 expires_at=datetime.now(UTC) + timedelta(hours=1),
             )
         )
-        session.commit()
-    finally:
-        next(session_generator, None)
+    sync_db_exec(add_reset_token)
 
     reset = client.post(
         "/auth/reset-password",
@@ -298,10 +255,7 @@ def test_catalog_publication_requires_admin_and_methodology_passport(client: Tes
     )
     assert denied.status_code == 403
 
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_generator = db_dependency()
-    session = next(session_generator)
-    try:
+    async def add_admin(session):
         session.add(
             User(
                 email="admin@example.com",
@@ -311,9 +265,7 @@ def test_catalog_publication_requires_admin_and_methodology_passport(client: Tes
                 role="admin",
             )
         )
-        session.commit()
-    finally:
-        next(session_generator, None)
+    sync_db_exec(add_admin)
     admin_tokens = client.post(
         "/auth/login",
         json={"email": "admin@example.com", "password": "a-secure-password"},
@@ -428,14 +380,10 @@ def test_authenticated_user_can_link_matching_google_email(
     )
     assert response.status_code == 204
 
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_generator = db_dependency()
-    session = next(session_generator)
-    try:
-        identity = session.scalar(
+    async def check_identity(session):
+        identity = await session.scalar(
             select(GoogleIdentity).where(GoogleIdentity.subject == "google-subject-789")
         )
         assert identity is not None
         assert identity.user_id == registered["id"]
-    finally:
-        next(session_generator, None)
+    sync_db_exec(check_identity)

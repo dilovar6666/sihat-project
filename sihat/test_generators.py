@@ -144,10 +144,14 @@ def generate_challenge(slug: str, seed: int | None = None) -> dict[str, Any]:
         curr_r, curr_c = 0, 0
         for _ in range(5):
             moves = []
-            if curr_r > 0: moves.append((curr_r - 1, curr_c))
-            if curr_r < 3: moves.append((curr_r + 1, curr_c))
-            if curr_c > 0: moves.append((curr_r, curr_c - 1))
-            if curr_c < 3: moves.append((curr_r, curr_c + 1))
+            if curr_r > 0:
+                moves.append((curr_r - 1, curr_c))
+            if curr_r < 3:
+                moves.append((curr_r + 1, curr_c))
+            if curr_c > 0:
+                moves.append((curr_r, curr_c - 1))
+            if curr_c < 3:
+                moves.append((curr_r, curr_c + 1))
             valid = [m for m in moves if m not in path]
             if not valid:
                 break

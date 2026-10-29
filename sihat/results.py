@@ -1,14 +1,15 @@
 """Owner-only saved result history, comparison, deletion, and small PDF exports."""
 
+import asyncio
+import uuid
 from datetime import UTC, datetime
 from io import BytesIO
 from typing import Any
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.attempt_schemas import ComparisonOutput, PdfExportInput, SavedResultOutput
 from sihat.auth import get_current_user
@@ -26,18 +27,42 @@ class DirectSaveInput(BaseModel):
     lang: str = "ru"
 
 
+def _result_output(item: SavedResult) -> SavedResultOutput:
+    return SavedResultOutput(
+        id=item.id,
+        test_slug=item.test_slug,
+        test_type=item.test_type,
+        test_title=item.test_title,
+        methodology_name=item.methodology_name,
+        methodology_version=item.methodology_version,
+        definition_version=item.definition_version,
+        compatibility_conditions=item.compatibility_conditions,
+        result=item.result,
+        limitations=item.limitations,
+        warnings=item.warnings,
+        completed_at=item.completed_at.isoformat(),
+    )
+
+
+async def _owned_saved_result(db: AsyncSession, result_id: str, user: User) -> SavedResult:
+    item = await db.get(SavedResult, result_id)
+    if not item or item.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Result was not found")
+    return item
+
+
 @router.post("/results/save-direct", response_model=SavedResultOutput, status_code=201)
-def save_direct_result(
+async def save_direct_result(
     payload: DirectSaveInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> SavedResultOutput:
-    test_def = db.scalar(
+    test_def = await db.scalar(
         select(TestDefinition).where(TestDefinition.slug == payload.test_slug)
     )
     if not test_def:
         raise HTTPException(status_code=404, detail="Test not found")
-    passport = db.scalar(
+    passport = await db.scalar(
         select(MethodologyPassport).where(MethodologyPassport.test_id == test_def.id)
     )
 
@@ -70,47 +95,27 @@ def save_direct_result(
         compatibility_conditions={"device_conditions": passport.device_conditions if passport else []},
         result=payload.result,
         answers=payload.answers,
-        limitations=passport.limitations if passport else "Educational demonstration screening only. Not a medical diagnosis.",
-        warnings=passport.warnings if (passport and passport.warnings) else ["Not a clinical diagnostic result"],
+        limitations=passport.limitations
+        if passport
+        else "Educational demonstration screening only. Not a medical diagnosis.",
+        warnings=passport.warnings
+        if (passport and passport.warnings)
+        else ["Not a clinical diagnostic result"],
         completed_at=datetime.now(UTC),
     )
     db.add(saved)
-    db.commit()
-    db.refresh(saved)
+    await db.commit()
+    await db.refresh(saved)
     return _result_output(saved)
 
 
-def _result_output(item: SavedResult) -> SavedResultOutput:
-    return SavedResultOutput(
-        id=item.id,
-        test_slug=item.test_slug,
-        test_type=item.test_type,
-        test_title=item.test_title,
-        methodology_name=item.methodology_name,
-        methodology_version=item.methodology_version,
-        definition_version=item.definition_version,
-        compatibility_conditions=item.compatibility_conditions,
-        result=item.result,
-        limitations=item.limitations,
-        warnings=item.warnings,
-        completed_at=item.completed_at.isoformat(),
-    )
-
-
-def _owned_saved_result(db: Session, result_id: str, user: User) -> SavedResult:
-    item = db.get(SavedResult, result_id)
-    if not item or item.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Result was not found")
-    return item
-
-
 @router.post("/attempts/{attempt_id}/save", response_model=SavedResultOutput, status_code=201)
-def save_completed_attempt(
+async def save_completed_attempt(
     attempt_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> SavedResultOutput:
-    attempt = db.get(TestAttempt, attempt_id)
+    attempt = await db.get(TestAttempt, attempt_id)
     if not attempt or attempt.user_id != user.id:
         raise HTTPException(status_code=404, detail="Attempt was not found")
     if attempt.status != "completed" or not attempt.completed_at or attempt.result is None:
@@ -138,58 +143,62 @@ def save_completed_attempt(
         completed_at=attempt.completed_at,
     )
     db.add(saved)
-    db.delete(attempt)
-    db.commit()
-    db.refresh(saved)
+    await db.delete(attempt)
+    await db.commit()
+    await db.refresh(saved)
     return _result_output(saved)
 
 
 @router.post("/attempts/{attempt_id}/do-not-save", status_code=status.HTTP_204_NO_CONTENT)
-def do_not_save_completed_attempt(
+async def do_not_save_completed_attempt(
     attempt_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> None:
-    attempt = db.get(TestAttempt, attempt_id)
+    attempt = await db.get(TestAttempt, attempt_id)
     if not attempt or attempt.user_id != user.id:
         raise HTTPException(status_code=404, detail="Attempt was not found")
     if attempt.status != "completed":
         raise HTTPException(status_code=409, detail="Only a completed attempt can be discarded")
-    if db.get(SavedResult, attempt.id):
+    if await db.get(SavedResult, attempt.id):
         raise HTTPException(status_code=409, detail="Saved results cannot be changed")
     attempt.save_consent = False
-    db.delete(attempt)
-    db.commit()
+    await db.delete(attempt)
+    await db.commit()
 
 
 @router.get("/results/history", response_model=list[SavedResultOutput])
-def history(
-    db: Session = Depends(get_db_session), user: User = Depends(get_current_user)
+async def history(
+    db: AsyncSession = Depends(get_db_session), user: User = Depends(get_current_user)
 ) -> list[SavedResultOutput]:
-    items = db.scalars(
-        select(SavedResult)
-        .where(SavedResult.user_id == user.id)
-        .order_by(SavedResult.completed_at.desc(), SavedResult.id.desc())
+    items = (
+        await db.scalars(
+            select(SavedResult)
+            .where(SavedResult.user_id == user.id)
+            .order_by(SavedResult.completed_at.desc(), SavedResult.id.desc())
+        )
     ).all()
     return [_result_output(item) for item in items]
 
 
 @router.get("/results/{result_id}/compare", response_model=ComparisonOutput)
-def compare_compatible_results(
+async def compare_compatible_results(
     result_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> ComparisonOutput:
-    selected = _owned_saved_result(db, result_id, user)
-    items = db.scalars(
-        select(SavedResult)
-        .where(
-            SavedResult.user_id == user.id,
-            SavedResult.test_id == selected.test_id,
-            SavedResult.methodology_version == selected.methodology_version,
-            SavedResult.definition_version == selected.definition_version,
+    selected = await _owned_saved_result(db, result_id, user)
+    items = (
+        await db.scalars(
+            select(SavedResult)
+            .where(
+                SavedResult.user_id == user.id,
+                SavedResult.test_id == selected.test_id,
+                SavedResult.methodology_version == selected.methodology_version,
+                SavedResult.definition_version == selected.definition_version,
+            )
+            .order_by(SavedResult.completed_at)
         )
-        .order_by(SavedResult.completed_at)
     ).all()
     compatible = [
         item for item in items if item.compatibility_conditions == selected.compatibility_conditions
@@ -204,21 +213,22 @@ def compare_compatible_results(
 
 
 @router.delete("/results/history", status_code=status.HTTP_204_NO_CONTENT)
-def delete_history(
-    db: Session = Depends(get_db_session), user: User = Depends(get_current_user)
+async def delete_history(
+    db: AsyncSession = Depends(get_db_session), user: User = Depends(get_current_user)
 ) -> None:
-    db.execute(delete(SavedResult).where(SavedResult.user_id == user.id))
-    db.commit()
+    await db.execute(delete(SavedResult).where(SavedResult.user_id == user.id))
+    await db.commit()
 
 
 @router.delete("/results/{result_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_result(
+async def delete_result(
     result_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> None:
-    db.delete(_owned_saved_result(db, result_id, user))
-    db.commit()
+    item = await _owned_saved_result(db, result_id, user)
+    await db.delete(item)
+    await db.commit()
 
 
 def _pdf_bytes(lines: list[str]) -> bytes:
@@ -258,14 +268,14 @@ def _pdf_bytes(lines: list[str]) -> bytes:
 
 
 @router.post("/results/{result_id}/pdf")
-def export_pdf(
+async def export_pdf(
     result_id: str,
     payload: PdfExportInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> Response:
-    item = _owned_saved_result(db, result_id, user)
-    test_def = db.scalar(
+    item = await _owned_saved_result(db, result_id, user)
+    test_def = await db.scalar(
         select(TestDefinition).where(TestDefinition.slug == item.test_slug)
     )
     lang = payload.lang if payload.lang in ("ru", "tj", "tg", "en") else "ru"
@@ -273,7 +283,9 @@ def export_pdf(
         lang = "tj"
 
     try:
-        content = build_screening_pdf(item, user, payload, lang=lang, test_def=test_def)
+        content = await asyncio.to_thread(
+            build_screening_pdf, item, user, payload, lang=lang, test_def=test_def
+        )
     except Exception:
         lines = [
             "SIHAT result record",

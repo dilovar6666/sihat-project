@@ -3,7 +3,7 @@ catalog controls, content authoring, and support management."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.admin_schemas import (
     AdminCategoryOutput,
@@ -28,7 +28,7 @@ from sihat.content_schemas import (
     SupportTicketUpdateInput,
 )
 from sihat.db import get_db_session
-from sihat.gemini import GeminiUnavailableError, generate_assistant_response
+from sihat.gemini import GeminiUnavailableError, generate_assistant_response_async
 from sihat.models import (
     Category,
     FaqItem,
@@ -101,42 +101,56 @@ def _admin_ticket_output(item: SupportTicket) -> SupportTicketOutput:
 
 
 @router.get("/dashboard", response_model=AdminDashboardOutput)
-def dashboard_analytics(
-    db: Session = Depends(get_db_session),
+async def dashboard_analytics(
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> AdminDashboardOutput:
-    total_users = db.scalar(select(func.count(User.id))) or 0
-    active_users = db.scalar(select(func.count(User.id)).where(User.is_active.is_(True))) or 0
+    total_users = (await db.scalar(select(func.count(User.id)))) or 0
+    active_users = (
+        await db.scalar(select(func.count(User.id)).where(User.is_active.is_(True)))
+    ) or 0
     inactive_users = total_users - active_users
 
-    age_rows = db.execute(
-        select(User.age_group, func.count(User.id)).group_by(User.age_group)
+    age_rows = (
+        await db.execute(
+            select(User.age_group, func.count(User.id)).group_by(User.age_group)
+        )
     ).all()
     users_by_age = {str(row[0]): int(row[1]) for row in age_rows}
 
-    total_categories = db.scalar(select(func.count(Category.id))) or 0
+    total_categories = (await db.scalar(select(func.count(Category.id)))) or 0
 
-    status_rows = db.execute(
-        select(TestDefinition.availability_status, func.count(TestDefinition.id)).group_by(
-            TestDefinition.availability_status
+    status_rows = (
+        await db.execute(
+            select(TestDefinition.availability_status, func.count(TestDefinition.id)).group_by(
+                TestDefinition.availability_status
+            )
         )
     ).all()
     tests_by_status = {str(row[0]): int(row[1]) for row in status_rows}
 
-    type_rows = db.execute(
-        select(TestDefinition.test_type, func.count(TestDefinition.id)).group_by(
-            TestDefinition.test_type
+    type_rows = (
+        await db.execute(
+            select(TestDefinition.test_type, func.count(TestDefinition.id)).group_by(
+                TestDefinition.test_type
+            )
         )
     ).all()
     tests_by_type = {str(row[0]): int(row[1]) for row in type_rows}
 
     total_completed = (
-        db.scalar(select(func.count(TestAttempt.id)).where(TestAttempt.status == "completed")) or 0
-    )
-    total_saved = db.scalar(select(func.count(SavedResult.id))) or 0
+        await db.scalar(
+            select(func.count(TestAttempt.id)).where(TestAttempt.status == "completed")
+        )
+    ) or 0
+    total_saved = (await db.scalar(select(func.count(SavedResult.id)))) or 0
 
-    ticket_rows = db.execute(
-        select(SupportTicket.status, func.count(SupportTicket.id)).group_by(SupportTicket.status)
+    ticket_rows = (
+        await db.execute(
+            select(SupportTicket.status, func.count(SupportTicket.id)).group_by(
+                SupportTicket.status
+            )
+        )
     ).all()
     tickets_by_status = {str(row[0]): int(row[1]) for row in ticket_rows}
 
@@ -160,11 +174,11 @@ def dashboard_analytics(
 
 
 @router.get("/users", response_model=list[AdminUserOutput])
-def list_users(
+async def list_users(
     role: str | None = None,
     age_group: str | None = None,
     search: str | None = None,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[AdminUserOutput]:
     stmt = select(User).order_by(User.created_at.desc())
@@ -181,18 +195,18 @@ def list_users(
                 func.lower(User.full_name).like(term),
             )
         )
-    users = db.scalars(stmt).all()
+    users = (await db.scalars(stmt)).all()
     return [_admin_user_output(u) for u in users]
 
 
 @router.patch("/users/{user_id}", response_model=AdminUserOutput)
-def update_user_status(
+async def update_user_status(
     user_id: str,
     payload: AdminUserUpdateInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     current_admin: User = Depends(require_admin),
 ) -> AdminUserOutput:
-    target_user = db.get(User, user_id)
+    target_user = await db.get(User, user_id)
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -214,8 +228,8 @@ def update_user_status(
     if payload.is_active is not None:
         target_user.is_active = payload.is_active
 
-    db.commit()
-    db.refresh(target_user)
+    await db.commit()
+    await db.refresh(target_user)
     return _admin_user_output(target_user)
 
 
@@ -225,15 +239,19 @@ def update_user_status(
 
 
 @router.get("/categories", response_model=list[AdminCategoryOutput])
-def list_all_categories(
-    db: Session = Depends(get_db_session),
+async def list_all_categories(
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[AdminCategoryOutput]:
-    categories = db.scalars(select(Category).order_by(Category.sort_order, Category.slug)).all()
+    categories = (
+        await db.scalars(select(Category).order_by(Category.sort_order, Category.slug))
+    ).all()
     counts = dict(
-        db.execute(
-            select(TestDefinition.category_id, func.count(TestDefinition.id)).group_by(
-                TestDefinition.category_id
+        (
+            await db.execute(
+                select(TestDefinition.category_id, func.count(TestDefinition.id)).group_by(
+                    TestDefinition.category_id
+                )
             )
         ).all()
     )
@@ -251,13 +269,13 @@ def list_all_categories(
 
 
 @router.patch("/categories/{category_id}", response_model=AdminCategoryOutput)
-def update_category(
+async def update_category(
     category_id: str,
     payload: AdminCategoryUpdateInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> AdminCategoryOutput:
-    category = db.get(Category, category_id)
+    category = await db.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
 
@@ -269,14 +287,13 @@ def update_category(
     if payload.is_active is not None:
         category.is_active = payload.is_active
 
-    db.commit()
-    db.refresh(category)
+    await db.commit()
+    await db.refresh(category)
     tests_count = (
-        db.scalar(
+        await db.scalar(
             select(func.count(TestDefinition.id)).where(TestDefinition.category_id == category.id)
         )
-        or 0
-    )
+    ) or 0
     return AdminCategoryOutput(
         id=category.id,
         slug=category.slug,
@@ -293,27 +310,29 @@ def update_category(
 
 
 @router.get("/tests")
-def list_all_admin_tests(
+async def list_all_admin_tests(
     status_filter: str | None = Query(default=None, alias="status"),
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[dict]:
     stmt = select(TestDefinition)
     if status_filter:
         stmt = stmt.where(TestDefinition.availability_status == status_filter)
-    tests = db.scalars(stmt.order_by(TestDefinition.slug)).all()
-    passports = {p.test_id: p for p in db.scalars(select(MethodologyPassport)).all()}
+    tests = (await db.scalars(stmt.order_by(TestDefinition.slug))).all()
+    passports = {
+        p.test_id: p for p in (await db.scalars(select(MethodologyPassport))).all()
+    }
     return [_test_output(t, passports.get(t.id)) for t in tests]
 
 
 @router.patch("/tests/{test_id}")
-def update_test_settings(
+async def update_test_settings(
     test_id: str,
     payload: AdminTestUpdateInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    test = db.get(TestDefinition, test_id)
+    test = await db.get(TestDefinition, test_id)
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
 
@@ -333,39 +352,45 @@ def update_test_settings(
     if payload.test_engine_key is not None:
         test.test_engine_key = payload.test_engine_key
 
-    db.commit()
-    db.refresh(test)
-    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))
+    await db.commit()
+    await db.refresh(test)
+    passport = await db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test.id)
+    )
     return _test_output(test, passport)
 
 
 @router.post("/tests/{test_id}/block")
-def block_test(
+async def block_test(
     test_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    test = db.get(TestDefinition, test_id)
+    test = await db.get(TestDefinition, test_id)
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
     test.availability_status = "blocked"
-    db.commit()
-    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))
+    await db.commit()
+    passport = await db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test.id)
+    )
     return _test_output(test, passport)
 
 
 @router.post("/tests/{test_id}/unpublish")
-def unpublish_test(
+async def unpublish_test(
     test_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    test = db.get(TestDefinition, test_id)
+    test = await db.get(TestDefinition, test_id)
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
     test.availability_status = "draft"
-    db.commit()
-    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))
+    await db.commit()
+    passport = await db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test.id)
+    )
     return _test_output(test, passport)
 
 
@@ -375,37 +400,39 @@ def unpublish_test(
 
 
 @router.get("/faq", response_model=list[FaqItemOutput])
-def list_admin_faq(
-    db: Session = Depends(get_db_session),
+async def list_admin_faq(
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[FaqItemOutput]:
-    items = db.scalars(select(FaqItem).order_by(FaqItem.sort_order, FaqItem.slug)).all()
+    items = (
+        await db.scalars(select(FaqItem).order_by(FaqItem.sort_order, FaqItem.slug))
+    ).all()
     return [_admin_faq_output(item) for item in items]
 
 
 @router.post("/faq", response_model=FaqItemOutput, status_code=status.HTTP_201_CREATED)
-def create_faq(
+async def create_faq(
     payload: FaqItemInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> FaqItemOutput:
-    if db.scalar(select(FaqItem.id).where(FaqItem.slug == payload.slug)):
+    if await db.scalar(select(FaqItem.id).where(FaqItem.slug == payload.slug)):
         raise HTTPException(status_code=409, detail="FAQ slug already exists")
     item = FaqItem(**payload.model_dump())
     db.add(item)
-    db.commit()
-    db.refresh(item)
+    await db.commit()
+    await db.refresh(item)
     return _admin_faq_output(item)
 
 
 @router.patch("/faq/{faq_id}", response_model=FaqItemOutput)
-def update_faq(
+async def update_faq(
     faq_id: str,
     payload: FaqItemUpdateInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> FaqItemOutput:
-    item = db.get(FaqItem, faq_id)
+    item = await db.get(FaqItem, faq_id)
     if not item:
         raise HTTPException(status_code=404, detail="FAQ item not found")
 
@@ -413,22 +440,22 @@ def update_faq(
         if val is not None:
             setattr(item, key, val)
 
-    db.commit()
-    db.refresh(item)
+    await db.commit()
+    await db.refresh(item)
     return _admin_faq_output(item)
 
 
 @router.delete("/faq/{faq_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_faq(
+async def delete_faq(
     faq_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> None:
-    item = db.get(FaqItem, faq_id)
+    item = await db.get(FaqItem, faq_id)
     if not item:
         raise HTTPException(status_code=404, detail="FAQ item not found")
-    db.delete(item)
-    db.commit()
+    await db.delete(item)
+    await db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -437,12 +464,16 @@ def delete_faq(
 
 
 @router.get("/knowledge", response_model=list[KnowledgeArticleOutput])
-def list_admin_articles(
-    db: Session = Depends(get_db_session),
+async def list_admin_articles(
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[KnowledgeArticleOutput]:
-    items = db.scalars(
-        select(KnowledgeArticle).order_by(KnowledgeArticle.sort_order, KnowledgeArticle.slug)
+    items = (
+        await db.scalars(
+            select(KnowledgeArticle).order_by(
+                KnowledgeArticle.sort_order, KnowledgeArticle.slug
+            )
+        )
     ).all()
     return [_admin_article_output(item) for item in items]
 
@@ -450,28 +481,30 @@ def list_admin_articles(
 @router.post(
     "/knowledge", response_model=KnowledgeArticleOutput, status_code=status.HTTP_201_CREATED
 )
-def create_article(
+async def create_article(
     payload: KnowledgeArticleInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> KnowledgeArticleOutput:
-    if db.scalar(select(KnowledgeArticle.id).where(KnowledgeArticle.slug == payload.slug)):
+    if await db.scalar(
+        select(KnowledgeArticle.id).where(KnowledgeArticle.slug == payload.slug)
+    ):
         raise HTTPException(status_code=409, detail="Article slug already exists")
     item = KnowledgeArticle(**payload.model_dump())
     db.add(item)
-    db.commit()
-    db.refresh(item)
+    await db.commit()
+    await db.refresh(item)
     return _admin_article_output(item)
 
 
 @router.patch("/knowledge/{article_id}", response_model=KnowledgeArticleOutput)
-def update_article(
+async def update_article(
     article_id: str,
     payload: KnowledgeArticleUpdateInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> KnowledgeArticleOutput:
-    item = db.get(KnowledgeArticle, article_id)
+    item = await db.get(KnowledgeArticle, article_id)
     if not item:
         raise HTTPException(status_code=404, detail="Article not found")
 
@@ -479,22 +512,22 @@ def update_article(
         if val is not None:
             setattr(item, key, val)
 
-    db.commit()
-    db.refresh(item)
+    await db.commit()
+    await db.refresh(item)
     return _admin_article_output(item)
 
 
 @router.delete("/knowledge/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_article(
+async def delete_article(
     article_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> None:
-    item = db.get(KnowledgeArticle, article_id)
+    item = await db.get(KnowledgeArticle, article_id)
     if not item:
         raise HTTPException(status_code=404, detail="Article not found")
-    db.delete(item)
-    db.commit()
+    await db.delete(item)
+    await db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -503,26 +536,26 @@ def delete_article(
 
 
 @router.get("/support/tickets", response_model=list[SupportTicketOutput])
-def list_support_tickets(
+async def list_support_tickets(
     status_filter: str | None = Query(default=None, alias="status"),
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[SupportTicketOutput]:
     stmt = select(SupportTicket).order_by(SupportTicket.created_at.desc())
     if status_filter:
         stmt = stmt.where(SupportTicket.status == status_filter)
-    tickets = db.scalars(stmt).all()
+    tickets = (await db.scalars(stmt)).all()
     return [_admin_ticket_output(t) for t in tickets]
 
 
 @router.patch("/support/tickets/{ticket_id}", response_model=SupportTicketOutput)
-def update_support_ticket(
+async def update_support_ticket(
     ticket_id: str,
     payload: SupportTicketUpdateInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> SupportTicketOutput:
-    ticket = db.get(SupportTicket, ticket_id)
+    ticket = await db.get(SupportTicket, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Support ticket not found")
 
@@ -531,8 +564,8 @@ def update_support_ticket(
     if payload.admin_notes is not None:
         ticket.admin_notes = payload.admin_notes
 
-    db.commit()
-    db.refresh(ticket)
+    await db.commit()
+    await db.refresh(ticket)
     return _admin_ticket_output(ticket)
 
 
@@ -542,7 +575,7 @@ def update_support_ticket(
 
 
 @router.post("/content/draft", response_model=ContentDraftOutput)
-def draft_content(
+async def draft_content(
     payload: ContentDraftInput,
     settings: Settings = Depends(get_settings),
     _: User = Depends(require_admin),
@@ -555,7 +588,7 @@ def draft_content(
     )
     if settings.gemini_is_configured:
         try:
-            res = generate_assistant_response(
+            res = await generate_assistant_response_async(
                 settings=settings,
                 conversation=[{"role": "user", "text": prompt}],
                 shared_results=[],

@@ -1,45 +1,10 @@
-from collections.abc import Generator
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import select
 
 from sihat.admin import router as admin_router  # noqa: F401
-from sihat.config import Settings, get_settings
-from sihat.content import clear_support_rate_limits
-from sihat.db import Base, get_db_session
-from sihat.main import app
 from sihat.models import User
-from sihat.rate_limit import clear_auth_rate_limits
-
-
-@pytest.fixture
-def client() -> Generator[TestClient, None, None]:
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    Base.metadata.create_all(engine)
-    testing_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-    def override_db_session() -> Generator[Session, None, None]:
-        with testing_session() as session:
-            yield session
-
-    app.dependency_overrides[get_db_session] = override_db_session
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        jwt_secret="admin-test-jwt-secret-with-more-than-thirty-two-chars"
-    )
-    clear_auth_rate_limits()
-    clear_support_rate_limits()
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-    clear_auth_rate_limits()
-    clear_support_rate_limits()
-    Base.metadata.drop_all(engine)
-    engine.dispose()
+from tests.conftest import sync_db_exec
 
 
 def _create_user(client: TestClient, email: str, role: str = "user") -> dict[str, str]:
@@ -56,16 +21,12 @@ def _create_user(client: TestClient, email: str, role: str = "user") -> dict[str
         == 201
     )
     if role == "admin":
-        db_dependency = app.dependency_overrides[get_db_session]
-        session_gen = db_dependency()
-        session = next(session_gen)
-        try:
-            user = session.query(User).filter(User.email == email).first()
+        async def make_admin(session):
+            user = await session.scalar(select(User).where(User.email == email))
             assert user is not None
             user.role = "admin"
-            session.commit()
-        finally:
-            next(session_gen, None)
+
+        sync_db_exec(make_admin)
 
     token = client.post(
         "/auth/login", json={"email": email, "password": "a-secure-password-123"}

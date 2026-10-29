@@ -46,7 +46,7 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/me/profile", response_model=UserOutput, tags=["me"])
-def read_profile(user: User = Depends(get_current_user)) -> UserOutput:
+async def read_profile(user: User = Depends(get_current_user)) -> UserOutput:
     return UserOutput(
         id=user.id,
         email=user.email,

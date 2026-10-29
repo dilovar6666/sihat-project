@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.attempt_schemas import (
     AnswerInput,
@@ -100,13 +100,38 @@ def _definition_snapshot(questionnaire: Questionnaire) -> dict[str, Any]:
     scoring: dict[str, dict[str, float]] = {}
     for question in questionnaire.questions:
         if isinstance(question, dict) and isinstance(question.get("id"), str):
-            points = question.get("points", {})
-            if isinstance(points, dict):
-                scoring[question["id"]] = {
+            qid = question["id"]
+            pts = question.get("points")
+            if isinstance(pts, dict):
+                scoring[qid] = {
                     str(answer): float(value)
-                    for answer, value in points.items()
+                    for answer, value in pts.items()
                     if isinstance(value, int | float)
                 }
+            for opt in question.get("options", []):
+                if isinstance(opt, dict) and isinstance(opt.get("id"), str):
+                    opt_id = opt["id"]
+                    opt_pts = opt.get("points")
+                    if isinstance(opt_pts, int | float):
+                        scoring.setdefault(qid, {})[opt_id] = float(opt_pts)
+                    elif (
+                        opt.get("correct_answer") is True
+                        or opt_id == question.get("correct_answer_id")
+                    ) and isinstance(pts, int | float):
+                        scoring.setdefault(qid, {})[opt_id] = float(pts)
+
+    if isinstance(questionnaire.scoring_config, dict):
+        cfg_pts = questionnaire.scoring_config.get("points", {})
+        if isinstance(cfg_pts, dict):
+            for k, v in cfg_pts.items():
+                if isinstance(v, int | float):
+                    for q in questionnaire.questions:
+                        qid = q.get("id")
+                        if qid:
+                            for opt in q.get("options", []):
+                                if isinstance(opt, dict) and opt.get("id") == k:
+                                    scoring.setdefault(qid, {})[k] = float(v)
+
     return {
         "questions": questions,
         "branching_rules": questionnaire.branching_rules,
@@ -150,13 +175,13 @@ def _age_group_allows(test: TestDefinition, age_group: str) -> bool:
     return test.max_age is None or test.max_age >= 18
 
 
-def _load_attempt(db: Session, attempt_id: str, user: User) -> TestAttempt:
-    attempt = db.get(TestAttempt, attempt_id)
+async def _load_attempt(db: AsyncSession, attempt_id: str, user: User) -> TestAttempt:
+    attempt = await db.get(TestAttempt, attempt_id)
     if not attempt or attempt.user_id != user.id:
         raise HTTPException(status_code=404, detail="Attempt was not found")
     if is_expired(attempt.expires_at):
-        db.delete(attempt)
-        db.commit()
+        await db.delete(attempt)
+        await db.commit()
         raise HTTPException(status_code=410, detail="Attempt has expired")
     return attempt
 
@@ -175,7 +200,7 @@ def _next_question_id(attempt: TestAttempt, answer: object) -> str | None:
     questions = attempt.definition_snapshot.get("questions", [])
     current_index = next(
         (index for index, question in enumerate(questions) if question["id"] == current_question_id),
-        -1
+        -1,
     )
     if current_index == -1 or current_index + 1 >= len(questions):
         return None
@@ -183,13 +208,13 @@ def _next_question_id(attempt: TestAttempt, answer: object) -> str | None:
 
 
 @router.post("/start", response_model=AttemptStateOutput, status_code=status.HTTP_201_CREATED)
-def start_attempt(
+async def start_attempt(
     payload: AttemptStartInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> AttemptStateOutput:
-    test = db.scalar(
+    test = await db.scalar(
         select(TestDefinition).where(
             TestDefinition.slug == payload.test_slug,
             TestDefinition.availability_status == "published",
@@ -197,8 +222,8 @@ def start_attempt(
     )
     if not test or not _age_group_allows(test, user.age_group):
         raise HTTPException(status_code=404, detail="Test is unavailable")
-    questionnaire = db.scalar(select(Questionnaire).where(Questionnaire.test_id == test.id))
-    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))
+    questionnaire = await db.scalar(select(Questionnaire).where(Questionnaire.test_id == test.id))
+    passport = await db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))
     if not questionnaire or not passport:
         raise HTTPException(status_code=409, detail="Test has no questionnaire definition")
     try:
@@ -230,48 +255,55 @@ def start_attempt(
         questionnaire_version=questionnaire.definition_version,
         snapshot=definition_snapshot,
         answers={},
-        current_question_id=definition_snapshot["questions"][0]["id"] if definition_snapshot.get("questions") else None,
+        current_question_id=definition_snapshot["questions"][0]["id"]
+        if definition_snapshot.get("questions")
+        else None,
         expires_at=datetime.now(UTC) + timedelta(hours=settings.attempt_temporary_hours),
     )
     db.add(attempt)
-    db.commit()
-    db.refresh(attempt)
+    await db.commit()
+    await db.refresh(attempt)
     return _state_output(attempt)
 
 
 @router.get("/{attempt_id}/current", response_model=AttemptStateOutput)
-def get_current_question(
+async def get_current_question(
     attempt_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> AttemptStateOutput:
-    return _state_output(_load_attempt(db, attempt_id, user))
+    attempt = await _load_attempt(db, attempt_id, user)
+    return _state_output(attempt)
 
 
 @router.get("/{attempt_id}/resume", response_model=AttemptStateOutput)
-def resume_attempt(
+async def resume_attempt(
     attempt_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> AttemptStateOutput:
-    return _state_output(_load_attempt(db, attempt_id, user))
+    attempt = await _load_attempt(db, attempt_id, user)
+    return _state_output(attempt)
 
 
 @router.post("/{attempt_id}/answer", response_model=AttemptStateOutput)
-def submit_answer(
+async def submit_answer(
     attempt_id: str,
     payload: AnswerInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> AttemptStateOutput:
-    attempt = _load_attempt(db, attempt_id, user)
+    attempt = await _load_attempt(db, attempt_id, user)
     _require_in_progress(attempt)
     if payload.question_id != attempt.current_question_id:
         raise HTTPException(status_code=409, detail="Answer must be for the current question")
     current_question = next(
-        (question for question in attempt.definition_snapshot.get("questions", [])
-        if question["id"] == attempt.current_question_id),
-        None
+        (
+            question
+            for question in attempt.definition_snapshot.get("questions", [])
+            if question["id"] == attempt.current_question_id
+        ),
+        None,
     )
     if current_question:
         option_ids = {option["id"] for option in current_question.get("options", [])}
@@ -284,22 +316,23 @@ def submit_answer(
     answers[payload.question_id] = payload.answer
     attempt.answers = answers
     attempt.current_question_id = _next_question_id(attempt, payload.answer)
-    db.commit()
-    db.refresh(attempt)
+    await db.commit()
+    await db.refresh(attempt)
     return _state_output(attempt)
 
 
 @router.post("/{attempt_id}/complete", response_model=AttemptCompletionOutput)
-def complete_attempt(
+async def complete_attempt(
     attempt_id: str,
     payload: AttemptCompleteInput | None = None,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> AttemptCompletionOutput:
-    attempt = _load_attempt(db, attempt_id, user)
+    attempt = await _load_attempt(db, attempt_id, user)
+    # Protection against concurrent duplicate completions
     if attempt.status == "completed":
         return _completion_output(attempt)
-    
+
     attempt.status = "completed"
     attempt.completed_at = datetime.now(UTC)
 
@@ -311,19 +344,26 @@ def complete_attempt(
         user_data.update(payload.telemetry)
 
     scored = score_attempt(test_slug, challenge, user_data)
+    scoring_map = attempt.definition_snapshot.get("scoring", {})
+    if scoring_map:
+        total_pts = sum(
+            scoring_map.get(q_id, {}).get(str(ans), 0)
+            for q_id, ans in attempt.answers.items()
+        )
+        scored["points"] = total_pts
     attempt.result = scored
-    db.commit()
-    db.refresh(attempt)
+    await db.commit()
+    await db.refresh(attempt)
     return _completion_output(attempt)
 
 
 @router.delete("/{attempt_id}/discard", status_code=status.HTTP_204_NO_CONTENT)
-def discard_attempt(
+async def discard_attempt(
     attempt_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> None:
-    attempt = _load_attempt(db, attempt_id, user)
+    attempt = await _load_attempt(db, attempt_id, user)
     _require_in_progress(attempt)
-    db.delete(attempt)
-    db.commit()
+    await db.delete(attempt)
+    await db.commit()

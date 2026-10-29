@@ -1,9 +1,10 @@
 """Small server-side Gemini adapter; it stores no dialog data."""
 
+import asyncio
 import json
 from typing import Any
 
-import requests
+import httpx
 
 from sihat.config import Settings
 
@@ -51,17 +52,10 @@ class GeminiUnavailableError(RuntimeError):
     pass
 
 
-def generate_assistant_response(
-    *,
-    settings: Settings,
+def _prepare_gemini_payload(
     conversation: list[dict[str, str]],
     shared_results: list[dict[str, object]],
-    api_key: str | None = None,
-) -> dict[str, Any]:
-    active_key = api_key or (settings.gemini_api_key.get_secret_value() if settings.gemini_is_configured else None)
-    if not active_key:
-        raise GeminiUnavailableError("Gemini is not configured")
-
+) -> list[dict[str, Any]]:
     contents: list[dict[str, Any]] = []
     for message in conversation:
         role = "model" if message.get("role") == "assistant" else "user"
@@ -82,26 +76,11 @@ def generate_assistant_response(
             contents[-1]["parts"].append({"text": summary_text})
         else:
             contents.append({"role": "user", "parts": [{"text": summary_text}]})
+    return contents
 
-    model = settings.gemini_model or "gemini-1.5-flash"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
+def _parse_gemini_response(payload: dict[str, Any]) -> dict[str, Any]:
     try:
-        response = requests.post(
-            url,
-            params={"key": active_key},
-            json={
-                "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
-                "contents": contents,
-                "generationConfig": {
-                    "responseMimeType": "application/json",
-                    "maxOutputTokens": 1000,
-                },
-            },
-            timeout=15,
-        )
-        response.raise_for_status()
-        payload = response.json()
         raw_text = payload["candidates"][0]["content"]["parts"][0]["text"].strip()
         if raw_text.startswith("```"):
             lines = raw_text.split("\n")
@@ -111,9 +90,100 @@ def generate_assistant_response(
                 lines = lines[:-1]
             raw_text = "\n".join(lines).strip()
         result = json.loads(raw_text)
-    except (KeyError, IndexError, TypeError, ValueError, requests.RequestException) as exc:
-        raise GeminiUnavailableError(str(exc)) from exc
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        raise GeminiUnavailableError(f"Malformed Gemini payload: {exc}") from exc
 
     if not isinstance(result, dict) or "message" not in result:
-        raise GeminiUnavailableError("Malformed Gemini payload")
+        raise GeminiUnavailableError("Malformed Gemini payload: missing message")
     return result
+
+
+async def generate_assistant_response_async(
+    *,
+    settings: Settings,
+    conversation: list[dict[str, str]],
+    shared_results: list[dict[str, object]],
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Asynchronously generate responses via Gemini API with httpx."""
+    active_key = api_key or (
+        settings.gemini_api_key.get_secret_value() if settings.gemini_is_configured else None
+    )
+    if not active_key:
+        raise GeminiUnavailableError("Gemini is not configured")
+
+    contents = _prepare_gemini_payload(conversation, shared_results)
+    model = settings.gemini_model or "gemini-1.5-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                url,
+                params={"key": active_key},
+                json={
+                    "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
+                    "contents": contents,
+                    "generationConfig": {
+                        "responseMimeType": "application/json",
+                        "maxOutputTokens": 1000,
+                    },
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+            return _parse_gemini_response(payload)
+    except httpx.HTTPError as exc:
+        raise GeminiUnavailableError(str(exc)) from exc
+
+
+def generate_assistant_response(
+    *,
+    settings: Settings,
+    conversation: list[dict[str, str]],
+    shared_results: list[dict[str, object]],
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    """Synchronous fallback/compatibility wrapper."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # In an active event loop, run synchronously using httpx.Client
+        active_key = api_key or (
+            settings.gemini_api_key.get_secret_value() if settings.gemini_is_configured else None
+        )
+        if not active_key:
+            raise GeminiUnavailableError("Gemini is not configured")
+        contents = _prepare_gemini_payload(conversation, shared_results)
+        model = settings.gemini_model or "gemini-1.5-flash"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        try:
+            with httpx.Client(timeout=15.0) as client:
+                response = client.post(
+                    url,
+                    params={"key": active_key},
+                    json={
+                        "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
+                        "contents": contents,
+                        "generationConfig": {
+                            "responseMimeType": "application/json",
+                            "maxOutputTokens": 1000,
+                        },
+                    },
+                )
+                response.raise_for_status()
+                return _parse_gemini_response(response.json())
+        except httpx.HTTPError as exc:
+            raise GeminiUnavailableError(str(exc)) from exc
+    else:
+        return asyncio.run(
+            generate_assistant_response_async(
+                settings=settings,
+                conversation=conversation,
+                shared_results=shared_results,
+                api_key=api_key,
+            )
+        )

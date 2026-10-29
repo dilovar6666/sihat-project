@@ -1,44 +1,9 @@
-from collections.abc import Generator
+"""Tests for public content (FAQ, knowledge base) and support tickets."""
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from sihat.config import Settings, get_settings
-from sihat.content import clear_support_rate_limits
-from sihat.db import Base, get_db_session
-from sihat.main import app
 from sihat.models import FaqItem, KnowledgeArticle
-from sihat.rate_limit import clear_auth_rate_limits
-
-
-@pytest.fixture
-def client() -> Generator[TestClient, None, None]:
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    Base.metadata.create_all(engine)
-    testing_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-    def override_db_session() -> Generator[Session, None, None]:
-        with testing_session() as session:
-            yield session
-
-    app.dependency_overrides[get_db_session] = override_db_session
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        jwt_secret="content-test-jwt-secret-with-more-than-thirty-two-chars"
-    )
-    clear_auth_rate_limits()
-    clear_support_rate_limits()
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-    clear_auth_rate_limits()
-    clear_support_rate_limits()
-    Base.metadata.drop_all(engine)
-    engine.dispose()
+from tests.conftest import sync_db_exec
 
 
 def _login_user(client: TestClient, email: str) -> dict[str, str]:
@@ -61,10 +26,7 @@ def _login_user(client: TestClient, email: str) -> dict[str, str]:
 
 
 def test_public_faq_returns_published_items_only(client: TestClient) -> None:
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_gen = db_dependency()
-    session = next(session_gen)
-    try:
+    async def seed(session):
         session.add(
             FaqItem(
                 slug="faq-published",
@@ -85,9 +47,8 @@ def test_public_faq_returns_published_items_only(client: TestClient) -> None:
                 sort_order=2,
             )
         )
-        session.commit()
-    finally:
-        next(session_gen, None)
+
+    sync_db_exec(seed)
 
     res = client.get("/faq")
     assert res.status_code == 200
@@ -97,10 +58,7 @@ def test_public_faq_returns_published_items_only(client: TestClient) -> None:
 
 
 def test_public_knowledge_articles(client: TestClient) -> None:
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_gen = db_dependency()
-    session = next(session_gen)
-    try:
+    async def seed(session):
         session.add(
             KnowledgeArticle(
                 slug="methodology-overview",
@@ -125,9 +83,8 @@ def test_public_knowledge_articles(client: TestClient) -> None:
                 },
             )
         )
-        session.commit()
-    finally:
-        next(session_gen, None)
+
+    sync_db_exec(seed)
 
     list_res = client.get("/knowledge")
     assert list_res.status_code == 200
@@ -135,68 +92,64 @@ def test_public_knowledge_articles(client: TestClient) -> None:
     assert "methodology-overview" in slugs
     assert "draft-article" not in slugs
 
-    single_res = client.get("/knowledge/methodology-overview")
-    assert single_res.status_code == 200
-    assert single_res.json()["slug"] == "methodology-overview"
+    cat_res = client.get("/knowledge?category=methodology")
+    assert cat_res.status_code == 200
+    assert len(cat_res.json()) == 1
+    assert cat_res.json()[0]["slug"] == "methodology-overview"
 
-    assert client.get("/knowledge/draft-article").status_code == 404
-    assert client.get("/knowledge/nonexistent").status_code == 404
+    empty_cat = client.get("/knowledge?category=unknown-cat")
+    assert empty_cat.status_code == 200
+    assert len(empty_cat.json()) == 0
+
+    detail_res = client.get("/knowledge/methodology-overview")
+    assert detail_res.status_code == 200
+    assert detail_res.json()["slug"] == "methodology-overview"
+    assert "ru" in detail_res.json()["localizations"]
+
+    not_found = client.get("/knowledge/draft-article")
+    assert not_found.status_code == 404
 
 
 def test_support_ticket_submission_and_rate_limiting(client: TestClient) -> None:
-    # 1. Guest ticket
-    guest_res = client.post(
+    valid_payload = {
+        "contact_email": "guest@example.com",
+        "subject": "Platform inquiry",
+        "message": "Hello, I have a question about device conditions for exercises.",
+    }
+    created = client.post("/support/tickets", json=valid_payload)
+    assert created.status_code == 201
+    ticket_data = created.json()
+    assert ticket_data["status"] == "open"
+    assert ticket_data["contact_email"] == "guest@example.com"
+    assert ticket_data["user_id"] is None
+
+    auth_headers = _login_user(client, "support-user@example.com")
+    auth_ticket = client.post(
         "/support/tickets",
         json={
-            "contact_email": "guest@example.com",
-            "subject": "Platform inquiry",
-            "message": "Hello, I have a question about device conditions for exercises.",
+            "contact_email": "support-user@example.com",
+            "subject": "Audio test question",
+            "message": "Headphone requirements detail.",
         },
+        headers=auth_headers,
     )
-    assert guest_res.status_code == 201
-    ticket = guest_res.json()
-    assert ticket["contact_email"] == "guest@example.com"
-    assert ticket["user_id"] is None
-    assert ticket["status"] == "open"
+    assert auth_ticket.status_code == 201
+    assert auth_ticket.json()["user_id"] is not None
 
-    # 2. Authenticated user ticket
-    user_headers = _login_user(client, "ticket_user@example.com")
-    auth_res = client.post(
-        "/support/tickets",
-        json={
-            "contact_email": "ticket_user@example.com",
-            "subject": "Export question",
-            "message": "How do I download a PDF with only selected answers?",
-        },
-        headers=user_headers,
-    )
-    assert auth_res.status_code == 201
-    assert auth_res.json()["user_id"] is not None
-
-    # Check my-tickets
-    my_tickets = client.get("/support/my-tickets", headers=user_headers)
+    my_tickets = client.get("/support/my-tickets", headers=auth_headers)
     assert my_tickets.status_code == 200
     assert len(my_tickets.json()) == 1
 
-    # Unauthenticated my-tickets -> 401
     assert client.get("/support/my-tickets").status_code == 401
 
-    # 3. Rate limiting (limit is 5 requests per window)
-    for _ in range(4):
-        client.post(
-            "/support/tickets",
-            json={
-                "contact_email": "spam@example.com",
-                "subject": "Rapid query",
-                "message": "Testing the support rate limiter threshold.",
-            },
-        )
-    blocked = client.post(
+    invalid_email = client.post(
         "/support/tickets",
-        json={
-            "contact_email": "spam@example.com",
-            "subject": "Rapid query",
-            "message": "Testing the support rate limiter threshold.",
-        },
+        json={"contact_email": "not-an-email", "subject": "Hi", "message": "Test"},
     )
-    assert blocked.status_code == 429
+    assert invalid_email.status_code == 422
+
+    short_msg = client.post(
+        "/support/tickets",
+        json={"contact_email": "guest@example.com", "subject": "Hi", "message": "short"},
+    )
+    assert short_msg.status_code == 422

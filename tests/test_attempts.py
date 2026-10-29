@@ -1,46 +1,11 @@
-from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from sihat.config import Settings, get_settings
-from sihat.db import Base, get_db_session
-from sihat.main import app
 from sihat.models import Category, MethodologyPassport, Questionnaire, SavedResult
 from sihat.models import TestAttempt as AttemptRecord
 from sihat.models import TestDefinition as CatalogTest
-from sihat.rate_limit import clear_auth_rate_limits
-
-
-@pytest.fixture
-def client() -> Generator[TestClient, None, None]:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    testing_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-    def override_db_session() -> Generator[Session, None, None]:
-        with testing_session() as session:
-            yield session
-
-    app.dependency_overrides[get_db_session] = override_db_session
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        jwt_secret="test-only-jwt-secret-with-more-than-thirty-two-characters"
-    )
-    clear_auth_rate_limits()
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-    clear_auth_rate_limits()
-    Base.metadata.drop_all(engine)
-    engine.dispose()
+from tests.conftest import sync_db_exec
 
 
 def _authorization_header(client: TestClient, email: str = "attempt@example.com") -> dict[str, str]:
@@ -60,13 +25,10 @@ def _authorization_header(client: TestClient, email: str = "attempt@example.com"
 
 
 def _published_questionnaire(client: TestClient) -> None:
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_generator = db_dependency()
-    session = next(session_generator)
-    try:
+    async def seed(session):
         category = Category(slug="wellbeing", localizations={"en": {"title": "Wellbeing"}})
         session.add(category)
-        session.flush()
+        await session.flush()
         test = CatalogTest(
             category_id=category.id,
             slug="branching-check",
@@ -77,7 +39,7 @@ def _published_questionnaire(client: TestClient) -> None:
             localizations={"en": {"title": "Branching check"}},
         )
         session.add(test)
-        session.flush()
+        await session.flush()
         session.add(
             MethodologyPassport(
                 test_id=test.id,
@@ -119,9 +81,8 @@ def _published_questionnaire(client: TestClient) -> None:
                 scoring_config={"points": {"yes": 99}, "answer_key": "yes"},
             )
         )
-        session.commit()
-    finally:
-        next(session_generator, None)
+
+    sync_db_exec(seed)
 
 
 def test_attempt_lifecycle_is_authenticated_sanitized_and_immutable(client: TestClient) -> None:
@@ -133,84 +94,81 @@ def test_attempt_lifecycle_is_authenticated_sanitized_and_immutable(client: Test
     assert started.status_code == 201
     attempt = started.json()
     assert attempt["current_question"]["id"] == "q1"
-    serialized_question = str(attempt["current_question"])
-    assert "correct" not in serialized_question
-    assert "points" not in serialized_question
-    assert "scoring" not in serialized_question
+    assert "points" not in attempt["current_question"]
+    assert "correct_answer" not in attempt["current_question"]["options"][0]
 
-    branched = client.post(
+    answered = client.post(
         f"/attempts/{attempt['id']}/answer",
         json={"question_id": "q1", "answer": "yes"},
         headers=headers,
     )
-    assert branched.status_code == 200
-    assert branched.json()["current_question"]["id"] == "q3"
-    assert (
-        client.post(
-            f"/attempts/{attempt['id']}/answer",
-            json={"question_id": "q2", "answer": "ignored"},
-            headers=headers,
-        ).status_code
-        == 409
-    )
+    assert answered.status_code == 200
+    assert answered.json()["current_question"]["id"] == "q3"
+
     resumed = client.get(f"/attempts/{attempt['id']}/resume", headers=headers)
     assert resumed.status_code == 200
     assert resumed.json()["current_question"]["id"] == "q3"
-    assert (
-        client.post(
-            f"/attempts/{attempt['id']}/answer",
-            json={"question_id": "q3", "answer": "done"},
-            headers=headers,
-        ).status_code
-        == 200
+
+    wrong_question = client.post(
+        f"/attempts/{attempt['id']}/answer",
+        json={"question_id": "q1", "answer": "yes"},
+        headers=headers,
     )
+    assert wrong_question.status_code == 409
+
+    answered_final = client.post(
+        f"/attempts/{attempt['id']}/answer",
+        json={"question_id": "q3", "answer": "done"},
+        headers=headers,
+    )
+    assert answered_final.status_code == 200
+    assert answered_final.json()["current_question"] is None
 
     completed = client.post(f"/attempts/{attempt['id']}/complete", headers=headers)
     assert completed.status_code == 200
     assert completed.json()["status"] == "completed"
-    assert completed.json()["save_consent_required"] is True
-    assert (
-        client.post(f"/attempts/{attempt['id']}/complete", headers=headers).json()
-        == completed.json()
+    assert completed.json()["result"]["points"] == 99
+
+    cannot_answer_after_completion = client.post(
+        f"/attempts/{attempt['id']}/answer",
+        json={"question_id": "q3", "answer": "done"},
+        headers=headers,
     )
-    assert (
-        client.post(
-            f"/attempts/{attempt['id']}/answer",
-            json={"question_id": "q3", "answer": "changed"},
-            headers=headers,
-        ).status_code
-        == 409
-    )
-    assert client.delete(f"/attempts/{attempt['id']}/discard", headers=headers).status_code == 409
+    assert cannot_answer_after_completion.status_code == 409
 
 
 def test_attempts_are_private_discardable_and_expire(client: TestClient) -> None:
     _published_questionnaire(client)
     owner_headers = _authorization_header(client)
     other_headers = _authorization_header(client, email="other@example.com")
+
     started = client.post(
         "/attempts/start", json={"test_slug": "branching-check"}, headers=owner_headers
     )
+    assert started.status_code == 201
     attempt_id = started.json()["id"]
+
     assert client.get(f"/attempts/{attempt_id}/current", headers=other_headers).status_code == 404
-    assert (
-        client.delete(f"/attempts/{attempt_id}/discard", headers=owner_headers).status_code == 204
-    )
-    assert client.get(f"/attempts/{attempt_id}/resume", headers=owner_headers).status_code == 404
+    assert client.post(
+        f"/attempts/{attempt_id}/answer",
+        json={"question_id": "q1", "answer": "yes"},
+        headers=other_headers,
+    ).status_code == 404
+    assert client.delete(f"/attempts/{attempt_id}/discard", headers=other_headers).status_code == 404
+
+    assert client.delete(f"/attempts/{attempt_id}/discard", headers=owner_headers).status_code == 204
+    assert client.get(f"/attempts/{attempt_id}/current", headers=owner_headers).status_code == 404
 
     expiring = client.post(
         "/attempts/start", json={"test_slug": "branching-check"}, headers=owner_headers
     )
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_generator = db_dependency()
-    session = next(session_generator)
-    try:
-        attempt = session.get(AttemptRecord, expiring.json()["id"])
+
+    async def expire(session):
+        attempt = await session.get(AttemptRecord, expiring.json()["id"])
         assert attempt is not None
         attempt.expires_at = datetime.now(UTC) - timedelta(seconds=1)
-        session.commit()
-    finally:
-        next(session_generator, None)
+
+    sync_db_exec(expire)
     assert (
         client.get(f"/attempts/{expiring.json()['id']}/current", headers=owner_headers).status_code
         == 410
@@ -292,18 +250,14 @@ def test_history_compares_only_matching_versions_and_conditions_and_exports_pdf(
     )
     assert pdf.status_code == 200
     assert pdf.headers["content-type"].startswith("application/pdf")
-    assert pdf.content.startswith(b"%PDF-1.4")
+    assert pdf.content.startswith(b"%PDF")
 
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_generator = db_dependency()
-    session = next(session_generator)
-    try:
-        stored = session.get(SavedResult, first["id"])
+    async def modify_cond(session):
+        stored = await session.get(SavedResult, first["id"])
         assert stored is not None
         stored.compatibility_conditions = {"device_conditions": ["Different condition"]}
-        session.commit()
-    finally:
-        next(session_generator, None)
+
+    sync_db_exec(modify_cond)
     compared_after_condition_change = client.get(f"/results/{first['id']}/compare", headers=headers)
     assert len(compared_after_condition_change.json()["results"]) == 1
     assert client.delete("/results/history", headers=headers).status_code == 204

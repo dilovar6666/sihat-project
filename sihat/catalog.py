@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.auth import get_current_user, get_current_user_optional
 from sihat.catalog_schemas import CategoryInput, PassportInput, QuestionnaireInput, TestInput
@@ -12,7 +12,7 @@ admin_router = APIRouter(prefix="/admin", tags=["admin"])
 LANGUAGES = {"ru", "tg", "en"}
 
 
-def require_admin(user: User = Depends(get_current_user)) -> User:
+async def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -57,21 +57,23 @@ def _test_output(test: TestDefinition, passport: MethodologyPassport | None) -> 
 
 
 @router.get("/categories")
-def list_categories(db: Session = Depends(get_db_session)) -> list[dict]:
-    categories = db.scalars(
-        select(Category)
-        .where(Category.is_active.is_(True))
-        .order_by(Category.sort_order, Category.slug)
+async def list_categories(db: AsyncSession = Depends(get_db_session)) -> list[dict]:
+    categories = (
+        await db.scalars(
+            select(Category)
+            .where(Category.is_active.is_(True))
+            .order_by(Category.sort_order, Category.slug)
+        )
     ).all()
     return [_category_output(category) for category in categories]
 
 
 @router.get("/tests")
-def list_tests(
+async def list_tests(
     category: str | None = None,
     query: str | None = Query(default=None, min_length=2, max_length=100),
     age: int | None = Query(default=None, ge=0, le=120),
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User | None = Depends(get_current_user_optional),
 ) -> list[dict]:
     statement = select(TestDefinition).where(TestDefinition.availability_status == "published")
@@ -83,8 +85,10 @@ def list_tests(
         statement = statement.where(TestDefinition.min_age <= age).where(
             or_(TestDefinition.max_age.is_(None), TestDefinition.max_age >= age)
         )
-    tests = db.scalars(statement.order_by(TestDefinition.slug)).all()
-    passports = {item.test_id: item for item in db.scalars(select(MethodologyPassport)).all()}
+    tests = (await db.scalars(statement.order_by(TestDefinition.slug))).all()
+    passports = {
+        item.test_id: item for item in (await db.scalars(select(MethodologyPassport))).all()
+    }
     if query:
         query = query.casefold()
         tests = [test for test in tests if query in str(test.localizations).casefold()]
@@ -92,9 +96,9 @@ def list_tests(
 
 
 @router.get("/tests/{slug}")
-def get_test(
+async def get_test(
     slug: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User | None = Depends(get_current_user_optional),
 ) -> dict:
     statement = select(TestDefinition).where(
@@ -103,77 +107,81 @@ def get_test(
     )
     if user is None:
         statement = statement.where(TestDefinition.guest_allowed.is_(True))
-    test = db.scalar(statement)
+    test = await db.scalar(statement)
     if not test:
         raise HTTPException(status_code=404, detail="Test is unavailable")
-    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test.id))
+    passport = await db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test.id)
+    )
     return _test_output(test, passport)
 
 
 @admin_router.post("/categories", status_code=status.HTTP_201_CREATED)
-def create_category(
+async def create_category(
     payload: CategoryInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
     _validate_localizations(payload.localizations)
-    if db.scalar(select(Category.id).where(Category.slug == payload.slug)):
+    if await db.scalar(select(Category.id).where(Category.slug == payload.slug)):
         raise HTTPException(status_code=409, detail="Category slug already exists")
     category = Category(**payload.model_dump())
     db.add(category)
-    db.commit()
-    db.refresh(category)
+    await db.commit()
+    await db.refresh(category)
     return _category_output(category)
 
 
 @admin_router.post("/tests", status_code=status.HTTP_201_CREATED)
-def create_test(
+async def create_test(
     payload: TestInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
     _validate_localizations(payload.localizations)
     if payload.max_age is not None and payload.max_age < payload.min_age:
         raise HTTPException(status_code=422, detail="max_age cannot be lower than min_age")
-    if not db.get(Category, payload.category_id):
+    if not await db.get(Category, payload.category_id):
         raise HTTPException(status_code=404, detail="Category was not found")
-    if db.scalar(select(TestDefinition.id).where(TestDefinition.slug == payload.slug)):
+    if await db.scalar(select(TestDefinition.id).where(TestDefinition.slug == payload.slug)):
         raise HTTPException(status_code=409, detail="Test slug already exists")
     test = TestDefinition(**payload.model_dump())
     db.add(test)
-    db.commit()
-    db.refresh(test)
+    await db.commit()
+    await db.refresh(test)
     return _test_output(test, None)
 
 
 @admin_router.put("/tests/{test_id}/methodology")
-def upsert_methodology(
+async def upsert_methodology(
     test_id: str,
     payload: PassportInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    if not db.get(TestDefinition, test_id):
+    if not await db.get(TestDefinition, test_id):
         raise HTTPException(status_code=404, detail="Test was not found")
-    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test_id))
+    passport = await db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test_id)
+    )
     if passport:
         for key, value in payload.model_dump().items():
             setattr(passport, key, value)
     else:
         passport = MethodologyPassport(test_id=test_id, **payload.model_dump())
         db.add(passport)
-    db.commit()
+    await db.commit()
     return {"test_id": test_id, "evidence_status": passport.evidence_status}
 
 
 @admin_router.put("/tests/{test_id}/questionnaire")
-def upsert_questionnaire(
+async def upsert_questionnaire(
     test_id: str,
     payload: QuestionnaireInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    if not db.get(TestDefinition, test_id):
+    if not await db.get(TestDefinition, test_id):
         raise HTTPException(status_code=404, detail="Test was not found")
     if any(
         "id" not in question or "localizations" not in question for question in payload.questions
@@ -182,25 +190,29 @@ def upsert_questionnaire(
             status_code=422,
             detail="Each questionnaire question requires an id and localizations",
         )
-    questionnaire = db.scalar(select(Questionnaire).where(Questionnaire.test_id == test_id))
+    questionnaire = await db.scalar(
+        select(Questionnaire).where(Questionnaire.test_id == test_id)
+    )
     if questionnaire:
         for key, value in payload.model_dump().items():
             setattr(questionnaire, key, value)
     else:
         questionnaire = Questionnaire(test_id=test_id, **payload.model_dump())
         db.add(questionnaire)
-    db.commit()
+    await db.commit()
     return {"test_id": test_id, "version": questionnaire.definition_version}
 
 
 @admin_router.post("/tests/{test_id}/publish")
-def publish_test(
+async def publish_test(
     test_id: str,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    test = db.get(TestDefinition, test_id)
-    passport = db.scalar(select(MethodologyPassport).where(MethodologyPassport.test_id == test_id))
+    test = await db.get(TestDefinition, test_id)
+    passport = await db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test_id)
+    )
     if not test or not passport:
         raise HTTPException(
             status_code=409,
@@ -216,8 +228,8 @@ def publish_test(
             status_code=409, detail="Validated methodology requires source and license information"
         )
     test.availability_status = "published"
-    questionnaire = db.scalar(select(Questionnaire).where(Questionnaire.test_id == test.id))
+    questionnaire = await db.scalar(select(Questionnaire).where(Questionnaire.test_id == test.id))
     if questionnaire:
         questionnaire.is_published = True
-    db.commit()
+    await db.commit()
     return _test_output(test, passport)

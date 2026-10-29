@@ -5,7 +5,7 @@ from time import monotonic
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.auth import get_current_user_optional
 from sihat.content_schemas import (
@@ -80,32 +80,36 @@ def _ticket_output(item: SupportTicket) -> SupportTicketOutput:
 
 
 @router.get("/faq", response_model=list[FaqItemOutput])
-def list_published_faq(db: Session = Depends(get_db_session)) -> list[FaqItemOutput]:
-    items = db.scalars(
-        select(FaqItem)
-        .where(FaqItem.is_published.is_(True))
-        .order_by(FaqItem.sort_order, FaqItem.slug)
+async def list_published_faq(db: AsyncSession = Depends(get_db_session)) -> list[FaqItemOutput]:
+    items = (
+        await db.scalars(
+            select(FaqItem)
+            .where(FaqItem.is_published.is_(True))
+            .order_by(FaqItem.sort_order, FaqItem.slug)
+        )
     ).all()
     return [_faq_output(item) for item in items]
 
 
 @router.get("/knowledge", response_model=list[KnowledgeArticleOutput])
-def list_published_articles(
+async def list_published_articles(
     category: str | None = None,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
 ) -> list[KnowledgeArticleOutput]:
     statement = select(KnowledgeArticle).where(KnowledgeArticle.is_published.is_(True))
     if category:
         statement = statement.where(KnowledgeArticle.category == category)
-    items = db.scalars(statement.order_by(KnowledgeArticle.sort_order, KnowledgeArticle.slug)).all()
+    items = (
+        await db.scalars(statement.order_by(KnowledgeArticle.sort_order, KnowledgeArticle.slug))
+    ).all()
     return [_article_output(item) for item in items]
 
 
 @router.get("/knowledge/{slug}", response_model=KnowledgeArticleOutput)
-def get_published_article(
-    slug: str, db: Session = Depends(get_db_session)
+async def get_published_article(
+    slug: str, db: AsyncSession = Depends(get_db_session)
 ) -> KnowledgeArticleOutput:
-    item = db.scalar(
+    item = await db.scalar(
         select(KnowledgeArticle).where(
             KnowledgeArticle.slug == slug, KnowledgeArticle.is_published.is_(True)
         )
@@ -118,10 +122,10 @@ def get_published_article(
 @router.post(
     "/support/tickets", response_model=SupportTicketOutput, status_code=status.HTTP_201_CREATED
 )
-def create_support_ticket(
+async def create_support_ticket(
     payload: SupportTicketCreateInput,
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User | None = Depends(get_current_user_optional),
 ) -> SupportTicketOutput:
     client_ip = request.client.host if request.client else "unknown"
@@ -134,21 +138,23 @@ def create_support_ticket(
         status="open",
     )
     db.add(ticket)
-    db.commit()
-    db.refresh(ticket)
+    await db.commit()
+    await db.refresh(ticket)
     return _ticket_output(ticket)
 
 
 @router.get("/support/my-tickets", response_model=list[SupportTicketOutput])
-def list_my_support_tickets(
-    db: Session = Depends(get_db_session),
+async def list_my_support_tickets(
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user_optional),
 ) -> list[SupportTicketOutput]:
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
-    tickets = db.scalars(
-        select(SupportTicket)
-        .where(SupportTicket.user_id == user.id)
-        .order_by(SupportTicket.created_at.desc())
+    tickets = (
+        await db.scalars(
+            select(SupportTicket)
+            .where(SupportTicket.user_id == user.id)
+            .order_by(SupportTicket.created_at.desc())
+        )
     ).all()
     return [_ticket_output(ticket) for ticket in tickets]

@@ -1,11 +1,12 @@
-from typing import Any
-from datetime import UTC, datetime, timedelta
+import asyncio
 import re
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.auth_schemas import (
     AttachEmailInput,
@@ -108,7 +109,7 @@ def user_output(user: User) -> UserOutput:
     )
 
 
-def create_tokens(db: Session, user: User, settings: Settings) -> AuthTokensOutput:
+async def create_tokens(db: AsyncSession, user: User, settings: Settings) -> AuthTokensOutput:
     refresh_token = new_refresh_token()
     db.add(
         AuthSession(
@@ -117,7 +118,7 @@ def create_tokens(db: Session, user: User, settings: Settings) -> AuthTokensOutp
             expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_token_days),
         )
     )
-    db.commit()
+    await db.commit()
     return AuthTokensOutput(
         access_token=create_access_token(user, settings),
         refresh_token=refresh_token,
@@ -126,10 +127,10 @@ def create_tokens(db: Session, user: User, settings: Settings) -> AuthTokensOutp
 
 
 @router.post("/register", response_model=UserOutput, status_code=status.HTTP_201_CREATED)
-def register(
+async def register(
     payload: RegistrationInput,
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UserOutput:
     email = normalize_email(str(payload.email)) if payload.email else None
     phone = normalize_phone(payload.phone)
@@ -137,12 +138,12 @@ def register(
     rate_key = email or phone or "anonymous"
     enforce_auth_rate_limit(request, "register", rate_key)
 
-    if email and db.scalar(select(User.id).where(User.email == email)):
+    if email and await db.scalar(select(User.id).where(User.email == email)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email is already registered",
         )
-    if phone and db.scalar(select(User.id).where(User.phone == phone)):
+    if phone and await db.scalar(select(User.id).where(User.phone == phone)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Phone number is already registered",
@@ -157,16 +158,16 @@ def register(
         role="user",
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user_output(user)
 
 
 @router.post("/login", response_model=AuthTokensOutput)
-def login(
+async def login(
     payload: LoginInput,
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> AuthTokensOutput:
     identifier = (payload.email or payload.phone or "").strip()
@@ -176,32 +177,32 @@ def login(
     if payload.email:
         cand = payload.email.strip()
         if "@" in cand:
-            user = db.scalar(select(User).where(User.email == normalize_email(cand)))
+            user = await db.scalar(select(User).where(User.email == normalize_email(cand)))
         else:
             cand_phone = normalize_phone(cand)
             if cand_phone:
-                user = db.scalar(select(User).where(User.phone == cand_phone))
+                user = await db.scalar(select(User).where(User.phone == cand_phone))
 
     if not user and payload.phone:
         cand_phone = normalize_phone(payload.phone)
         if cand_phone:
-            user = db.scalar(select(User).where(User.phone == cand_phone))
+            user = await db.scalar(select(User).where(User.phone == cand_phone))
 
     if not user or not user.is_active or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
-    return create_tokens(db, user, settings)
+    return await create_tokens(db, user, settings)
 
 
 @router.post("/refresh", response_model=AuthTokensOutput)
-def refresh(
+async def refresh(
     payload: RefreshInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> AuthTokensOutput:
-    session = db.scalar(
+    session = await db.scalar(
         select(AuthSession).where(
             AuthSession.refresh_token_hash == hash_token(payload.refresh_token)
         )
@@ -212,7 +213,7 @@ def refresh(
             detail="Invalid or expired refresh token",
         )
 
-    user = db.get(User, session.user_id)
+    user = await db.get(User, session.user_id)
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -220,26 +221,26 @@ def refresh(
         )
 
     session.revoked_at = datetime.now(UTC)
-    db.commit()
-    return create_tokens(db, user, settings)
+    await db.commit()
+    return await create_tokens(db, user, settings)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(payload: RefreshInput, db: Session = Depends(get_db_session)) -> None:
-    db.execute(
+async def logout(payload: RefreshInput, db: AsyncSession = Depends(get_db_session)) -> None:
+    await db.execute(
         update(AuthSession)
         .where(AuthSession.refresh_token_hash == hash_token(payload.refresh_token))
         .where(AuthSession.revoked_at.is_(None))
         .values(revoked_at=datetime.now(UTC))
     )
-    db.commit()
+    await db.commit()
 
 
 @router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
-def forgot_password(
+async def forgot_password(
     payload: ForgotPasswordInput,
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> None:
     email = normalize_email(str(payload.email))
@@ -250,7 +251,7 @@ def forgot_password(
             detail="Password reset email delivery is not configured",
         )
 
-    user = db.scalar(select(User).where(User.email == email))
+    user = await db.scalar(select(User).where(User.email == email))
     if user and user.is_active:
         token = new_refresh_token()
         db.add(
@@ -261,10 +262,10 @@ def forgot_password(
             )
         )
         try:
-            send_password_reset_email(user.email, token, settings)
-            db.commit()
+            await asyncio.to_thread(send_password_reset_email, user.email, token, settings)
+            await db.commit()
         except MailDeliveryError as exc:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Password reset email could not be delivered",
@@ -273,8 +274,10 @@ def forgot_password(
 
 
 @router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
-def reset_password(payload: ResetPasswordInput, db: Session = Depends(get_db_session)) -> None:
-    reset = db.scalar(
+async def reset_password(
+    payload: ResetPasswordInput, db: AsyncSession = Depends(get_db_session)
+) -> None:
+    reset = await db.scalar(
         select(PasswordResetToken).where(PasswordResetToken.token_hash == hash_token(payload.token))
     )
     if not reset or reset.used_at or is_expired(reset.expires_at):
@@ -283,7 +286,7 @@ def reset_password(payload: ResetPasswordInput, db: Session = Depends(get_db_ses
             detail="Invalid or expired reset token",
         )
 
-    user = db.get(User, reset.user_id)
+    user = await db.get(User, reset.user_id)
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -292,42 +295,44 @@ def reset_password(payload: ResetPasswordInput, db: Session = Depends(get_db_ses
 
     user.password_hash = hash_password(payload.new_password)
     reset.used_at = datetime.now(UTC)
-    db.execute(
+    await db.execute(
         update(AuthSession)
         .where(AuthSession.user_id == user.id)
         .where(AuthSession.revoked_at.is_(None))
         .values(revoked_at=datetime.now(UTC))
     )
-    db.commit()
+    await db.commit()
 
 
 @router.post("/google", response_model=AuthTokensOutput)
-def google_login(
+async def google_login(
     payload: GoogleTokenInput,
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> AuthTokensOutput:
     enforce_auth_rate_limit(request, "google", "login")
-    claims = verify_google_id_token(payload.id_token, settings)
-    identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
+    claims = await asyncio.to_thread(verify_google_id_token, payload.id_token, settings)
+    identity = await db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
     if identity:
-        user = db.get(User, identity.user_id)
+        user = await db.get(User, identity.user_id)
         if not user or not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User account is unavailable",
             )
-        return create_tokens(db, user, settings)
+        return await create_tokens(db, user, settings)
 
-    existing_user = db.scalar(select(User).where(User.email == claims["email"]))
+    existing_user = await db.scalar(select(User).where(User.email == claims["email"]))
     if existing_user:
         if not existing_user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User account is unavailable",
             )
-        existing_identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.user_id == existing_user.id))
+        existing_identity = await db.scalar(
+            select(GoogleIdentity).where(GoogleIdentity.user_id == existing_user.id)
+        )
         if not existing_identity:
             db.add(
                 GoogleIdentity(
@@ -336,8 +341,8 @@ def google_login(
                     email=claims["email"],
                 )
             )
-            db.commit()
-        return create_tokens(db, existing_user, settings)
+            await db.commit()
+        return await create_tokens(db, existing_user, settings)
 
     age_group = payload.age_group or "18_plus"
     user = User(
@@ -348,7 +353,7 @@ def google_login(
         role="user",
     )
     db.add(user)
-    db.flush()
+    await db.flush()
     db.add(
         GoogleIdentity(
             user_id=user.id,
@@ -356,13 +361,13 @@ def google_login(
             email=claims["email"],
         )
     )
-    db.commit()
-    return create_tokens(db, user, settings)
+    await db.commit()
+    return await create_tokens(db, user, settings)
 
 
-def get_current_user(
+async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> User:
     if credentials is None:
@@ -371,7 +376,7 @@ def get_current_user(
             detail="Authentication is required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    user = db.get(User, decode_access_token(credentials.credentials, settings))
+    user = await db.get(User, decode_access_token(credentials.credentials, settings))
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -380,9 +385,9 @@ def get_current_user(
     return user
 
 
-def get_current_user_optional(
+async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> User | None:
     if credentials is None:
@@ -391,23 +396,23 @@ def get_current_user_optional(
         user_id = decode_access_token(credentials.credentials, settings)
     except HTTPException:
         return None
-    user = db.get(User, user_id)
+    user = await db.get(User, user_id)
     if not user or not user.is_active:
         return None
     return user
 
 
 @router.post("/google/link", status_code=status.HTTP_204_NO_CONTENT)
-def link_google(
+async def link_google(
     payload: GoogleTokenInput,
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
     user: User = Depends(get_current_user),
 ) -> None:
     enforce_auth_rate_limit(request, "google-link", user.id)
-    claims = verify_google_id_token(payload.id_token, settings)
-    identity = db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
+    claims = await asyncio.to_thread(verify_google_id_token, payload.id_token, settings)
+    identity = await db.scalar(select(GoogleIdentity).where(GoogleIdentity.subject == claims["subject"]))
     if identity and identity.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -426,59 +431,60 @@ def link_google(
                 email=claims["email"],
             )
         )
-        db.commit()
+        await db.commit()
+
 
 @router.post("/dev-login", response_model=AuthTokensOutput)
-def dev_login(
-    db: Session = Depends(get_db_session),
+async def dev_login(
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
 ) -> AuthTokensOutput:
-    admin_user = db.scalar(select(User).where(User.email == "alidodovdilovar01@gmail.com"))
+    admin_user = await db.scalar(select(User).where(User.email == "alidodovdilovar01@gmail.com"))
     if not admin_user:
-        admin_user = db.scalar(select(User).where(User.role == "admin"))
+        admin_user = await db.scalar(select(User).where(User.role == "admin"))
     if not admin_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Admin user not found",
         )
-    return create_tokens(db, admin_user, settings)
+    return await create_tokens(db, admin_user, settings)
 
 
 @router.post("/attach-email", response_model=UserOutput)
-def attach_email(
+async def attach_email(
     payload: AttachEmailInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> UserOutput:
     norm_email = normalize_email(str(payload.email))
-    existing = db.scalar(select(User).where(User.email == norm_email))
+    existing = await db.scalar(select(User).where(User.email == norm_email))
     if existing and existing.id != user.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Этот адрес электронной почты уже используется другим пользователем",
         )
     user.email = norm_email
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user_output(user)
 
 
 @router.get("/me", response_model=UserOutput)
-def get_me(user: User = Depends(get_current_user)) -> UserOutput:
+async def get_me(user: User = Depends(get_current_user)) -> UserOutput:
     return user_output(user)
 
 
 @router.patch("/profile", response_model=UserOutput)
-def update_profile(
+async def update_profile(
     payload: ProfileUpdateInput,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     user: User = Depends(get_current_user),
 ) -> UserOutput:
     if payload.full_name is not None and payload.full_name.strip():
         user.full_name = payload.full_name.strip()
     if payload.email is not None and str(payload.email).strip():
         norm_email = normalize_email(str(payload.email))
-        existing_email = db.scalar(select(User).where(User.email == norm_email))
+        existing_email = await db.scalar(select(User).where(User.email == norm_email))
         if existing_email and existing_email.id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -487,7 +493,7 @@ def update_profile(
         user.email = norm_email
     if payload.phone is not None and payload.phone.strip():
         norm_phone = normalize_phone(payload.phone)
-        existing_phone = db.scalar(select(User).where(User.phone == norm_phone))
+        existing_phone = await db.scalar(select(User).where(User.phone == norm_phone))
         if existing_phone and existing_phone.id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -498,14 +504,15 @@ def update_profile(
         user.age_group = payload.age_group
     if payload.avatar_url is not None:
         user.avatar_url = None if payload.avatar_url.strip() in {"", "default"} else payload.avatar_url
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
     return user_output(user)
 
+
 @router.post("/profile/reset-password", status_code=status.HTTP_200_OK)
-def profile_reset_password(
+async def profile_reset_password(
     request: Request,
-    db: Session = Depends(get_db_session),
+    db: AsyncSession = Depends(get_db_session),
     settings: Settings = Depends(get_settings),
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
@@ -529,10 +536,10 @@ def profile_reset_password(
         )
     )
     try:
-        send_password_reset_email(user.email, token, settings)
-        db.commit()
+        await asyncio.to_thread(send_password_reset_email, user.email, token, settings)
+        await db.commit()
     except MailDeliveryError as exc:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Не удалось доставить письмо для сброса пароля",
@@ -543,4 +550,3 @@ def profile_reset_password(
         "email": user.email,
         "message": f"Инструкция по сбросу пароля отправлена на {user.email}",
     }
-

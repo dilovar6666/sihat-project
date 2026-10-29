@@ -1,46 +1,10 @@
-from collections.abc import Generator
-
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from sihat import assistant
-from sihat.config import Settings, get_settings
-from sihat.db import Base, get_db_session
-from sihat.main import app
 from sihat.models import Category
 from sihat.models import TestDefinition as CatalogTest
-from sihat.rate_limit import clear_auth_rate_limits
-
-
-@pytest.fixture
-def client() -> Generator[TestClient, None, None]:
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    Base.metadata.create_all(engine)
-    testing_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-    def override_db_session() -> Generator[Session, None, None]:
-        with testing_session() as session:
-            yield session
-
-    app.dependency_overrides[get_db_session] = override_db_session
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        jwt_secret="test-only-jwt-secret-with-more-than-thirty-two-characters",
-        gemini_api_key="test-key",
-    )
-    clear_auth_rate_limits()
-    assistant.clear_assistant_rate_limits()
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-    clear_auth_rate_limits()
-    assistant.clear_assistant_rate_limits()
-    Base.metadata.drop_all(engine)
-    engine.dispose()
+from tests.conftest import sync_db_exec
 
 
 def _headers(client: TestClient) -> dict[str, str]:
@@ -63,13 +27,10 @@ def _headers(client: TestClient) -> dict[str, str]:
 
 
 def _published_test(client: TestClient) -> None:
-    db_dependency = app.dependency_overrides[get_db_session]
-    session_generator = db_dependency()
-    session = next(session_generator)
-    try:
+    async def seed(session):
         category = Category(slug="assistant", localizations={"en": {"title": "Assistant"}})
         session.add(category)
-        session.flush()
+        await session.flush()
         session.add(
             CatalogTest(
                 category_id=category.id,
@@ -79,9 +40,8 @@ def _published_test(client: TestClient) -> None:
                 localizations={"en": {"title": "Openable"}},
             )
         )
-        session.commit()
-    finally:
-        next(session_generator, None)
+
+    sync_db_exec(seed)
 
 
 def test_assistant_uses_current_dialog_only_and_filters_actions(
