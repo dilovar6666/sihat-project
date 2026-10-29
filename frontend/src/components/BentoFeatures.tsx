@@ -52,6 +52,7 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       title: 'Всё нужное для осознанного контроля здоровья',
       subtitle:
         'Мы устранили скрытые манипуляции, агрессивные диагнозы и неясные проценты. Только открытые научные данные и уважение к пользователю.',
+      // Card 1
       card1Badge: 'Открытая методология',
       card1Title: 'Прозрачные паспорта каждого теста',
       card1Desc:
@@ -67,18 +68,23 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       card1Check1: 'Калибровка яркости и гаммы экрана',
       card1Check2: 'Исключение клинических диагнозов',
       card1Check3: 'Объективные психофизические пороги',
+      // Card 2
       card2Badge: 'Этический шлюз',
       card2Title: 'Право стереть всё',
       card2Desc:
         'После завершения теста результат остаётся временным: вы сами выбираете «Сохранить в личный закрытый архив» или «Удалить немедленно без сохранения на сервере».',
-      card2StorageLabel: 'Хранилище сессии',
-      card2StorageVal: 'Volatile RAM (Ephemeral)',
-      card2CryptLabel: 'Шифрование архива',
-      card2CryptVal: 'AES-256 GCM',
-      card2TrackingLabel: 'Сторонний трекинг',
-      card2TrackingVal: '0 трекеров и cookie',
-      card2WipeBtn: 'Очистить локальные данные',
-      card2Wiped: 'Локальные следы очищены!',
+      card2SampleTitle: 'АРХИТЕКТУРА ПРИВАТНОСТИ',
+      card2Verified: 'Zero-Retention',
+      card2StorageLabel: 'Хранилище: Volatile RAM',
+      card2CryptLabel: 'Шифрование: AES-256 GCM',
+      card2TrackingLabel: 'Трекинг: 0 сторонних трекеров',
+      card2ServerLabel: 'Серверный лог: 0 байт',
+      card2Check1: 'Локальная обработка психофизических метрик',
+      card2Check2: 'Мгновенный сброс сессии при закрытии вкладки',
+      card2Check3: 'Полный суверенитет над вашими данными',
+      card2WipeBtn: 'Очистить локальные данные прямо сейчас',
+      card2Wiped: 'Локальные следы успешно очищены!',
+      // Card 3
       card3Badge: '16 скринингов',
       card3Title: 'Сенсорика и реакция',
       card3Desc:
@@ -92,6 +98,7 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       card3Mini3Sub: 'Шульте • Блоки Корси',
       card3Mini4: 'Реакция & Моторика',
       card3Mini4Sub: '185 мс • Go/No-Go координация',
+      // Card 4
       card4Badge: 'AI Клинический гид',
       card4Title: 'Навигатор с этическими рамками',
       card4Desc:
@@ -102,12 +109,6 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       aiUserMsg: 'К вечеру устают глаза и плывут буквы от экрана. С чего начать проверку?',
       aiBotMsg:
         'Рекомендую начать со скрининга контрастной чувствительности и таблиц Шульте. Обратите внимание: SIHAT не ставит диагнозов. Если дискомфорт не проходит — обратитесь к офтальмологу.',
-      aiChip1: 'Без диагнозов',
-      aiChip2: 'Zero-Retention приватность',
-      aiChip3: 'Клинический триаж',
-      aiFeature1: 'Клинический триаж по доказательной медицине',
-      aiFeature2: 'Строгий запрет на постановку диагнозов',
-      aiFeature3: 'Zero-Retention: диалог не сохраняется',
       aiRecTitle: 'Рекомендация: Контрастная чувствительность',
       aiRecTime: '~2.5 мин',
       aiPrompt1: '👁️ Тест контраста',
@@ -137,13 +138,16 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       card2Title: 'Ҳуқуқи нест кардани ҳама чиз',
       card2Desc:
         'Пас аз анҷоми санҷиш натиҷа муваққатӣ мемонад: худатон интихоб мекунед, ки онро дар бойгонии пӯшида нигоҳ доред ё фавран нест кунед.',
-      card2StorageLabel: 'Нигаҳдории сессия',
-      card2StorageVal: 'Хотираи муваққатӣ (RAM)',
-      card2CryptLabel: 'Рамзгузории бойгонӣ',
-      card2CryptVal: 'AES-256 GCM',
-      card2TrackingLabel: 'Пайгирии бегона',
-      card2TrackingVal: '0 трекер ва cookie',
-      card2WipeBtn: 'Тоза кардани маълумоти маҳаллӣ',
+      card2SampleTitle: 'МЕЪМОРИИ МАХФИЯТ',
+      card2Verified: 'Zero-Retention',
+      card2StorageLabel: 'Хотира: Volatile RAM',
+      card2CryptLabel: 'Рамзгузорӣ: AES-256 GCM',
+      card2TrackingLabel: 'Трекер: 0 пайгирии бегона',
+      card2ServerLabel: 'Логи сервер: 0 байт',
+      card2Check1: 'Коркарди маҳаллии нишондиҳандаҳо',
+      card2Check2: 'Тозакунии фаврӣ ҳангоми пӯшидани саҳифа',
+      card2Check3: 'Ҳуқуқи комил бар маълумоти худ',
+      card2WipeBtn: 'Тоза кардани маълумоти маҳаллӣ ҳозир',
       card2Wiped: 'Маълумот фавран тоза карда шуд!',
       card3Badge: '16 скрининг',
       card3Title: 'Сенсорика ва вокуниш',
@@ -168,12 +172,6 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       aiUserMsg: 'Бегоҳирӯзӣ чашмонам хаста мешаванд ва ҳарфҳо хира менамоянд. Аз чӣ оғоз кунам?',
       aiBotMsg:
         'Тавсия медиҳам, ки аз скрининги ҳассосияти контрастӣ ва ҷадвали Шулте оғоз намоед. SIHAT ташхиси тиббӣ намегузорад. Дар сурати давом ёфтани аломатҳо ба духтури чашм муроҷиат кунед.',
-      aiChip1: 'Бе ташхиси тиббӣ',
-      aiChip2: 'Махфияти комил',
-      aiChip3: 'Триажи клиникӣ',
-      aiFeature1: 'Триажи клиникӣ дар асоси тибби исботшуда',
-      aiFeature2: 'Манъи қатъии гузоштани ташхис',
-      aiFeature3: 'Махфияти мутлақ: бе нигоҳдории суҳбат',
       aiRecTitle: 'Тавсия: Ҳассосияти контрастӣ',
       aiRecTime: '~2.5 дақ',
       aiPrompt1: '👁️ Тести контраст',
@@ -203,13 +201,16 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       card2Title: 'The Right to Erase Everything',
       card2Desc:
         'Upon test completion, outcomes remain in volatile memory: you decide whether to save to private storage or wipe immediately.',
-      card2StorageLabel: 'Session Storage',
-      card2StorageVal: 'Volatile RAM (Ephemeral)',
-      card2CryptLabel: 'Archive Encryption',
-      card2CryptVal: 'AES-256 GCM',
-      card2TrackingLabel: 'Third-Party Trackers',
-      card2TrackingVal: '0 Trackers & Cookies',
-      card2WipeBtn: 'Clear Local Session Cache',
+      card2SampleTitle: 'PRIVACY ARCHITECTURE',
+      card2Verified: 'Zero-Retention',
+      card2StorageLabel: 'Storage: Volatile RAM',
+      card2CryptLabel: 'Encryption: AES-256 GCM',
+      card2TrackingLabel: 'Trackers: 0 Third-Party',
+      card2ServerLabel: 'Server Log: 0 Bytes',
+      card2Check1: 'Local processing of psychophysical metrics',
+      card2Check2: 'Instant session wipe on tab close',
+      card2Check3: 'Absolute sovereignty over your data',
+      card2WipeBtn: 'Clear Local Session Cache Now',
       card2Wiped: 'Local Session Cleared!',
       card3Badge: '16 Screenings',
       card3Title: 'Sensory & Reaction Speed',
@@ -234,12 +235,6 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       aiUserMsg: 'My eyes feel strained by evening and text gets blurry. What should I check first?',
       aiBotMsg:
         'I suggest starting with the Contrast Sensitivity screening and Schulte Tables to evaluate visual fatigue. SIHAT does not diagnose. If symptoms persist, please consult an ophthalmologist.',
-      aiChip1: 'Zero Medical Diagnosis',
-      aiChip2: 'Zero-Retention Privacy',
-      aiChip3: 'Clinical Triage',
-      aiFeature1: 'Evidence-based clinical triaging logic',
-      aiFeature2: 'Strict non-diagnostic ethical framework',
-      aiFeature3: 'Zero-Retention: chats never stored',
       aiRecTitle: 'Recommendation: Contrast Sensitivity',
       aiRecTime: '~2.5 min',
       aiPrompt1: '👁️ Contrast Test',
@@ -249,7 +244,7 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
     badge: 'Архитектура доверия',
     title: 'Всё нужное для осознанного контроля здоровья',
     subtitle:
-      'Мы устранили скрытые манипуляции, агрессивные диагнозы и неясные проценты. Только открытые данные и уважение к пользователю.',
+      'Мы устранили скрытые манипуляции, агрессивные диагнозы и неясные проценты. Только открытые научные данные и уважение к пользователю.',
     card1Badge: 'Открытая методология',
     card1Title: 'Прозрачные паспорта каждого теста',
     card1Desc:
@@ -269,14 +264,17 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
     card2Title: 'Право стереть всё',
     card2Desc:
       'После завершения теста результат остаётся временным: вы сами выбираете «Сохранить в личный закрытый архив» или «Удалить немедленно без сохранения на сервере».',
-    card2StorageLabel: 'Хранилище сессии',
-    card2StorageVal: 'Volatile RAM',
-    card2CryptLabel: 'Шифрование архива',
-    card2CryptVal: 'AES-256 GCM',
-    card2TrackingLabel: 'Сторонний трекинг',
-    card2TrackingVal: '0 трекеров',
-    card2WipeBtn: 'Очистить локальные данные',
-    card2Wiped: 'Локальные следы очищены!',
+    card2SampleTitle: 'АРХИТЕКТУРА ПРИВАТНОСТИ',
+    card2Verified: 'Zero-Retention',
+    card2StorageLabel: 'Хранилище: Volatile RAM',
+    card2CryptLabel: 'Шифрование: AES-256 GCM',
+    card2TrackingLabel: 'Трекинг: 0 сторонних трекеров',
+    card2ServerLabel: 'Серверный лог: 0 байт',
+    card2Check1: 'Локальная обработка психофизических метрик',
+    card2Check2: 'Мгновенный сброс сессии при закрытии вкладки',
+    card2Check3: 'Полный суверенитет над вашими данными',
+    card2WipeBtn: 'Очистить локальные данные прямо сейчас',
+    card2Wiped: 'Локальные следы успешно очищены!',
     card3Badge: '16 скринингов',
     card3Title: 'Сенсорика и реакция',
     card3Desc:
@@ -300,9 +298,8 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
     aiUserMsg: 'К вечеру устают глаза и плывут буквы от экрана. С чего начать проверку?',
     aiBotMsg:
       'Рекомендую начать со скрининга контрастной чувствительности. SIHAT не ставит диагнозов. Если дискомфорт не проходит — обратитесь к офтальмологу.',
-    aiChip1: 'Без диагнозов',
-    aiChip2: 'Zero-Retention приватность',
-    aiChip3: 'Клинический триаж',
+    aiRecTitle: 'Рекомендация: Контрастная чувствительность',
+    aiRecTime: '~2.5 мин',
     aiPrompt1: '👁️ Тест контраста',
     aiPrompt2: '⚡ Оценка реакции',
   }
@@ -328,134 +325,162 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
         </p>
       </div>
 
-      {/* Bento Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        {/* CARD 1: 2 COLUMNS - Прозрачные паспорта каждого теста */}
-        <Card className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 shadow-xl transition-all duration-300 relative overflow-hidden group flex flex-col justify-between">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-            {/* Left Description */}
-            <div className="md:col-span-6 space-y-4">
+      {/* Symmetrical 2x2 Grid (Equal 50/50 Columns on Desktop) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
+        {/* CARD 1: Прозрачные паспорта каждого теста */}
+        <Card className="p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/40 shadow-xl transition-all duration-300 flex flex-col justify-between group">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
                 <FileText className="w-6 h-6" />
               </div>
               <Badge variant="emerald" className="text-xs">
                 {content.card1Badge}
               </Badge>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            </div>
+
+            <div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                 {content.card1Title}
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                 {content.card1Desc}
               </p>
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={onOpenMethodology}
-                  className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors group/btn cursor-pointer"
-                >
-                  <span>{content.card1Btn}</span>
-                  <ExternalLink className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
             </div>
 
-            {/* Right Interactive Mockup: Clinical Passport Sheet */}
-            <div className="md:col-span-6">
-              <div className="rounded-2xl p-4 sm:p-5 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800/90 shadow-inner space-y-3.5">
-                {/* Header bar of passport */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 text-[11px]">
-                  <div className="flex items-center gap-1.5 font-mono font-bold text-slate-800 dark:text-slate-200">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span>{content.card1SampleTitle}</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
-                    {content.card1Verified}
-                  </span>
+            {/* Passport Sheet */}
+            <div className="rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/90 shadow-inner space-y-3">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-slate-800 text-[11px]">
+                <div className="flex items-center gap-1.5 font-mono font-bold text-slate-800 dark:text-slate-200">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>{content.card1SampleTitle}</span>
                 </div>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20 text-[10px]">
+                  {content.card1Verified}
+                </span>
+              </div>
 
-                {/* Evidence metrics grid */}
-                <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-[11px] font-mono">
-                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
-                    <span className="text-slate-400 block text-[9px]">SOURCE</span>
-                    <strong className="text-slate-900 dark:text-white">{content.card1Pubmed}</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
-                    <span className="text-slate-400 block text-[9px]">GRADE</span>
-                    <strong className="text-emerald-600 dark:text-emerald-400">{content.card1Class}</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
-                    <span className="text-slate-400 block text-[9px]">COHORT</span>
-                    <strong className="text-slate-900 dark:text-white">{content.card1Sample}</strong>
-                  </div>
-                  <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
-                    <span className="text-slate-400 block text-[9px]">RELIABILITY</span>
-                    <strong className="text-cyan-600 dark:text-cyan-400">{content.card1Reliability}</strong>
-                  </div>
+              {/* 4 metrics */}
+              <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-[11px] font-mono">
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">SOURCE</span>
+                  <strong className="text-slate-900 dark:text-white">{content.card1Pubmed}</strong>
                 </div>
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">GRADE</span>
+                  <strong className="text-emerald-600 dark:text-emerald-400">{content.card1Class}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">COHORT</span>
+                  <strong className="text-slate-900 dark:text-white">{content.card1Sample}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">RELIABILITY</span>
+                  <strong className="text-cyan-600 dark:text-cyan-400">{content.card1Reliability}</strong>
+                </div>
+              </div>
 
-                {/* Checklist criteria */}
-                <div className="space-y-1.5 pt-1 text-[11px] text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span>{content.card1Check1}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span>{content.card1Check2}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                    <span>{content.card1Check3}</span>
-                  </div>
+              {/* Checklist criteria */}
+              <div className="space-y-1 pt-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{content.card1Check1}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{content.card1Check2}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{content.card1Check3}</span>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={onOpenMethodology}
+              className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors group/btn cursor-pointer"
+            >
+              <span>{content.card1Btn}</span>
+              <ExternalLink className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+            </button>
           </div>
         </Card>
 
-        {/* CARD 2: 1 COLUMN - Право стереть всё (Zero-Retention) */}
-        <Card className="p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/50 shadow-xl transition-all duration-300 group flex flex-col justify-between">
+        {/* CARD 2: Право стереть всё (Zero-Retention) */}
+        <Card className="p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/40 shadow-xl transition-all duration-300 flex flex-col justify-between group">
           <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-105 transition-transform">
-              <Trash2 className="w-6 h-6" />
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400 group-hover:scale-105 transition-transform">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <Badge variant="cyan" className="text-xs">
+                {content.card2Badge}
+              </Badge>
             </div>
-            <Badge variant="cyan" className="text-xs">
-              {content.card2Badge}
-            </Badge>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              {content.card2Title}
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              {content.card2Desc}
-            </p>
 
-            {/* Privacy Architecture Widget */}
-            <div className="rounded-2xl p-3.5 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/80 space-y-2.5 text-xs font-mono">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 text-[10px] flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-teal-500" />
-                  {content.card2StorageLabel}
-                </span>
-                <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400">
-                  {content.card2StorageVal}
+            <div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                {content.card2Title}
+              </h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                {content.card2Desc}
+              </p>
+            </div>
+
+            {/* Privacy Architecture Sheet */}
+            <div className="rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800/90 shadow-inner space-y-3">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-slate-800 text-[11px]">
+                <div className="flex items-center gap-1.5 font-mono font-bold text-slate-800 dark:text-slate-200">
+                  <Lock className="w-4 h-4 text-teal-500" />
+                  <span>{content.card2SampleTitle}</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-semibold border border-teal-500/20 text-[10px]">
+                  {content.card2Verified}
                 </span>
               </div>
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
-                <span className="text-slate-500 text-[10px]">{content.card2CryptLabel}</span>
-                <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">
-                  {content.card2CryptVal}
-                </span>
+
+              {/* 4 security specs */}
+              <div className="grid grid-cols-2 gap-2 text-[10px] sm:text-[11px] font-mono">
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">STORAGE</span>
+                  <strong className="text-teal-600 dark:text-teal-400 truncate block">{content.card2StorageLabel}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">ENCRYPTION</span>
+                  <strong className="text-slate-900 dark:text-white truncate block">{content.card2CryptLabel}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">ANALYTICS</span>
+                  <strong className="text-emerald-600 dark:text-emerald-400 truncate block">{content.card2TrackingLabel}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80">
+                  <span className="text-slate-400 block text-[9px]">SERVER RETENTION</span>
+                  <strong className="text-cyan-600 dark:text-cyan-400 truncate block">{content.card2ServerLabel}</strong>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 text-[10px]">{content.card2TrackingLabel}</span>
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                  {content.card2TrackingVal}
-                </span>
+
+              {/* Privacy guarantees */}
+              <div className="space-y-1 pt-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                  <span>{content.card2Check1}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                  <span>{content.card2Check2}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                  <span>{content.card2Check3}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Interactive Wipe Action */}
           <div className="pt-4">
             <button
               type="button"
@@ -481,30 +506,35 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
           </div>
         </Card>
 
-        {/* CARD 3: 1 COLUMN - Сенсорика и реакция (16 скринингов с реальными графическими виджетами) */}
-        <Card className="p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-cyan-500/50 shadow-xl transition-all duration-300 group flex flex-col justify-between">
+        {/* CARD 3: Сенсорика и реакция (16 скринингов) */}
+        <Card className="p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-cyan-500/40 shadow-xl transition-all duration-300 flex flex-col justify-between group">
           <div className="space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400 group-hover:scale-105 transition-transform">
-              <Cpu className="w-6 h-6" />
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-600 dark:text-cyan-400 group-hover:scale-105 transition-transform">
+                <Cpu className="w-6 h-6" />
+              </div>
+              <Badge variant="cyan" className="text-xs">
+                {content.card3Badge}
+              </Badge>
             </div>
-            <Badge variant="cyan" className="text-xs">
-              {content.card3Badge}
-            </Badge>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              {content.card3Title}
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              {content.card3Desc}
-            </p>
 
-            {/* 4 Interactive Mini Screening Preview Cards (Streamlined, compact layout) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                {content.card3Title}
+              </h3>
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                {content.card3Desc}
+              </p>
+            </div>
+
+            {/* 4 Interactive Mini Screening Preview Cards (2x2 grid) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
               {/* 1. Vision & Contrast */}
               <div
                 onClick={onOpenCatalog}
-                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
+                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all cursor-pointer group/tile flex items-center gap-3"
               >
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 text-emerald-500">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 text-emerald-500">
                   <Eye className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -520,9 +550,9 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               {/* 2. Hearing & Frequencies */}
               <div
                 onClick={onOpenCatalog}
-                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/50 hover:bg-teal-50/20 dark:hover:bg-teal-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
+                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/50 hover:bg-teal-50/20 dark:hover:bg-teal-950/20 transition-all cursor-pointer group/tile flex items-center gap-3"
               >
-                <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0 text-teal-500">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0 text-teal-500">
                   <Volume2 className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -538,9 +568,9 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               {/* 3. Attention & Memory */}
               <div
                 onClick={onOpenCatalog}
-                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-50/20 dark:hover:bg-cyan-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
+                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-50/20 dark:hover:bg-cyan-950/20 transition-all cursor-pointer group/tile flex items-center gap-3"
               >
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0 text-cyan-500">
+                <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center shrink-0 text-cyan-500">
                   <Brain className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -556,9 +586,9 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               {/* 4. Reaction & Motor */}
               <div
                 onClick={onOpenCatalog}
-                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
+                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition-all cursor-pointer group/tile flex items-center gap-3"
               >
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 text-indigo-500">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 text-indigo-500">
                   <Timer className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -584,127 +614,94 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
           </div>
         </Card>
 
-        {/* CARD 4: 2 COLUMNS - Навигатор с этическими рамками (AI клинический триаж вживую) */}
-        <Card className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 shadow-xl transition-all duration-300 relative overflow-hidden group flex flex-col justify-center">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-            {/* Left Content */}
-            <div className="md:col-span-6 space-y-3.5">
+        {/* CARD 4: Навигатор с этическими рамками (AI клинический триаж вживую) */}
+        <Card className="p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/40 shadow-xl transition-all duration-300 flex flex-col justify-between group">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
                 <Sparkles className="w-6 h-6" />
               </div>
               <Badge variant="emerald" className="text-xs">
                 {content.card4Badge}
               </Badge>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            </div>
+
+            <div>
+              <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                 {content.card4Title}
               </h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                 {content.card4Desc}
               </p>
-
-              {/* Verified ethical checklist criteria */}
-              <div className="space-y-1.5 pt-0.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>{content.aiFeature1}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>{content.aiFeature2}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>{content.aiFeature3}</span>
-                </div>
-              </div>
-
-              {/* Ethics chips */}
-              <div className="flex items-center gap-2 flex-wrap text-xs font-semibold pt-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  {content.aiChip1}
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
-                  {content.aiChip2}
-                </span>
-              </div>
-
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={onOpenAssistant}
-                  className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors group/btn cursor-pointer"
-                >
-                  <span>{content.card4Btn}</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
-                </button>
-              </div>
             </div>
 
-            {/* Right Interactive Live Simulated AI Consultation Card */}
-            <div className="md:col-span-6">
-              <div
-                onClick={onOpenAssistant}
-                className="rounded-2xl p-4 sm:p-5 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800/90 shadow-inner space-y-3 cursor-pointer group/chat hover:border-emerald-500/40 transition-colors"
-              >
-                {/* Simulated Assistant Header */}
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                      <Bot className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">
-                        {content.aiAssistantName}
-                      </div>
-                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        {content.aiAssistantStatus}
-                      </div>
-                    </div>
+            {/* Live Simulated AI Consultation Window */}
+            <div
+              onClick={onOpenAssistant}
+              className="rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/70 border border-slate-200/90 dark:border-slate-800/90 shadow-inner space-y-2.5 cursor-pointer group/chat hover:border-emerald-500/40 transition-colors"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <Bot className="w-3 h-3" />
                   </div>
-                  <span className="text-[9px] font-mono text-slate-400 bg-slate-200/60 dark:bg-slate-900 px-2 py-0.5 rounded">
-                    Triage v2
-                  </span>
-                </div>
-
-                {/* Simulated User Bubble */}
-                <div className="flex justify-end">
-                  <div className="max-w-[85%] rounded-2xl rounded-tr-xs p-2.5 bg-emerald-600 text-white text-[11px] leading-relaxed shadow-xs">
-                    {content.aiUserMsg}
+                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                    {content.aiAssistantName}
                   </div>
                 </div>
+                <div className="text-[9px] text-emerald-600 dark:text-emerald-400 font-mono flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {content.aiAssistantStatus}
+                </div>
+              </div>
 
-                {/* Simulated Assistant Bubble */}
-                <div className="flex justify-start">
-                  <div className="max-w-[92%] rounded-2xl rounded-tl-xs p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed shadow-xs space-y-2">
-                    <p>{content.aiBotMsg}</p>
-                    {/* Embedded Triage Recommendation Card */}
-                    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <Eye className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-[10px]">
-                          {content.aiRecTitle}
-                        </span>
-                      </div>
-                      <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
-                        {content.aiRecTime}
+              {/* User Bubble */}
+              <div className="flex justify-end">
+                <div className="max-w-[85%] rounded-xl rounded-tr-xs p-2 bg-emerald-600 text-white text-[10.5px] leading-relaxed shadow-xs">
+                  {content.aiUserMsg}
+                </div>
+              </div>
+
+              {/* Bot Bubble */}
+              <div className="flex justify-start">
+                <div className="max-w-[92%] rounded-xl rounded-tl-xs p-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[10.5px] leading-relaxed shadow-xs space-y-1.5">
+                  <p>{content.aiBotMsg}</p>
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-1">
+                      <Eye className="w-3 h-3 text-emerald-500 shrink-0" />
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300 truncate">
+                        {content.aiRecTitle}
                       </span>
                     </div>
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold shrink-0 ml-1">
+                      {content.aiRecTime}
+                    </span>
                   </div>
                 </div>
+              </div>
 
-                {/* Quick Interactive Prompt Pills */}
-                <div className="flex items-center gap-1.5 pt-0.5 flex-wrap text-[10px]">
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-medium transition-colors">
-                    {content.aiPrompt1}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/20 font-medium transition-colors">
-                    {content.aiPrompt2}
-                  </span>
-                </div>
+              {/* Prompt Pills */}
+              <div className="flex items-center gap-1.5 pt-0.5 flex-wrap text-[9.5px]">
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-medium">
+                  {content.aiPrompt1}
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 font-medium">
+                  {content.aiPrompt2}
+                </span>
               </div>
             </div>
+          </div>
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={onOpenAssistant}
+              className="inline-flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors group/btn cursor-pointer"
+            >
+              <span>{content.card4Btn}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+            </button>
           </div>
         </Card>
       </div>
