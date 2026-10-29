@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -97,6 +98,16 @@ def _prepare_gemini_payload(
     return contents
 
 
+def _clean_extracted_text(text: str) -> str:
+    m = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)', text)
+    if m:
+        try:
+            return str(json.loads(f'"{m.group(1)}"'))
+        except Exception:
+            return m.group(1).replace('\\"', '"').replace('\\n', '\n')
+    return text.strip()
+
+
 def _parse_gemini_response(payload: dict[str, Any]) -> dict[str, Any]:
     try:
         raw_text = payload["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -109,11 +120,12 @@ def _parse_gemini_response(payload: dict[str, Any]) -> dict[str, Any]:
             raw_text = "\n".join(lines).strip()
         result = json.loads(raw_text)
     except (KeyError, IndexError, TypeError, ValueError):
-        # Fallback: if Gemini gave raw text without strict JSON wrapping, extract as message
+        # Fallback: extract inner message even if response ended with unclosed JSON
         try:
             raw_text = payload["candidates"][0]["content"]["parts"][0]["text"].strip()
-            if raw_text:
-                return {"message": raw_text, "actions": []}
+            clean = _clean_extracted_text(raw_text)
+            if clean:
+                return {"message": clean, "actions": []}
         except Exception as exc:
             raise GeminiUnavailableError(f"Malformed Gemini payload: {exc}") from exc
         raise GeminiUnavailableError("Malformed Gemini payload: missing text") from None
@@ -153,7 +165,7 @@ async def generate_assistant_response_async(
     candidate_models = _get_model_candidates(settings.gemini_model)
 
     last_error: Exception | None = None
-    async with httpx.AsyncClient(timeout=18.0) as client:
+    async with httpx.AsyncClient(timeout=25.0) as client:
         for model in candidate_models:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
             try:
@@ -165,7 +177,7 @@ async def generate_assistant_response_async(
                         "contents": contents,
                         "generationConfig": {
                             "responseMimeType": "application/json",
-                            "maxOutputTokens": 1200,
+                            "maxOutputTokens": 2048,
                         },
                     },
                 )
@@ -209,7 +221,7 @@ def generate_assistant_response(
         contents = _prepare_gemini_payload(conversation, shared_results)
         candidate_models = _get_model_candidates(settings.gemini_model)
         last_error: Exception | None = None
-        with httpx.Client(timeout=18.0) as client:
+        with httpx.Client(timeout=25.0) as client:
             for model in candidate_models:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
                 try:
@@ -221,7 +233,7 @@ def generate_assistant_response(
                             "contents": contents,
                             "generationConfig": {
                                 "responseMimeType": "application/json",
-                                "maxOutputTokens": 1200,
+                                "maxOutputTokens": 2048,
                             },
                         },
                     )
