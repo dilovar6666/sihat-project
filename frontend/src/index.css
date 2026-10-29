@@ -212,7 +212,7 @@ p, .font-reading, .font-golos, .reading-text, article {
 }
 
 /* Paragraphs directly inside buttons or UI badges retain UI font */
-button p, .font-sans p, .font-ui p, [role="button"] p, .badge p, .font-inter p {
+button p, .font-ui p, [role="button"] p, .badge p, .font-inter p {
   font-family: inherit;
 }
 
