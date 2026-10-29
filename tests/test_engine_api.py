@@ -21,11 +21,11 @@ def _seed(extra_legacy: bool = False) -> dict:
             session.add(
                 TestDefinition(
                     category_id=category.id,
-                    slug="color-perception",
+                    slug="color-hue-discrimination",
                     test_type="educational_exercise",
                     availability_status="published",
                     guest_allowed=True,
-                    localizations={"en": {"title": "Colour"}},
+                    localizations={"en": {"title": "Colour Hue"}},
                 )
             )
             await session.flush()
@@ -60,15 +60,16 @@ def _stored_challenge(attempt_id: str) -> dict:
     return sync_db_exec(run)
 
 
-def test_catalog_sync_publishes_fifteen_and_hides_legacy_tests(client: TestClient) -> None:
+def test_catalog_sync_publishes_sixteen_and_hides_legacy_tests(client: TestClient) -> None:
     report = _seed(extra_legacy=True)
-    assert "color-perception" in report["hidden"]
-    assert len(report["created"]) == 15
+    assert "color-hue-discrimination" in report["hidden"]
+    assert len(report["created"]) == 16
     again = _seed()
     assert again["created"] == []  # idempotent
 
     slugs = {t["slug"] for t in client.get("/tests").json()}
     assert slugs == ENGINE_SLUGS
+    assert "color-perception" in slugs
     categories = client.get("/categories").json()
     assert {c["slug"] for c in categories} == {
         "memory-attention",
@@ -78,7 +79,7 @@ def test_catalog_sync_publishes_fifteen_and_hides_legacy_tests(client: TestClien
     }
 
     async def status_of(session):
-        test = await session.scalar(select(TestDefinition).where(TestDefinition.slug == "color-perception"))
+        test = await session.scalar(select(TestDefinition).where(TestDefinition.slug == "color-hue-discrimination"))
         return test.availability_status
 
     assert sync_db_exec(status_of) == "draft"  # hidden, not deleted

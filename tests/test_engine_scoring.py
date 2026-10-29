@@ -88,11 +88,17 @@ def _perfect(slug: str, ch: dict) -> dict:  # noqa: C901 - one branch per exerci
                 {"t": i * 80, "x": p["x"], "y": p["y"]} for i, p in enumerate(pub["path"])
             ]
         }
+    if slug == "color-perception":
+        return {
+            "answers": {
+                p["id"]: priv["answers"][p["id"]] for p in pub["plates"]
+            }
+        }
     raise AssertionError(slug)
 
 
-def test_all_fifteen_exercises_are_registered() -> None:
-    assert len(ENGINE_SLUGS) == 15
+def test_all_sixteen_exercises_are_registered() -> None:
+    assert len(ENGINE_SLUGS) == 16
     excluded = {"visual-perception", "color-hue-discrimination", "physical-wellbeing"}
     assert not excluded & ENGINE_SLUGS
 

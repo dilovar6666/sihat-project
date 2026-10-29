@@ -126,6 +126,21 @@ CATALOG: dict[str, dict[str, Any]] = {
             "scoring": "Ten contrast levels from 60% to 2.5%, two trials each; stops when both trials at a level are wrong. Threshold = faintest level answered correctly twice.",
         },
     },
+    "color-perception": {
+        "category": "vision",
+        "title": {"ru": "Тест на дальтонизм", "tg": "Санҷиши дальтонизм", "en": "Color Blindness Screening"},
+        "description": {
+            "ru": "Скрининг цветовосприятия по полихроматическим таблицам Рабкина и Ишихары (оценка красно-зелёного и сине-жёлтого спектров).",
+            "tg": "Скрининги идроки рангҳо бо ҷадвалҳои полихроматии Рабкин ва Ишиҳара (арзёбии спектри сурху сабз ва кабуду зард).",
+            "en": "Pseudoisochromatic plate screening for red-green and blue-yellow color vision discrimination (Rabkin and Ishihara plates).",
+        },
+        "passport": {
+            "name": "Pseudoisochromatic plates screening (Rabkin / Ishihara)",
+            "source": "Educational digital color-discrimination screening based on pseudoisochromatic dot plates (ISO 8596 / CIE chromaticity coordinates). Displays are uncalibrated; for formal diagnosis consult an ophthalmologist.",
+            "devices": ["Color display with sRGB coverage", "Normal brightness (avoid night mode / Blue Light filter)", "Well-lit room without screen glare"],
+            "scoring": "Eight randomized pseudoisochromatic plates covering baseline calibration, red-green (protan/deutan) and blue-yellow (tritan) channels; total accuracy, error breakdown by cone channel, and cone sensitivity profile.",
+        },
+    },
     "visual-pairs": {
         "category": "vision",
         "title": {"ru": "Визуальные пары", "tg": "Ҷуфтҳои визуалӣ", "en": "Visual Pairs"},

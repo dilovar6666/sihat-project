@@ -1109,6 +1109,336 @@ def _score_cursor_path(public: dict, private: dict, tel: dict) -> tuple[dict, di
     return metrics, series
 
 
+# --------------------------------------------------------------------------- Color Perception (Ishihara / Rabkin)
+
+_COLOR_PLATES_POOL: list[dict[str, Any]] = [
+    # Baseline demonstration plates (visible across normal trichromacy, dichromacy & anomalous trichromacy)
+    {
+        "id": "base-12",
+        "type": "number",
+        "value": "12",
+        "weight": "baseline",
+        "bg_palette": ["#4b8e61", "#5ea574", "#74be8d", "#427f54", "#85cea1", "#539967"],
+        "fg_palette": ["#ea583a", "#dd4828", "#f36e4f", "#c93b1e", "#f88366", "#d64426"],
+        "distractors": ["72", "21"],
+    },
+    {
+        "id": "base-circle",
+        "type": "circle",
+        "value": "circle",
+        "weight": "baseline",
+        "bg_palette": ["#3e734c", "#4f8d63", "#62a578", "#33613f", "#78b88d"],
+        "fg_palette": ["#ea5a39", "#dc4725", "#f47352", "#bf3315", "#f68668"],
+        "distractors": ["square", "triangle"],
+    },
+    {
+        "id": "base-16",
+        "type": "number",
+        "value": "16",
+        "weight": "baseline",
+        "bg_palette": ["#427954", "#55916a", "#69a77f", "#366644", "#7fbe94"],
+        "fg_palette": ["#ec6140", "#de502d", "#f37554", "#c43b1c", "#f78a6d"],
+        "distractors": ["15", "76"],
+    },
+    # Protan-sensitive (Red-deficit / L-cone)
+    {
+        "id": "protan-5",
+        "type": "number",
+        "value": "5",
+        "weight": "protan",
+        "bg_palette": ["#cc9b76", "#ba8863", "#ddae89", "#a67551", "#eec09c", "#b3805b"],
+        "fg_palette": ["#329471", "#23815e", "#45a582", "#186f4d", "#57b794", "#2b8d6a"],
+        "distractors": ["2", "6"],
+    },
+    {
+        "id": "protan-15",
+        "type": "number",
+        "value": "15",
+        "weight": "protan",
+        "bg_palette": ["#5a8c72", "#4a7a60", "#6d9f85", "#3d6850", "#7fb297"],
+        "fg_palette": ["#e06044", "#cd4c30", "#ee7458", "#b83b1f", "#f4876e"],
+        "distractors": ["17", "13"],
+    },
+    {
+        "id": "protan-73",
+        "type": "number",
+        "value": "73",
+        "weight": "protan",
+        "bg_palette": ["#568d71", "#44785d", "#6ca285", "#37644c", "#7eb798"],
+        "fg_palette": ["#df6144", "#cb4d30", "#ee7559", "#b73b1f", "#f3896f"],
+        "distractors": ["13", "78"],
+    },
+    {
+        "id": "protan-star",
+        "type": "star",
+        "value": "star",
+        "weight": "protan",
+        "bg_palette": ["#528569", "#417257", "#669a7c", "#345e45", "#7ab191"],
+        "fg_palette": ["#df5a3d", "#cd4629", "#ee6f52", "#b73518", "#f48368"],
+        "distractors": ["circle", "triangle"],
+    },
+    {
+        "id": "protan-triangle",
+        "type": "triangle",
+        "value": "triangle",
+        "weight": "protan",
+        "bg_palette": ["#caa07a", "#b68c67", "#dcaf8a", "#a27954", "#ecc09c"],
+        "fg_palette": ["#2f916d", "#1f7d5a", "#42a27e", "#136c49", "#53b38f"],
+        "distractors": ["square", "star"],
+    },
+    # Deutan-sensitive (Green-deficit / M-cone)
+    {
+        "id": "deutan-8",
+        "type": "number",
+        "value": "8",
+        "weight": "deutan",
+        "bg_palette": ["#c7946f", "#b3815c", "#d9a782", "#9f6e4a", "#e9b994"],
+        "fg_palette": ["#429b79", "#318765", "#55af8c", "#247554", "#69c3a0"],
+        "distractors": ["3", "9"],
+    },
+    {
+        "id": "deutan-6",
+        "type": "number",
+        "value": "6",
+        "weight": "deutan",
+        "bg_palette": ["#4b8e61", "#5ea574", "#74be8d", "#427f54", "#85cea1"],
+        "fg_palette": ["#ea583a", "#dd4828", "#f36e4f", "#c93b1e", "#f88366"],
+        "distractors": ["5", "9"],
+    },
+    {
+        "id": "deutan-26",
+        "type": "number",
+        "value": "26",
+        "weight": "deutan",
+        "bg_palette": ["#57896d", "#47765b", "#699c7f", "#39634a", "#7daf93"],
+        "fg_palette": ["#de5e42", "#cb4b2e", "#ed7357", "#b7391c", "#f3876d"],
+        "distractors": ["2", "6"],
+    },
+    {
+        "id": "deutan-29",
+        "type": "number",
+        "value": "29",
+        "weight": "deutan",
+        "bg_palette": ["#52886c", "#417459", "#659c7f", "#336147", "#79af92"],
+        "fg_palette": ["#df6144", "#cc4e30", "#ee7659", "#b83c1f", "#f48a70"],
+        "distractors": ["70", "20"],
+    },
+    {
+        "id": "deutan-square",
+        "type": "square",
+        "value": "square",
+        "weight": "deutan",
+        "bg_palette": ["#cc9771", "#b8835d", "#deab84", "#a3704b", "#eebf99"],
+        "fg_palette": ["#369773", "#268360", "#49a884", "#19714e", "#5bb996"],
+        "distractors": ["diamond", "circle"],
+    },
+    {
+        "id": "deutan-diamond",
+        "type": "diamond",
+        "value": "diamond",
+        "weight": "deutan",
+        "bg_palette": ["#55876b", "#437459", "#679a7d", "#356147", "#7caf92"],
+        "fg_palette": ["#dd5b3f", "#ca482c", "#ed7054", "#b5361a", "#f3856a"],
+        "distractors": ["triangle", "square"],
+    },
+    # Tritan-sensitive (Blue-Yellow deficit / S-cone)
+    {
+        "id": "tritan-7",
+        "type": "number",
+        "value": "7",
+        "weight": "tritan",
+        "bg_palette": ["#a88e58", "#947a44", "#bd9f67", "#816834", "#cfb27a"],
+        "fg_palette": ["#347bb8", "#256aa6", "#458ec9", "#175791", "#58a0dc"],
+        "distractors": ["1", "4"],
+    },
+    {
+        "id": "tritan-42",
+        "type": "number",
+        "value": "42",
+        "weight": "tritan",
+        "bg_palette": ["#baa062", "#a68c4e", "#ceb273", "#91783d", "#dfc586"],
+        "fg_palette": ["#3877b0", "#28659d", "#4b8abf", "#1b538b", "#609cd3"],
+        "distractors": ["4", "2"],
+    },
+    {
+        "id": "tritan-cross",
+        "type": "cross",
+        "value": "cross",
+        "weight": "tritan",
+        "bg_palette": ["#b5965b", "#a08147", "#c9a96c", "#8c6e37", "#dac080"],
+        "fg_palette": ["#3a7bb5", "#2a69a3", "#4c8fc7", "#1c5790", "#5ea2dc"],
+        "distractors": ["heart", "star"],
+    },
+    {
+        "id": "tritan-heart",
+        "type": "heart",
+        "value": "heart",
+        "weight": "tritan",
+        "bg_palette": ["#a8905b", "#947d47", "#bca46d", "#826b38", "#cbb57f"],
+        "fg_palette": ["#3274b1", "#22639e", "#4587c4", "#15508c", "#5898d5"],
+        "distractors": ["circle", "cross"],
+    },
+    # Letter plates
+    {
+        "id": "shape-A",
+        "type": "letter",
+        "value": "A",
+        "weight": "shape",
+        "bg_palette": ["#51876b", "#407358", "#64997c", "#326046", "#79ae91"],
+        "fg_palette": ["#de5e42", "#cb4b2e", "#ed7357", "#b7391c", "#f3876d"],
+        "distractors": ["O", "H"],
+    },
+    {
+        "id": "shape-O",
+        "type": "letter",
+        "value": "O",
+        "weight": "shape",
+        "bg_palette": ["#c7946f", "#b3815c", "#d9a782", "#9f6e4a", "#e9b994"],
+        "fg_palette": ["#399874", "#288561", "#4ba985", "#19734e", "#5eb997"],
+        "distractors": ["C", "D"],
+    },
+]
+
+
+def _gen_color_perception(rng: random.Random) -> tuple[dict, dict]:
+    baseline_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "baseline"]
+    protan_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "protan"]
+    deutan_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "deutan"]
+    tritan_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "tritan"]
+    shape_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] in ("shape", "baseline") and p["id"] != "base-12"]
+
+    selected = [
+        rng.choice(baseline_pool),
+        *rng.sample(protan_pool, 2),
+        *rng.sample(deutan_pool, 2),
+        rng.choice(tritan_pool),
+        *rng.sample(shape_pool, 2),
+    ]
+
+    # Keep baseline plate first for immediate demonstration/calibration, shuffle remaining 7
+    head = selected[:1]
+    tail = selected[1:]
+    rng.shuffle(tail)
+    ordered = head + tail
+
+    public_plates: list[dict[str, Any]] = []
+    answers: dict[str, str] = {}
+
+    for item in ordered:
+        pid = item["id"]
+        val = item["value"]
+        answers[pid] = val
+
+        opts = [val, *item["distractors"], "none"]
+        rng.shuffle(opts)
+
+        public_plates.append(
+            {
+                "id": pid,
+                "type": item["type"],
+                "value": val,
+                "weight": item["weight"],
+                "bg_palette": item["bg_palette"],
+                "fg_palette": item["fg_palette"],
+                "options": opts,
+                "seed": rng.randint(1000, 999999),
+            }
+        )
+
+    return {"type": "color_perception", "plates": public_plates, "total_plates": len(public_plates)}, {"answers": answers}
+
+
+def _score_color_perception(public: dict, private: dict, tel: dict) -> tuple[dict, dict]:
+    raw_responses = tel.get("responses")
+    raw_answers = tel.get("answers")
+
+    answers_map: dict[str, str] = {}
+    if isinstance(raw_responses, list) and raw_responses:
+        for r in raw_responses:
+            if isinstance(r, dict) and "id" in r and "answer" in r:
+                answers_map[str(r["id"])] = str(r["answer"]).strip().lower()
+    elif isinstance(raw_answers, dict) and raw_answers:
+        for k, v in raw_answers.items():
+            answers_map[str(k)] = str(v).strip().lower()
+    else:
+        raise TelemetryError("Missing plate answers in telemetry")
+
+    plates = _list(public.get("plates"), "plates", 20, 1)
+    correct_answers = private.get("answers", {})
+
+    if len(answers_map) < len(plates):
+        raise TelemetryError("Not all color plates were answered")
+
+    correct_count = 0
+    protan_errors = 0
+    deutan_errors = 0
+    tritan_errors = 0
+    plate_breakdown: list[dict[str, Any]] = []
+
+    for p in plates:
+        pid = p["id"]
+        expected = str(correct_answers.get(pid, "")).strip().lower()
+        chosen = answers_map.get(pid, "")
+        is_correct = chosen == expected
+
+        if is_correct:
+            correct_count += 1
+        else:
+            w = p.get("weight")
+            if w == "protan":
+                protan_errors += 1
+            elif w == "deutan":
+                deutan_errors += 1
+            elif w == "tritan":
+                tritan_errors += 1
+
+        plate_breakdown.append(
+            {
+                "id": pid,
+                "type": p.get("type"),
+                "weight": p.get("weight"),
+                "correct": is_correct,
+                "chosen": chosen,
+            }
+        )
+
+    total_plates = len(plates)
+    accuracy_pct = _pct(correct_count, total_plates)
+    l_cone_pct = max(0.0, round(100.0 - protan_errors * 50.0, 1))
+    m_cone_pct = max(0.0, round(100.0 - deutan_errors * 50.0, 1))
+    s_cone_pct = max(0.0, round(100.0 - tritan_errors * 100.0, 1))
+
+    if accuracy_pct >= 87.5:
+        status_key = "normal_trichromacy"
+    elif protan_errors >= 2 and deutan_errors <= 1:
+        status_key = "protan_deficiency"
+    elif deutan_errors >= 2 and protan_errors <= 1:
+        status_key = "deutan_deficiency"
+    elif protan_errors >= 1 and deutan_errors >= 1:
+        status_key = "red_green_deficiency"
+    elif tritan_errors >= 1:
+        status_key = "tritan_deficiency"
+    else:
+        status_key = "unspecified_variation"
+
+    metrics = {
+        "accuracy_pct": accuracy_pct,
+        "correct_count": correct_count,
+        "total_plates": total_plates,
+        "protan_errors": protan_errors,
+        "deutan_errors": deutan_errors,
+        "tritan_errors": tritan_errors,
+        "l_cone_pct": l_cone_pct,
+        "m_cone_pct": m_cone_pct,
+        "s_cone_pct": s_cone_pct,
+    }
+    series = {
+        "plate_breakdown": plate_breakdown,
+        "status_key": status_key,
+    }
+    return metrics, series
+
+
 # --------------------------------------------------------------------------- registry
 
 
@@ -1137,6 +1467,9 @@ ENGINES: dict[str, Engine] = {
     ),
     "contrast-sensitivity": Engine(
         "contrast", _gen_contrast, _score_contrast, "threshold_contrast_pct", "lower"
+    ),
+    "color-perception": Engine(
+        "color_perception", _gen_color_perception, _score_color_perception, "accuracy_pct", "higher"
     ),
     "visual-pairs": Engine(
         "visual_pairs", _gen_visual_pairs, _score_visual_pairs, "moves_count", "lower"

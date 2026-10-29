@@ -20,6 +20,7 @@ import { CorsiBlocksEngine } from './test-engines/CorsiBlocksEngine'
 import { DigitSpanEngine } from './test-engines/DigitSpanEngine'
 import { SymbolDigitEngine } from './test-engines/SymbolDigitEngine'
 import { ContrastSensitivityEngine } from './test-engines/ContrastSensitivityEngine'
+import { ColorPerceptionEngine } from './test-engines/ColorPerceptionEngine'
 import { VisualPairsEngine } from './test-engines/VisualPairsEngine'
 import { PathMemoryEngine } from './test-engines/PathMemoryEngine'
 import { PatternMatrixEngine } from './test-engines/PatternMatrixEngine'
@@ -490,6 +491,8 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
         return <SymbolDigitEngine {...commonProps} />
       case 'contrast-sensitivity':
         return <ContrastSensitivityEngine {...commonProps} />
+      case 'color-perception':
+        return <ColorPerceptionEngine {...commonProps} />
       case 'visual-pairs':
         return <VisualPairsEngine {...commonProps} />
       case 'path-memory':

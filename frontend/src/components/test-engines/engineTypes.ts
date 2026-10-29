@@ -13,13 +13,14 @@ export interface InteractiveEngineProps {
   onRequestNewTask?: () => void
 }
 
-export const APPROVED_15_SLUGS = [
+export const APPROVED_16_SLUGS = [
   'attention-concentration',
   'attention-switching',
   'visual-memory',
   'short-term-memory',
   'information-processing-speed',
   'contrast-sensitivity',
+  'color-perception',
   'visual-pairs',
   'path-memory',
   'pattern-matrix',
@@ -30,6 +31,9 @@ export const APPROVED_15_SLUGS = [
   'mouse-eye-coordination',
   'cursor-path',
 ] as const
+
+// Backward compatibility alias
+export const APPROVED_15_SLUGS = APPROVED_16_SLUGS
 
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || !window.matchMedia) return false

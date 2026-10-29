@@ -369,6 +369,41 @@ const METRIC_DICTIONARY: Record<string, MetricSpec> = {
     label: { ru: 'Выходов за границу коридора', tj: 'Берунравиҳо аз роҳрав', en: 'Corridor Boundary Exits' },
     isErrorMetric: true,
   },
+  total_plates: {
+    key: 'total_plates',
+    label: { ru: 'Всего таблиц', tj: 'Ҳамагӣ ҷадвалҳо', en: 'Total Plates' },
+  },
+  protan_errors: {
+    key: 'protan_errors',
+    label: { ru: 'Ошибки в красном спектре (L)', tj: 'Хатоҳо дар спектри сурх (L)', en: 'Protan Errors (L-cone)' },
+    isErrorMetric: true,
+  },
+  deutan_errors: {
+    key: 'deutan_errors',
+    label: { ru: 'Ошибки в зелёном спектре (M)', tj: 'Хатоҳо дар спектри сабз (M)', en: 'Deutan Errors (M-cone)' },
+    isErrorMetric: true,
+  },
+  tritan_errors: {
+    key: 'tritan_errors',
+    label: { ru: 'Ошибки в сине-жёлтом спектре (S)', tj: 'Хатоҳо дар спектри кабуду зард (S)', en: 'Tritan Errors (S-cone)' },
+    isErrorMetric: true,
+  },
+  l_cone_pct: {
+    key: 'l_cone_pct',
+    label: { ru: 'Чувствительность L-колбочек (красный)', tj: 'Ҳассосияти колбочкаҳои L (сурх)', en: 'L-Cone Sensitivity (Red)' },
+    unit: { ru: '%', tj: '%', en: '%' },
+  },
+  m_cone_pct: {
+    key: 'm_cone_pct',
+    label: { ru: 'Чувствительность M-колбочек (зелёный)', tj: 'Ҳассосияти колбочкаҳои M (сабз)', en: 'M-Cone Sensitivity (Green)' },
+    unit: { ru: '%', tj: '%', en: '%' },
+  },
+  s_cone_pct: {
+    key: 's_cone_pct',
+    label: { ru: 'Чувствительность S-колбочек (синий)', tj: 'Ҳассосияти колбочкаҳои S (кабуд)', en: 'S-Cone Sensitivity (Blue)' },
+    unit: { ru: '%', tj: '%', en: '%' },
+  },
+
 }
 
 function getExplanation(slug: string, metrics: Record<string, any>, lang: Language): string {
@@ -385,6 +420,8 @@ function getExplanation(slug: string, metrics: Record<string, any>, lang: Langua
         return `Ҳаҷми қатори мустақим: ${m.forward_span ?? 0} рақам, қатори бозгаштӣ: ${m.backward_span ?? 0} рақам. Қатори бозгаштӣ нигоҳдорӣ ва табдили фаъоли иттилоотро дар хотираи корӣ инъикос мекунад.`
       case 'information-processing-speed':
         return `Дар муддати машқ ${m.correct_count ?? 0} рамз дуруст мувофиқ карда шуд (суръат: ${m.speed_per_minute ?? '—'} дар як дақиқа, дақиқият: ${m.accuracy_pct ?? '—'}%).`
+      case 'color-perception':
+        return `Аз ${m.total_plates ?? 8} лавҳаи ташхис ${m.correct_count ?? 0} адад дуруст шинохта шуд (дақиқият: ${m.accuracy_pct ?? '—'}%). Хатоҳо: сурх ${m.protan_errors ?? 0}, сабз ${m.deutan_errors ?? 0}, кабуд ${m.tritan_errors ?? 0}.`
       case 'contrast-sensitivity':
         return `Сатҳи ҳадди ақали контрасти боэътимод фарқшаванда: ${m.threshold_contrast_pct != null ? `${m.threshold_contrast_pct}%` : 'муайян нашуд'}. Натиҷа ба равшании экран ва рӯшноии хона вобаста аст.`
       case 'visual-pairs':
@@ -422,6 +459,8 @@ function getExplanation(slug: string, metrics: Record<string, any>, lang: Langua
         return `Forward span: ${m.forward_span ?? 0} digits; Backward span: ${m.backward_span ?? 0} digits. Backward recall engages active manipulation in working memory.`
       case 'information-processing-speed':
         return `You matched ${m.correct_count ?? 0} symbols correctly (pace: ${m.speed_per_minute ?? '—'} per min, accuracy: ${m.accuracy_pct ?? '—'}%).`
+      case 'color-perception':
+        return `You identified ${m.correct_count ?? 0} of ${m.total_plates ?? 8} pseudoisochromatic plates correctly (${m.accuracy_pct ?? '—'}% accuracy). Red errors: ${m.protan_errors ?? 0}, green errors: ${m.deutan_errors ?? 0}, blue errors: ${m.tritan_errors ?? 0}.`
       case 'contrast-sensitivity':
         return `Lowest contrast level reliably resolved on both trials: ${m.threshold_contrast_pct != null ? `${m.threshold_contrast_pct}%` : 'not reached'}. Results depend on display brightness and ambient lighting.`
       case 'visual-pairs':
@@ -459,6 +498,8 @@ function getExplanation(slug: string, metrics: Record<string, any>, lang: Langua
       return `Объём прямого цифрового ряда составил ${m.forward_span ?? 0} цифр, обратного ряда — ${m.backward_span ?? 0} цифр. Обратный ряд требует активного удержания и перестановки элементов в рабочей памяти.`
     case 'information-processing-speed':
       return `Вы дали ${m.correct_count ?? 0} верных ответов из ${m.items_attempted ?? '—'} (средний темп: ${m.speed_per_minute ?? '—'} знаков/мин, точность: ${m.accuracy_pct ?? '—'}%).`
+    case 'color-perception':
+      return `Вы верно распознали ${m.correct_count ?? 0} из ${m.total_plates ?? 8} полихроматических таблиц (точность: ${m.accuracy_pct ?? '—'}%). Ошибок в красном спектре: ${m.protan_errors ?? 0}, в зелёном: ${m.deutan_errors ?? 0}, в сине-жёлтом: ${m.tritan_errors ?? 0}.`
     case 'contrast-sensitivity':
       return `Минимальный уровень контраста, уверенно распознанный в обеих пробах: ${m.threshold_contrast_pct != null ? `${m.threshold_contrast_pct}%` : 'не достигнут'}. Показатель зависит от яркости экрана и внешнего освещения.`
     case 'visual-pairs':
@@ -846,6 +887,87 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
             )
           })}
         </svg>
+      )
+    }
+
+    // Color Perception (Ishihara / Rabkin): Cone photoreceptors & plate breakdown
+    if (Array.isArray(series.plate_breakdown) || testSlug === 'color-perception' || slug === 'color-perception') {
+      const plates: Array<{ id: string; type?: string; weight?: string; correct?: boolean; chosen?: string }> =
+        series.plate_breakdown || []
+      const lCone = rawMetrics.l_cone_pct != null ? Number(rawMetrics.l_cone_pct) : 100
+      const mCone = rawMetrics.m_cone_pct != null ? Number(rawMetrics.m_cone_pct) : 100
+      const sCone = rawMetrics.s_cone_pct != null ? Number(rawMetrics.s_cone_pct) : 100
+
+      return (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-rose-600 dark:text-rose-400">L-колбочки (Красный)</span>
+                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">560 нм</span>
+              </div>
+              <div className="mt-3">
+                <div className="flex justify-between text-xs font-mono mb-1">
+                  <span className="text-slate-500">Чувствительность</span>
+                  <span className="font-bold text-rose-600 dark:text-rose-400">{lCone}%</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div className="bg-rose-500 h-full rounded-full transition-all" style={{ width: `${lCone}%` }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">M-колбочки (Зелёный)</span>
+                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">530 нм</span>
+              </div>
+              <div className="mt-3">
+                <div className="flex justify-between text-xs font-mono mb-1">
+                  <span className="text-slate-500">Чувствительность</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{mCone}%</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${mCone}%` }} />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-sky-600 dark:text-sky-400">S-колбочки (Синий)</span>
+                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">420 нм</span>
+              </div>
+              <div className="mt-3">
+                <div className="flex justify-between text-xs font-mono mb-1">
+                  <span className="text-slate-500">Чувствительность</span>
+                  <span className="font-bold text-sky-600 dark:text-sky-400">{sCone}%</span>
+                </div>
+                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                  <div className="bg-sky-500 h-full rounded-full transition-all" style={{ width: `${sCone}%` }} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {plates.length > 0 && (
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+              {plates.map((p, idx) => (
+                <div
+                  key={idx}
+                  className={`p-2 rounded-xl border text-center flex flex-col items-center justify-center ${
+                    p.correct
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  <span className="text-[10px] font-mono text-slate-400">№{idx + 1}</span>
+                  <span className="text-xs font-bold mt-0.5">{p.correct ? '✓ Верно' : '✗ Ошибка'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )
     }
 
