@@ -525,12 +525,115 @@ function getExplanation(slug: string, metrics: Record<string, any>, lang: Langua
   }
 }
 
+export const PRIORITY_METRIC_ORDER = [
+  // Primary accuracy / performance
+  'accuracy_pct',
+  'inhibition_pct',
+  'efficiency_pct',
+  'time_on_target_pct',
+  'in_corridor_pct',
+  'threshold_contrast_pct',
+  'pta_db',
+  'score',
+  'percentage',
+  // Speed & reaction
+  'mean_rt_ms',
+  'reaction_time_ms',
+  'median_rt_ms',
+  'total_time_sec',
+  'completion_time_sec',
+  'time_sec',
+  'speed_per_minute',
+  'mean_item_sec',
+  'switching_cost_sec',
+  // Counts & achievements
+  'correct_count',
+  'go_hits',
+  'max_span',
+  'max_spatial_span',
+  'max_digit_span',
+  'routes_correct',
+  'steps_correct',
+  'digits_correct',
+  'triplets_exact',
+  'moves_count',
+  'total_moves',
+  'trials_passed',
+  'trials_correct',
+  'levels_passed',
+  // Errors / deviation
+  'errors_count',
+  'commission_errors',
+  'boundary_exits',
+  'mean_deviation_pct',
+]
+
+export function getTopMetricKeys(metrics: Record<string, any>, limit = 4): string[] {
+  if (!metrics || typeof metrics !== 'object') return []
+  const keys = Object.keys(metrics).filter((k) => metrics[k] !== undefined && metrics[k] !== null && typeof metrics[k] !== 'object')
+  keys.sort((a, b) => {
+    const idxA = PRIORITY_METRIC_ORDER.indexOf(a)
+    const idxB = PRIORITY_METRIC_ORDER.indexOf(b)
+    const rankA = idxA === -1 ? 999 : idxA
+    const rankB = idxB === -1 ? 999 : idxB
+    return rankA - rankB
+  })
+  return keys.slice(0, limit)
+}
+
 export function unwrapMetrics(resultObj?: Record<string, any> | null): Record<string, any> {
   if (!resultObj || typeof resultObj !== 'object') return {}
-  if (typeof resultObj.metrics === 'object' && resultObj.metrics !== null) {
-    return resultObj.metrics as Record<string, any>
+
+  let curr: any = resultObj
+  for (let i = 0; i < 5; i++) {
+    if (curr && typeof curr === 'object') {
+      if (curr.metrics && typeof curr.metrics === 'object' && !Array.isArray(curr.metrics)) {
+        curr = curr.metrics
+      } else if (curr.result && typeof curr.result === 'object' && !Array.isArray(curr.result)) {
+        curr = curr.result
+      } else {
+        break
+      }
+    }
   }
-  return resultObj
+
+  const IGNORED_KEYS = new Set([
+    'version', 'engine', 'series', 'trials', 'steps', 'details', 'answers',
+    'summary', 'timestamp', 'session_id', 'questionnaire_version', 'status',
+    'target', 'logs', 'raw_data', 'trajectory', 'trajectory_summary',
+    'samples', 'by_rule', 'item_times_sec', 'history', 'target_path', 'cursor_path',
+    'grid_size', 'frequencies', 'category', 'efficiency_category', 'status_category'
+  ])
+
+  const cleaned: Record<string, any> = {}
+
+  if (curr && typeof curr === 'object') {
+    for (const [k, v] of Object.entries(curr)) {
+      if (IGNORED_KEYS.has(k)) continue
+      if (v === null || v === undefined) continue
+      if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
+        cleaned[k] = v
+      } else if (typeof v === 'object' && !Array.isArray(v)) {
+        for (const [subK, subV] of Object.entries(v)) {
+          if (!IGNORED_KEYS.has(subK) && (typeof subV === 'number' || typeof subV === 'string' || typeof subV === 'boolean')) {
+            cleaned[subK] = subV
+          }
+        }
+      }
+    }
+  }
+
+  // Also check top-level resultObj in case some metrics were at the root (like completion_time_sec or score)
+  if (resultObj && typeof resultObj === 'object') {
+    for (const [k, v] of Object.entries(resultObj)) {
+      if (IGNORED_KEYS.has(k) || cleaned[k] !== undefined) continue
+      if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
+        cleaned[k] = v
+      }
+    }
+  }
+
+  return cleaned
 }
 
 export function getMetricLabel(key: string, lang: Language = 'ru'): string {
@@ -552,6 +655,9 @@ export function formatMetricValue(key: string, value: unknown, lang: Language = 
   if (value === null || value === undefined) return '—'
   if (typeof value === 'boolean') {
     return value ? (lang === 'en' ? 'Yes' : 'Да') : lang === 'en' ? 'No' : 'Нет'
+  }
+  if (typeof value === 'object') {
+    return '—'
   }
   const spec = METRIC_DICTIONARY[key]
   const unit = spec?.unit ? spec.unit[lang] || spec.unit.ru : ''
@@ -596,10 +702,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
       : undefined)
   const limitations = propLimitations || methodology?.limitations
   // Unwrap v2 { version, engine, metrics, series } or legacy flat object
-  const rawMetrics: Record<string, any> =
-    resultData && typeof resultData.metrics === 'object' && resultData.metrics !== null
-      ? resultData.metrics
-      : resultData || {}
+  const rawMetrics: Record<string, any> = unwrapMetrics(resultData)
   const series: Record<string, any> =
     resultData && typeof resultData.series === 'object' && resultData.series !== null
       ? resultData.series

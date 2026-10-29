@@ -40,6 +40,7 @@ import {
   unwrapMetrics,
   getMetricLabel,
   formatMetricValue,
+  getTopMetricKeys,
 } from './ResultReportView'
 
 export const PRESET_PORTRAITS = [
@@ -943,7 +944,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   <div className="space-y-3">
                     {results.slice(0, 5).map((r) => {
                       const metrics = unwrapMetrics(r.result)
-                      const topMetrics = Object.entries(metrics).slice(0, 3)
+                      const topKeys = getTopMetricKeys(metrics, 3)
+                      const topMetrics = topKeys.map((k) => [k, metrics[k]])
                       return (
                         <div
                           key={r.id}
@@ -1072,7 +1074,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 <div className="space-y-3">
                   {filteredResults.map((item) => {
                     const metrics = unwrapMetrics(item.result)
-                    const entries = Object.entries(metrics).slice(0, 4)
+                    const topKeys = getTopMetricKeys(metrics, 4)
+                    const entries = topKeys.map((k) => [k, metrics[k]])
                     return (
                       <div
                         key={item.id}
@@ -1154,7 +1157,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     <tbody className="divide-y divide-slate-100 dark:divide-[#1E302B]">
                       {filteredResults.map((item) => {
                         const metrics = unwrapMetrics(item.result)
-                        const firstEntry = Object.entries(metrics)[0]
+                        const topKeys = getTopMetricKeys(metrics, 1)
+                        const firstEntry = topKeys.length > 0 ? [topKeys[0], metrics[topKeys[0]]] : null
                         return (
                           <tr key={item.id} className="hover:bg-slate-50/70 dark:hover:bg-[#131C1A]/60">
                             <td className="py-3 pl-1 font-bold text-slate-900 dark:text-white">
@@ -1236,7 +1240,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     .filter((r) => historySlugFilter === 'all' || r.test_slug === historySlugFilter)
                     .map((item) => {
                       const metrics = unwrapMetrics(item.result)
-                      const entries = Object.entries(metrics).slice(0, 3)
+                      const topKeys = getTopMetricKeys(metrics, 3)
+                      const entries = topKeys.map((k) => [k, metrics[k]])
                       return (
                         <div key={item.id} className="relative">
                           <span className="absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full bg-[#17A884] ring-4 ring-white dark:ring-[#0E1715]" />
@@ -1326,69 +1331,105 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   const prev = attempts[1]
                   const latestMetrics = unwrapMetrics(latest.result)
                   const prevMetrics = prev ? unwrapMetrics(prev.result) : {}
-                  const metricKeys = Object.keys(latestMetrics).slice(0, 4)
+                  const metricKeys = getTopMetricKeys(latestMetrics, 4)
 
                   return (
                     <div
                       key={slug}
-                      className="p-5 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] space-y-4"
+                      className="p-5 sm:p-6 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] space-y-4 hover:border-emerald-500/30 transition-all duration-200"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                          <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                             {latest.test_title || slug}
                           </h4>
-                          <span className="text-xs text-slate-400 font-mono">
-                            Всего сохранённых попыток: {attempts.length}
-                          </span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onNavigate(`test/${slug}`)}
-                          className="text-xs gap-1"
-                        >
-                          <span>Новая попытка</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {metricKeys.map((k) => {
-                          const currVal = latestMetrics[k]
-                          const prevVal = prevMetrics[k]
-                          const numCurr = typeof currVal === 'number' ? currVal : null
-                          const numPrev = typeof prevVal === 'number' ? prevVal : null
-                          const diff =
-                            numCurr !== null && numPrev !== null
-                              ? Math.round((numCurr - numPrev) * 100) / 100
-                              : null
-
-                          return (
-                            <div
-                              key={k}
-                              className="p-3.5 rounded-xl bg-white dark:bg-[#0E1715] border border-slate-200/70 dark:border-[#1E302B]"
-                            >
-                              <div className="text-[11px] text-slate-500 mb-1">
-                                {getMetricLabel(k, lang)}
-                              </div>
-                              <div className="text-base font-mono font-black text-slate-900 dark:text-white">
-                                {formatMetricValue(k, currVal, lang)}
-                              </div>
-                              {prevVal !== undefined && (
-                                <div className="text-[11px] font-mono text-slate-400 mt-1">
-                                  Пред.: {formatMetricValue(k, prevVal, lang)}{' '}
-                                  {diff !== null && diff !== 0 && (
-                                    <span className="text-[#17A884] font-bold">
-                                      ({diff > 0 ? `+${diff}` : diff})
-                                    </span>
-                                  )}
-                                </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-400 font-mono mt-0.5">
+                            <span>
+                              {attempts.length === 1
+                                ? (lang === 'tj' ? '1 кӯшиши сабтшуда' : lang === 'en' ? '1 saved attempt' : '1 сохранённая попытка')
+                                : (lang === 'tj' ? `Ҳамагӣ кӯшишҳо: ${attempts.length}` : lang === 'en' ? `Total attempts: ${attempts.length}` : `Всего попыток: ${attempts.length}`)}
+                            </span>
+                            <span>•</span>
+                            <span>
+                              {new Date(latest.completed_at).toLocaleDateString(
+                                lang === 'en' ? 'en-US' : lang === 'tj' ? 'tg-TJ' : 'ru-RU',
+                                { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
                               )}
-                            </div>
-                          )
-                        })}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setInspectingResult(latest)}
+                            className="text-xs gap-1.5 cursor-pointer hover:border-emerald-500/40"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-emerald-500" />
+                            <span>{lang === 'tj' ? 'Ҳисобот' : lang === 'en' ? 'Report' : 'Отчёт'}</span>
+                          </Button>
+                          <Button
+                            variant="emerald"
+                            size="sm"
+                            onClick={() => onNavigate(`test/${slug}`)}
+                            className="text-xs gap-1 cursor-pointer"
+                          >
+                            <span>{lang === 'tj' ? 'Кӯшиши нав' : lang === 'en' ? 'New Attempt' : 'Новая попытка'}</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
+
+                      {metricKeys.length === 0 ? (
+                        <div className="p-4 rounded-xl bg-white dark:bg-[#0E1715] border border-slate-200/70 dark:border-[#1E302B] text-xs text-slate-500">
+                          {lang === 'tj' ? 'Маълумоти санҷиш бомуваффақият сабт шуд' : lang === 'en' ? 'Attempt completed and archived' : 'Данные попытки зафиксированы в архиве'}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          {metricKeys.map((k) => {
+                            const currVal = latestMetrics[k]
+                            const prevVal = prevMetrics[k]
+                            const numCurr = typeof currVal === 'number' ? currVal : null
+                            const numPrev = typeof prevVal === 'number' ? prevVal : null
+                            const diff =
+                              numCurr !== null && numPrev !== null
+                                ? Math.round((numCurr - numPrev) * 100) / 100
+                                : null
+
+                            return (
+                              <div
+                                key={k}
+                                className="p-3.5 rounded-xl bg-white dark:bg-[#0E1715] border border-slate-200/70 dark:border-[#1E302B] flex flex-col justify-between"
+                              >
+                                <div>
+                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 line-clamp-1">
+                                    {getMetricLabel(k, lang)}
+                                  </div>
+                                  <div className="text-lg font-mono font-black text-slate-900 dark:text-white">
+                                    {formatMetricValue(k, currVal, lang)}
+                                  </div>
+                                </div>
+                                {prevVal !== undefined ? (
+                                  <div className="text-[11px] font-mono text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                                    {lang === 'tj' ? 'Пеш:' : lang === 'en' ? 'Prev:' : 'Пред.:'} {formatMetricValue(k, prevVal, lang)}{' '}
+                                    {diff !== null && diff !== 0 && (
+                                      <span className={diff > 0 ? "text-[#17A884] font-bold" : "text-amber-500 font-bold"}>
+                                        ({diff > 0 ? `+${diff}` : diff})
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 inline-block" />
+                                    <span>{lang === 'tj' ? 'Андозагирии аввалия' : lang === 'en' ? 'Baseline score' : 'Базовое измерение'}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
