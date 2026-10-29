@@ -105,6 +105,11 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       aiChip1: 'Без диагнозов',
       aiChip2: 'Zero-Retention приватность',
       aiChip3: 'Клинический триаж',
+      aiFeature1: 'Клинический триаж по доказательной медицине',
+      aiFeature2: 'Строгий запрет на постановку диагнозов',
+      aiFeature3: 'Zero-Retention: диалог не сохраняется',
+      aiRecTitle: 'Рекомендация: Контрастная чувствительность',
+      aiRecTime: '~2.5 мин',
       aiPrompt1: '👁️ Тест контраста',
       aiPrompt2: '⚡ Оценка реакции',
     },
@@ -166,6 +171,11 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       aiChip1: 'Бе ташхиси тиббӣ',
       aiChip2: 'Махфияти комил',
       aiChip3: 'Триажи клиникӣ',
+      aiFeature1: 'Триажи клиникӣ дар асоси тибби исботшуда',
+      aiFeature2: 'Манъи қатъии гузоштани ташхис',
+      aiFeature3: 'Махфияти мутлақ: бе нигоҳдории суҳбат',
+      aiRecTitle: 'Тавсия: Ҳассосияти контрастӣ',
+      aiRecTime: '~2.5 дақ',
       aiPrompt1: '👁️ Тести контраст',
       aiPrompt2: '⚡ Санҷиши вокуниш',
     },
@@ -227,6 +237,11 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
       aiChip1: 'Zero Medical Diagnosis',
       aiChip2: 'Zero-Retention Privacy',
       aiChip3: 'Clinical Triage',
+      aiFeature1: 'Evidence-based clinical triaging logic',
+      aiFeature2: 'Strict non-diagnostic ethical framework',
+      aiFeature3: 'Zero-Retention: chats never stored',
+      aiRecTitle: 'Recommendation: Contrast Sensitivity',
+      aiRecTime: '~2.5 min',
       aiPrompt1: '👁️ Contrast Test',
       aiPrompt2: '⚡ Reaction Check',
     },
@@ -482,19 +497,18 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               {content.card3Desc}
             </p>
 
-            {/* 4 Interactive Mini Screening Preview Cards (NO random stock photos!) */}
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
+            {/* 4 Interactive Mini Screening Preview Cards (Streamlined, compact layout) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               {/* 1. Vision & Contrast */}
               <div
                 onClick={onOpenCatalog}
-                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all cursor-pointer group/tile flex flex-col justify-between aspect-[16/11]"
+                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
               >
-                <div className="flex items-center justify-between">
-                  <Eye className="w-4 h-4 text-emerald-500" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0 text-emerald-500">
+                  <Eye className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight truncate">
                     {content.card3Mini1}
                   </div>
                   <div className="text-[9px] font-mono text-slate-400 truncate mt-0.5">
@@ -506,19 +520,13 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               {/* 2. Hearing & Frequencies */}
               <div
                 onClick={onOpenCatalog}
-                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/50 hover:bg-teal-50/20 dark:hover:bg-teal-950/20 transition-all cursor-pointer group/tile flex flex-col justify-between aspect-[16/11]"
+                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/50 hover:bg-teal-50/20 dark:hover:bg-teal-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
               >
-                <div className="flex items-center justify-between">
-                  <Volume2 className="w-4 h-4 text-teal-500" />
-                  {/* Wave equalizer bars */}
-                  <div className="flex items-end gap-0.5 h-3">
-                    <span className="w-1 bg-teal-500/70 h-2 rounded-full" />
-                    <span className="w-1 bg-teal-500 h-3 rounded-full animate-pulse" />
-                    <span className="w-1 bg-teal-500/70 h-1.5 rounded-full" />
-                  </div>
+                <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center shrink-0 text-teal-500">
+                  <Volume2 className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight truncate">
                     {content.card3Mini2}
                   </div>
                   <div className="text-[9px] font-mono text-slate-400 truncate mt-0.5">
@@ -530,19 +538,13 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               {/* 3. Attention & Memory */}
               <div
                 onClick={onOpenCatalog}
-                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-50/20 dark:hover:bg-cyan-950/20 transition-all cursor-pointer group/tile flex flex-col justify-between aspect-[16/11]"
+                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-50/20 dark:hover:bg-cyan-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
               >
-                <div className="flex items-center justify-between">
-                  <Brain className="w-4 h-4 text-cyan-500" />
-                  <div className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5 opacity-60">
-                    <span className="bg-cyan-500 rounded-xs" />
-                    <span className="bg-cyan-400 rounded-xs" />
-                    <span className="bg-cyan-400 rounded-xs" />
-                    <span className="bg-cyan-500 rounded-xs" />
-                  </div>
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0 text-cyan-500">
+                  <Brain className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight truncate">
                     {content.card3Mini3}
                   </div>
                   <div className="text-[9px] font-mono text-slate-400 truncate mt-0.5">
@@ -554,16 +556,13 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               {/* 4. Reaction & Motor */}
               <div
                 onClick={onOpenCatalog}
-                className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition-all cursor-pointer group/tile flex flex-col justify-between aspect-[16/11]"
+                className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition-all cursor-pointer group/tile flex items-center gap-2.5"
               >
-                <div className="flex items-center justify-between">
-                  <Timer className="w-4 h-4 text-indigo-500" />
-                  <span className="text-[9px] font-mono font-bold text-indigo-500 bg-indigo-500/10 px-1 py-0.5 rounded">
-                    185ms
-                  </span>
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 text-indigo-500">
+                  <Timer className="w-4 h-4" />
                 </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight truncate">
                     {content.card3Mini4}
                   </div>
                   <div className="text-[9px] font-mono text-slate-400 truncate mt-0.5">
@@ -586,10 +585,10 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
         </Card>
 
         {/* CARD 4: 2 COLUMNS - Навигатор с этическими рамками (AI клинический триаж вживую) */}
-        <Card className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 shadow-xl transition-all duration-300 relative overflow-hidden group flex flex-col justify-between">
+        <Card className="lg:col-span-2 p-6 sm:p-8 rounded-3xl bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 shadow-xl transition-all duration-300 relative overflow-hidden group flex flex-col justify-center">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
             {/* Left Content */}
-            <div className="md:col-span-6 space-y-4">
+            <div className="md:col-span-6 space-y-3.5">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
                 <Sparkles className="w-6 h-6" />
               </div>
@@ -603,8 +602,24 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
                 {content.card4Desc}
               </p>
 
+              {/* Verified ethical checklist criteria */}
+              <div className="space-y-1.5 pt-0.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{content.aiFeature1}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{content.aiFeature2}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <span>{content.aiFeature3}</span>
+                </div>
+              </div>
+
               {/* Ethics chips */}
-              <div className="flex items-center gap-2 flex-wrap text-xs font-semibold">
+              <div className="flex items-center gap-2 flex-wrap text-xs font-semibold pt-1">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   {content.aiChip1}
@@ -614,7 +629,7 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
                 </span>
               </div>
 
-              <div className="pt-2">
+              <div className="pt-1">
                 <button
                   type="button"
                   onClick={onOpenAssistant}
@@ -626,7 +641,7 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
               </div>
             </div>
 
-            {/* Right Interactive Live Simulated AI Consultation Card (NO random robot doll images!) */}
+            {/* Right Interactive Live Simulated AI Consultation Card */}
             <div className="md:col-span-6">
               <div
                 onClick={onOpenAssistant}
@@ -662,13 +677,25 @@ export const BentoFeatures: React.FC<BentoFeaturesProps> = ({
 
                 {/* Simulated Assistant Bubble */}
                 <div className="flex justify-start">
-                  <div className="max-w-[90%] rounded-2xl rounded-tl-xs p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed shadow-xs space-y-1">
+                  <div className="max-w-[92%] rounded-2xl rounded-tl-xs p-2.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed shadow-xs space-y-2">
                     <p>{content.aiBotMsg}</p>
+                    {/* Embedded Triage Recommendation Card */}
+                    <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Eye className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300 text-[10px]">
+                          {content.aiRecTitle}
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold shrink-0">
+                        {content.aiRecTime}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Quick Interactive Prompt Pills */}
-                <div className="flex items-center gap-1.5 pt-1 flex-wrap text-[10px]">
+                <div className="flex items-center gap-1.5 pt-0.5 flex-wrap text-[10px]">
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-medium transition-colors">
                     {content.aiPrompt1}
                   </span>
