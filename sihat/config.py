@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     refresh_token_days: int = 30
     attempt_temporary_hours: int = 24
     gemini_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-3-flash-preview"
     google_oauth_client_id: str | None = None
     smtp_host: str | None = None
     smtp_port: int = 587

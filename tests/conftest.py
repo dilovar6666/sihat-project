@@ -104,6 +104,7 @@ def client() -> Generator[TestClient, None, None]:
         smtp_password="test-password",
         smtp_from_email="noreply@test.invalid",
         google_oauth_client_id=None,
+        gemini_api_key=None,
     )
 
     app.dependency_overrides[get_db_session] = override_db_session

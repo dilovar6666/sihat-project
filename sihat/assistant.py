@@ -216,6 +216,91 @@ def _fallback(user_text: str = "", preferred_lang: str | None = None) -> Assista
                 "или обратитесь в ближайший приёмный покой больницы!"
             )
 
+    # 1B. GREETINGS & SMALL TALK
+    elif any(k in low for k in ["привет", "здравствуй", "добрый день", "доброе утро", "добрый вечер", "салом", "алейкум", "hello", "hi", "hey"]):
+        if lang == "tj":
+            msg = (
+                "Салом! Хуш омадед ба SIHAT. Ман ёвари ҳушманди шумо ҳастам ва омодаам дар интихоби машқҳои когнитивӣ ё санҷиши биноӣ ва шунавоӣ кӯмак расонам. "
+                "Шумо мехоҳед кадом қобилиятро санҷед — диққат, хотира, аксуламал ё биниш?"
+            )
+        elif lang == "en":
+            msg = (
+                "Hello! Welcome to SIHAT. I'm your interactive health tech assistant, here to help guide you through our 15 cognitive and sensory exercises. "
+                "What would you like to explore today — attention, memory, reaction speed, vision, or hearing?"
+            )
+        else:
+            msg = (
+                "Привет! Рад вас приветствовать на платформе SIHAT. Я ваш персональный помощник и помогу сориентироваться среди 15 интерактивных упражнений — "
+                "для проверки памяти, внимания, скорости реакции, зрения и слуха. С чего начнём?"
+            )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 1C. WHAT IS THIS SITE / ЧТО ЭТО ЗА САЙТ
+    elif any(k in low for k in ["что это за сайт", "что за сайт", "что такое sihat", "что здесь делать", "ин чихел сайт", "ин сомона чист", "what is this site", "what is sihat", "about this website"]):
+        if lang == "tj":
+            msg = (
+                "**SIHAT («Саломатии худро фаҳм»)** — ин платформаи муосири худназоратӣ ва таҳлили қобилиятҳои маърифатӣ ва сенсорӣ мебошад. "
+                "Дар ин ҷо 15 машқи интерактивӣ мавҷуданд: ҷадвалҳои Шулте, блокҳои Корси, ҳассосияти контрастӣ, санҷиши нутқ дар садо ва суръати вокуниш. "
+                "Ҳар як санҷиш супориши беназир тавлид мекунад ва натиҷаҳои шумо танҳо дар ихтиёри худатон мемонанд. Мехоҳед як санҷишро оғоз кунед?"
+            )
+        elif lang == "en":
+            msg = (
+                "**SIHAT (Understand Your Health)** is an evidence-based platform for personal cognitive and sensory self-monitoring. "
+                "It features 15 scientifically grounded interactive exercises covering attention, working memory, contrast perception, auditory discrimination, and reaction speed. "
+                "Every session generates fresh randomized challenges, and results belong strictly to you. Would you like to try an exercise?"
+            )
+        else:
+            msg = (
+                "**SIHAT («Пойми своё здоровье»)** — это научно обоснованная платформа для объективного самоконтроля когнитивных и сенсорных способностей. "
+                "Здесь доступно 15 интерактивных упражнений: Таблицы Шульте, блоки Корси, различение контраста, проверка речи в шуме, скорость реакции и координация. "
+                "Каждое задание генерируется заново на сервере, а результаты сохраняются только с вашего согласия. Хотите посмотреть каталог упражнений?"
+            )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 1D. HOW ARE YOU / КАК ДЕЛА
+    elif any(k in low for k in ["как дела", "как ты", "чихели", "чихелӣ", "чӣ ҳол дорӣ", "how are you", "how are u"]):
+        if lang == "tj":
+            msg = (
+                "Ташаккур, ман хеле хуб ҳастам! Омодаам ба шумо дар интихоби машқҳо ва омӯзиши имкониятҳои худ кӯмак кунам. "
+                "Шумо чӣ ҳол доред? Оё мехоҳед сатҳи тамаркуз ё суръати аксуламалатонро бисанҷед?"
+            )
+        elif lang == "en":
+            msg = (
+                "I'm doing great, thank you for asking! I'm ready to help you explore our exercises or interpret your results. "
+                "How are you feeling today? Would you like to check your focus, memory, or reaction speed?"
+            )
+        else:
+            msg = (
+                "Всё отлично, спасибо! С удовольствием помогу вам с упражнениями или отвечу на любые вопросы по платформе. "
+                "Как ваше самочувствие? Хотите проверить концентрацию внимания или скорость реакции?"
+            )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 1E. WHO ARE YOU / КТО ТЫ
+    elif any(k in low for k in ["кто ты", "ты кто", "кисти", "ту кисти", "who are you", "what are you"]):
+        if lang == "tj":
+            msg = (
+                "Ман ёвари ҳушманди SIHAT ҳастам. Вазифаи ман — фаҳмонидани қоидаҳои машқҳо, кӯмак дар интихоби санҷишҳои мувофиқ ва тавзеҳи нишондиҳандаҳо мебошад."
+            )
+        elif lang == "en":
+            msg = (
+                "I am SIHAT's AI companion and navigator. My role is to help you discover relevant screening exercises, understand scoring metrics, and track your personal progress."
+            )
+        else:
+            msg = (
+                "Я интеллектуальный ассистент платформы SIHAT. Моя задача — помогать вам ориентироваться в каталоге из 15 упражнений, подсказывать правила и объяснять полученные результаты."
+            )
+        actions.append(AssistantAction(name="navigate_to_page", arguments={"target": "/catalog"}))
+
+    # 1F. THANKS / СПАСИБО
+    elif any(k in low for k in ["спасибо", "благодар", "раҳмат", "рахмат", "ташаккур", "thank", "thanks"]):
+        if lang == "tj":
+            msg = "Саломат бошед! Ҳамеша шодам, ки ба шумо кӯмак расонам. Агар саволи дигар дошта бошед, бо камоли майл посух медиҳам."
+        elif lang == "en":
+            msg = "You're very welcome! Always happy to help. Let me know whenever you'd like to try another exercise or have questions."
+        else:
+            msg = "Всегда пожалуйста! Рад быть полезным. Если появятся вопросы по упражнениям или результатам — обращайтесь!"
+
     # 1B. DIAGNOSIS & CLINICAL DISCLAIMER
     elif any(k in low for k in ["диагноз", "лечен", "ташхис", "табобат", "diagnos", "prescrib", "cure"]):
         if lang == "tj":
