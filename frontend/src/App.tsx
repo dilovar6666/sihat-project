@@ -213,6 +213,31 @@ export default function App() {
   const [runnerLoading, setRunnerLoading] = useState(false)
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false)
+  const [isOnline, setIsOnline] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true)
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true)
+      addToast('Соединение с сетью восстановлено', 'success')
+    }
+    const handleOffline = () => {
+      setIsOnline(false)
+      addToast('Соединение с сетью потеряно. Режим офлайн активен.', 'warning')
+    }
+    const handleExpired = () => {
+      setToken('')
+      setUser(null)
+      addToast('Сессия истекла. Пожалуйста, выполните вход снова.', 'warning')
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('sihat:session_expired', handleExpired)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('sihat:session_expired', handleExpired)
+    }
+  }, [])
 
   // Persistent Notification Center & Ephemeral Toast Stack
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -660,6 +685,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F8F9F5] dark:bg-[#101716] text-[#202827] dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
       <CustomCursor />
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-slate-950 px-4 py-2 text-center text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-lg animate-pulse">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>Режим офлайн: подключение к серверу потеряно. Ваши ответы сохранены локально.</span>
+        </div>
+      )}
       {/* Floating Dynamic Navbar */}
       <Navbar
         t={t}

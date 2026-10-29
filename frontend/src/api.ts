@@ -9,6 +9,17 @@ const BASE_URL = import.meta.env.VITE_API_URL || defaultBaseUrl
 
 let authToken: string = ''
 let refreshToken: string = ''
+let isRefreshing = false
+let refreshSubscribers: ((token: string) => void)[] = []
+
+function subscribeTokenRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb)
+}
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token))
+  refreshSubscribers = []
+}
 
 export function setApiToken(token: string) {
   authToken = token
@@ -37,16 +48,71 @@ export function restoreSessionTokens() {
 }
 
 export async function apiRequest<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = {
+  const makeHeaders = (token: string): Record<string, string> => ({
     'Content-Type': 'application/json',
-    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(init.headers as Record<string, string> | undefined),
-  }
-
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers,
   })
+
+  let response = await fetch(`${BASE_URL}${path}`, {
+    ...init,
+    headers: makeHeaders(authToken),
+  })
+
+  // Silent automatic token refresh if 401 Unauthorized occurs on an authenticated route
+  if (
+    response.status === 401 &&
+    refreshToken &&
+    !path.startsWith('/auth/login') &&
+    !path.startsWith('/auth/refresh') &&
+    !path.startsWith('/auth/register')
+  ) {
+    if (!isRefreshing) {
+      isRefreshing = true
+      try {
+        const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        })
+
+        if (refreshResponse.ok) {
+          const data = (await refreshResponse.json()) as { access_token: string; refresh_token: string }
+          setApiToken(data.access_token)
+          setRefreshToken(data.refresh_token)
+          isRefreshing = false
+          onRefreshed(data.access_token)
+        } else {
+          isRefreshing = false
+          setApiToken('')
+          setRefreshToken('')
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('sihat:session_expired'))
+          }
+          throw new Error('Session expired, please log in again.')
+        }
+      } catch (err) {
+        isRefreshing = false
+        setApiToken('')
+        setRefreshToken('')
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('sihat:session_expired'))
+        }
+        throw err
+      }
+    } else {
+      // Wait for existing refresh in progress to complete
+      await new Promise<string>((resolve) => {
+        subscribeTokenRefresh((newToken) => resolve(newToken))
+      })
+    }
+
+    // Retry request with fresh token
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: makeHeaders(authToken),
+    })
+  }
 
   if (response.status === 204) {
     return {} as T

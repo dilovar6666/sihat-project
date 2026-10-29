@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Touch optimizations for responsive mobile devices */
+button, a, input, select, textarea, [role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+
 @font-face {
   font-family: 'Bauhaus 93';
   src: url('/fonts/Bauhaus93-Cyrillic.ttf?v=2') format('truetype'),
