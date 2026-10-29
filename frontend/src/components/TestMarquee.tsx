@@ -11,6 +11,7 @@ import { Button } from './ui/Button'
 import type { Language } from '../i18n'
 import type { TestItem } from '../types'
 import { getTestCover, getTestAlt, getTestPhotoCredit } from '../lib/testImages'
+import { APPROVED_15_SLUGS } from './test-engines/engineTypes'
 
 interface TestMarqueeProps {
   tests?: TestItem[]
@@ -20,205 +21,206 @@ interface TestMarqueeProps {
   onOpenCatalog: () => void
 }
 
-// Fallback baseline test descriptors if tests are still loading from backend
+const APPROVED_SET = new Set<string>(APPROVED_15_SLUGS)
+
 const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
   {
     slug: 'attention-concentration',
-    min_age: 16,
+    min_age: 10,
     type: 'validated_screening',
-    category_id: 'Когнитивные навыки',
+    category_id: 'memory-attention',
     localizations: {
       ru: {
-        title: 'Концентрация и устойчивость',
-        description: 'Оценка скорости переключения, истощаемости внимания и темпа сенсомоторных реакций.',
+        title: 'Таблицы Шульте',
+        description: 'Последовательный поиск чисел от 1 до 25 в случайной сетке 5×5 для оценки темпа и устойчивости внимания.',
       },
       tj: {
-        title: 'Таваҷҷӯҳ ва тамаркуз',
-        description: 'Арзёбии суръати гузариш ва устувории таваҷҷӯҳ дар фазои визуалӣ.',
+        title: 'Ҷадвалҳои Шулте',
+        description: 'Ҷустуҷӯи пайдарпайи ададҳо аз 1 то 25 дар шабакаи тасодуфии 5×5 барои санҷиши тамаркуз.',
       },
       en: {
-        title: 'Attention Concentration',
-        description: 'Psychomotor processing speed, visual search efficiency, and attention stability.',
+        title: 'Schulte Tables',
+        description: 'Sequential visual search of numbers 1 to 25 in a randomized 5×5 grid to assess attention stability.',
       },
     },
   },
   {
     slug: 'attention-switching',
-    min_age: 16,
-    type: 'validated_screening',
-    category_id: 'Когнитивные навыки',
-    localizations: {
-      ru: {
-        title: 'Переключаемость внимания',
-        description: 'Когнитивная гибкость и исполнительный контроль при чередовании сенсорных стимулов.',
-      },
-      tj: {
-        title: 'Гузариши таваҷҷӯҳ',
-        description: 'Чандирии маърифатӣ ва назорати иҷроия ҳангоми ивазшавии пайдарпай.',
-      },
-      en: {
-        title: 'Cognitive Flexibility',
-        description: 'Executive functioning, cognitive set-shifting, and dual-task tracking.',
-      },
-    },
-  },
-  {
-    slug: 'color-perception',
-    min_age: 10,
-    type: 'validated_screening',
-    category_id: 'Зрение',
-    localizations: {
-      ru: {
-        title: 'Тест на дальтонизм',
-        description: 'Клинический скрининг красно-зелёного цветовосприятия и спектра колбочек L, M, S с распознаванием цифр, букв и геометрических фигур.',
-      },
-      tj: {
-        title: 'Санҷиши дальтонизм',
-        description: 'Баҳодиҳии клиникии тафриқаи рангҳои сурху сабз ва колбачаҳои биноӣ бо рақамҳо, ҳарфҳо ва шаклҳои геометрӣ.',
-      },
-      en: {
-        title: 'Color Blindness Screening',
-        description: 'Standardized polychromatic diagnostic screening with numbers, letters, and geometric shapes.',
-      },
-    },
-  },
-  {
-    slug: 'color-hue-discrimination',
     min_age: 12,
     type: 'validated_screening',
-    category_id: 'Зрение',
+    category_id: 'memory-attention',
     localizations: {
       ru: {
-        title: 'Цветоразличение оттенков',
-        description: 'Спектральная сортировка цветовых оттенков по кругу Манселла.',
+        title: 'Переключение внимания (Trail Making)',
+        description: 'Поочерёдное соединение чисел и букв (1→А→2→Б) для оценки когнитивной гибкости.',
       },
       tj: {
-        title: 'Фарқкунии тобишҳои ранг',
-        description: 'Тартибдиҳии спектралии доираҳои ранга дар пайдарпайии ҳамвор.',
+        title: 'Гузариши диққат (Trail Making)',
+        description: 'Пайваст кардани навбатии ададҳо ва ҳарфҳо барои арзёбии чандирии маърифатӣ.',
       },
       en: {
-        title: 'Color Hue Discrimination',
-        description: 'Spectral hue arrangement across the chromatic circle.',
-      },
-    },
-  },
-  {
-    slug: 'contrast-sensitivity',
-    min_age: 14,
-    type: 'validated_screening',
-    category_id: 'Зрение',
-    localizations: {
-      ru: {
-        title: 'Контрастная чувствительность',
-        description: 'Определение порогов распознавания слабоконтрастных синусоидальных решёток при разном освещении.',
-      },
-      tj: {
-        title: 'Ҳассосияти контрастӣ',
-        description: 'Муайянкунии ҳадди шинохти объектҳои камранг ва тағйироти аввалини биноӣ.',
-      },
-      en: {
-        title: 'Contrast Sensitivity',
-        description: 'Spatial contrast detection thresholds across subtle luminance gradations.',
-      },
-    },
-  },
-  {
-    slug: 'reaction-speed',
-    min_age: 12,
-    type: 'digital_check',
-    category_id: 'Сенсомоторика',
-    localizations: {
-      ru: {
-        title: 'Сенсомоторная скорость',
-        description: 'Миллисекундный хронометраж скрытого времени психомоторного ответа на визуальный стимул.',
-      },
-      tj: {
-        title: 'Суръати аксуламал',
-        description: 'Ҳисоби миллисониявии вақти посухи сенсомоторӣ ба сигналҳои ногаҳонӣ.',
-      },
-      en: {
-        title: 'Psychomotor Latency',
-        description: 'Sub-millisecond latency quantification of central visual-motor reflex arcs.',
+        title: 'Attention Switching (Trail Making)',
+        description: 'Alternating number-letter connection (1→A→2→B) to evaluate cognitive flexibility.',
       },
     },
   },
   {
     slug: 'visual-memory',
-    min_age: 14,
+    min_age: 10,
     type: 'validated_screening',
-    category_id: 'Когнитивные навыки',
+    category_id: 'memory-attention',
     localizations: {
       ru: {
-        title: 'Зрительно-пространственная память',
-        description: 'Кратковременное удержание конфигураций и пространственных паттернов (тест Корси).',
+        title: 'Блоки Корси',
+        description: 'Запоминание и воспроизведение пространственных последовательностей вспыхивающих блоков.',
       },
       tj: {
-        title: 'Хотираи фазоӣ-визуалӣ',
-        description: 'Санҷиши нигоҳдории кӯтоҳмуддати сохторҳои мураккаб дар хотира.',
+        title: 'Блокҳои Корси',
+        description: 'Ба хотир гирифтан ва такрор кардани пайдарпайии фазоии блокҳои равшаншаванда.',
       },
       en: {
-        title: 'Visuospatial Span',
-        description: 'Working memory capacity for sequential spatial and geometrical visual arrays.',
+        title: 'Corsi Block-Tapping',
+        description: 'Memorizing and reproducing spatial sequences of flashing blocks.',
+      },
+    },
+  },
+  {
+    slug: 'short-term-memory',
+    min_age: 10,
+    type: 'validated_screening',
+    category_id: 'memory-attention',
+    localizations: {
+      ru: {
+        title: 'Память на цифры (Digit Span)',
+        description: 'Воспроизведение числовых рядов в прямом и обратном порядке для оценки рабочей памяти.',
+      },
+      tj: {
+        title: 'Хотира ба рақамҳо',
+        description: 'Такрор кардани қаторҳои ададӣ ба тартиби рост ва чаппа.',
+      },
+      en: {
+        title: 'Digit Span Memory',
+        description: 'Recalling number sequences in forward and backward order to measure working memory.',
+      },
+    },
+  },
+  {
+    slug: 'information-processing-speed',
+    min_age: 12,
+    type: 'validated_screening',
+    category_id: 'memory-attention',
+    localizations: {
+      ru: {
+        title: 'Сопоставление символов и чисел',
+        description: 'Быстрый перевод геометрических символов в цифры по динамическому ключу за 60 секунд.',
+      },
+      tj: {
+        title: 'Мувофиқати рамзҳо ва ададҳо',
+        description: 'Табдили босуръати рамзҳои геометрӣ ба рақамҳо аз рӯи калиди динамикӣ.',
+      },
+      en: {
+        title: 'Symbol-Digit Substitution',
+        description: 'Rapid translation of geometric symbols into digits using a dynamic key in 60 seconds.',
+      },
+    },
+  },
+  {
+    slug: 'contrast-sensitivity',
+    min_age: 12,
+    type: 'validated_screening',
+    category_id: 'vision',
+    localizations: {
+      ru: {
+        title: 'Различение контраста (Решётки Габора)',
+        description: 'Определение ориентации синусоидальных решёток при снижении контраста от 60% до 2.5%.',
+      },
+      tj: {
+        title: 'Фарқкунии контраст',
+        description: 'Муайян кардани самти панҷараҳои синусоидалӣ ҳангоми паст шудани контраст.',
+      },
+      en: {
+        title: 'Contrast Discrimination (Gabor)',
+        description: 'Identifying grating tilt angles as contrast decreases from 60% down to 2.5%.',
+      },
+    },
+  },
+  {
+    slug: 'visual-pairs',
+    min_age: 10,
+    type: 'digital_check',
+    category_id: 'vision',
+    localizations: {
+      ru: {
+        title: 'Визуальные пары',
+        description: 'Поиск парных векторных пиктограмм с запоминанием их расположения на сетке 4×4.',
+      },
+      tj: {
+        title: 'Ҷуфтҳои визуалӣ',
+        description: 'Ҷустуҷӯи кортҳои ҷуфт бо ба хотир гирифтани ҷойгиршавии онҳо дар шабакаи 4×4.',
+      },
+      en: {
+        title: 'Visual Pairs Match',
+        description: 'Finding matching vector icon pairs by remembering their spatial positions on a 4×4 grid.',
+      },
+    },
+  },
+  {
+    slug: 'pattern-matrix',
+    min_age: 12,
+    type: 'digital_check',
+    category_id: 'vision',
+    localizations: {
+      ru: {
+        title: 'Продолжи последовательность',
+        description: 'Анализ закономерностей изменения формы, поворота и количества элементов в визуальном ряду.',
+      },
+      tj: {
+        title: 'Идома додани пайдарпайӣ',
+        description: 'Таҳлили қонуниятҳои тағйирёбии шакл, гардиш ва миқдори унсурҳо.',
+      },
+      en: {
+        title: 'Pattern Sequence Completion',
+        description: 'Analyzing rules of shape, rotation, and element count progression in a visual series.',
       },
     },
   },
   {
     slug: 'sound-discrimination',
-    min_age: 14,
+    min_age: 10,
     type: 'digital_check',
-    category_id: 'Слух',
+    category_id: 'hearing',
     localizations: {
       ru: {
-        title: 'Тональная аудиометрия',
-        description: 'Частотное сканирование от 125 Гц до 8 кГц с контролем уровня звукового давления.',
+        title: 'Сравнение звуков по высоте',
+        description: 'Определение более высокого тона в паре синтезированных аудиосигналов с уменьшением разницы Гц.',
       },
       tj: {
-        title: 'Аудиометрияи басомадӣ',
-        description: 'Таҳлили ҳассосияти гӯш ба басомадҳои гуногуни савтӣ аз паст то баланд.',
+        title: 'Муқоисаи садоҳо',
+        description: 'Муайян кардани садои баландтар дар ҷуфти сигналҳои аудиоӣ.',
       },
       en: {
-        title: 'Pure Tone Audiometry',
-        description: 'Air conduction threshold curve estimation across clinical octaves 250Hz-8kHz.',
+        title: 'Pitch Discrimination',
+        description: 'Identifying the higher-pitched tone in synthesized audio pairs across decreasing Hz steps.',
       },
     },
   },
   {
-    slug: 'speech-in-noise',
-    min_age: 16,
-    type: 'validated_screening',
-    category_id: 'Слух',
+    slug: 'reaction-speed',
+    min_age: 10,
+    type: 'digital_check',
+    category_id: 'reaction-coordination',
     localizations: {
       ru: {
-        title: 'Разборчивость речи в шуме',
-        description: 'Слуховая селективность и восприятие фонем на фоне смоделированного речевого шума.',
+        title: 'Простая зрительно-моторная реакция',
+        description: 'Серия из 8 замеров времени отклика в миллисекундах на появление светового сигнала.',
       },
       tj: {
-        title: 'Фаҳмиши нутқ дар шароити садо',
-        description: 'Арзёбии ҷудокунии овозҳо ва нутқ дар муҳити пурмавҷ ва пурсадо.',
+        title: 'Вокуниши оддии визуалӣ-моторӣ',
+        description: 'Силсилаи 8 ченкунии вақти вокуниш бо миллисонияҳо ба пайдоиши сигнал.',
       },
       en: {
-        title: 'Speech-in-Noise Discrimination',
-        description: 'Auditory figure-ground discrimination with calibrated babble noise masking.',
-      },
-    },
-  },
-  {
-    slug: 'anxiety',
-    min_age: 18,
-    type: 'symptom_questionnaire',
-    category_id: 'Самочувствие',
-    localizations: {
-      ru: {
-        title: 'Шкала генерализованной тревожности',
-        description: 'Стандартизированный клинический скрининг тревожности и психоэмоционального напряжения.',
-      },
-      tj: {
-        title: 'Миқёси ташвиш ва изтироб',
-        description: 'Санҷиши равонии расмии сатҳи нигаронӣ ва шиддати асаб дар ҳаёти рӯзмарра.',
-      },
-      en: {
-        title: 'Generalized Anxiety Scale',
-        description: 'Validated psychometric instrument for screening and symptom severity tracking.',
+        title: 'Simple Visuomotor Reaction',
+        description: '8-trial millisecond latency measurement in response to a visual stimulus.',
       },
     },
   },
@@ -233,52 +235,57 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
 }) => {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
 
-  // Filter ready tests or fallback
   const readyTests = useMemo(() => {
-    const list = tests && tests.length > 0
-      ? tests.filter((t) => t.status !== 'draft')
-      : (FALLBACK_TEST_ITEMS as TestItem[])
-    return list.length > 0 ? list : (FALLBACK_TEST_ITEMS as TestItem[])
+    const filtered =
+      tests && tests.length > 0
+        ? tests.filter((t) => t.status !== 'draft' && APPROVED_SET.has(t.slug))
+        : []
+    return filtered.length > 0 ? filtered : (FALLBACK_TEST_ITEMS as TestItem[])
   }, [tests])
 
-  // Duplicate list to achieve continuous infinite marquee loop
   const marqueeItems = useMemo(() => {
     return [...readyTests, ...readyTests]
   }, [readyTests])
 
-  // Pause track ONLY when mouse is directly hovering over an active card
   const isPaused = hoveredKey !== null
 
   const getLocalizedTitle = (t: Partial<TestItem>) => {
-    const loc = t.localizations?.[lang] || t.localizations?.ru || t.localizations?.en
-    return loc?.title || t.slug || 'Скрининг SIHAT'
+    const loc =
+      t.localizations?.[lang] ||
+      (lang === 'tj' ? t.localizations?.tg : undefined) ||
+      t.localizations?.ru ||
+      t.localizations?.en
+    return loc?.title || t.slug || 'SIHAT'
   }
 
   const getLocalizedDesc = (t: Partial<TestItem>) => {
-    const loc = t.localizations?.[lang] || t.localizations?.ru || t.localizations?.en
+    const loc =
+      t.localizations?.[lang] ||
+      (lang === 'tj' ? t.localizations?.tg : undefined) ||
+      t.localizations?.ru ||
+      t.localizations?.en
     return (
       loc?.description ||
       (lang === 'tj'
         ? 'Амалияи интерактивии таҳлили сенсорӣ бо пойгоҳи кушодаи исботшуда.'
         : lang === 'en'
-        ? 'Interactive clinical sensory protocol with transparent evidence baseline.'
-        : 'Клинический сенсомоторный протокол с валидированной доказательной базой.')
+        ? 'Interactive sensory protocol with transparent evidence baseline.'
+        : 'Интерактивное когнитивное и сенсомоторное упражнение с открытым паспортом методики.')
     )
   }
 
   return (
     <section aria-label="Интерактивная лента скринингов" className="w-full mt-12 sm:mt-16">
-      {/* Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-2 px-1">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-700 dark:text-[#2EC4A7] border border-emerald-500/20 mb-2">
             <span className="w-2 h-2 rounded-full bg-[#17A884] animate-pulse" />
             <span>
               {lang === 'tj'
-                ? 'Феҳристи зиндаи скринингҳо'
+                ? 'Феҳристи зиндаи машқҳо'
                 : lang === 'en'
-                ? 'Live Protocol Stream'
-                : 'Каталог в реальном времени'}
+                ? 'Interactive Exercise Stream'
+                : 'Каталог упражнений'}
             </span>
             <span className="text-zinc-400 dark:text-zinc-600">•</span>
             <span className="font-mono">{readyTests.length} методик</span>
@@ -286,19 +293,19 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
           <h2 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
             <span>
               {lang === 'tj'
-                ? 'Ҳамаи санҷишҳои дастраси платформа'
+                ? 'Ҳамаи машқҳои дастраси платформа'
                 : lang === 'en'
-                ? 'Available Clinical Screenings'
-                : 'Все доступные скрининги платформы'}
+                ? 'Available Interactive Exercises'
+                : 'Интерактивные методики платформы'}
             </span>
             <Sparkles className="w-4 h-4 text-[#17A884] hidden sm:inline-block" />
           </h2>
           <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-2xl">
             {lang === 'tj'
-              ? 'Феҳристи интерактивии усулҳои стандартишуда ва тасдиқшудаи арзёбии саломатӣ.'
+              ? 'Феҳристи интерактивии усулҳои стандартишуда барои санҷиши диққат, хотира, биноӣ, шунавоӣ ва вокуниш.'
               : lang === 'en'
-              ? 'Interactive registry of standardized and validated clinical screening protocols.'
-              : 'Интерактивная витрина валидированных клинических скринингов и сенсорных методик.'}
+              ? 'Interactive registry of exercises for attention, memory, visual perception, hearing, and motor coordination.'
+              : 'Витрина интерактивных упражнений для самопроверки внимания, памяти, зрения, слуха и координации.'}
           </p>
         </div>
 
@@ -307,16 +314,14 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
           onClick={onOpenCatalog}
           className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-2xl liquid-glass-pill text-xs font-bold text-zinc-700 dark:text-zinc-200 hover:text-[#17A884] dark:hover:text-[#2EC4A7] transition-all cursor-pointer shadow-xs"
         >
-          <span>{lang === 'tj' ? 'Ҳама дар феҳрист' : lang === 'en' ? 'Browse Full Catalog' : 'Все тесты в каталоге'}</span>
+          <span>
+            {lang === 'tj' ? 'Ҳама дар феҳрист' : lang === 'en' ? 'Browse Full Catalog' : 'Все упражнения в каталоге'}
+          </span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Marquee Outer Container with Edge Masks & Generous Vertical Headroom (No clipping) */}
-      <div
-        className="relative w-full overflow-hidden marquee-edge-mask py-44 -my-32 select-none"
-      >
-        {/* Animated Infinite Track */}
+      <div className="relative w-full overflow-hidden marquee-edge-mask py-44 -my-32 select-none">
         <div
           className={`flex items-center gap-3.5 w-max will-change-transform ${
             isPaused ? 'marquee-paused' : 'animate-marquee-scroll'
@@ -330,7 +335,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
             const coverUrl = getTestCover(test.slug || '')
             const altText = getTestAlt(test.slug || '', lang)
             const credit = getTestPhotoCredit(test.slug || '')
-            const isClassA = test.type === 'validated_screening'
+            const isValidated = test.type === 'validated_screening'
 
             return (
               <div
@@ -339,9 +344,6 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                 onMouseLeave={() => setHoveredKey(null)}
                 className={`relative flex-shrink-0 ${isHovered ? 'z-50' : 'z-10'}`}
               >
-                {/* =================================================================
-                    1. COMPACT SLOT (Only title & description, short card)
-                    ================================================================= */}
                 <div
                   className={`w-[205px] sm:w-[220px] h-[78px] px-3.5 py-2.5 rounded-2xl border border-zinc-200/90 dark:border-[#1E302B] bg-white/95 dark:bg-[#0E1715] shadow-xs flex flex-col justify-center cursor-pointer transition-all duration-200 ${
                     isHovered
@@ -357,9 +359,6 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                   </p>
                 </div>
 
-                {/* =================================================================
-                    2. ELEVATED FULL CARD (Spring expand & collapse over the slot)
-                    ================================================================= */}
                 <div
                   className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[310px] sm:w-[335px] p-3.5 sm:p-4 rounded-3xl bg-white dark:bg-[#0E1715] border-2 border-[#17A884] dark:border-[#17A884] z-50 origin-center select-auto flex flex-col justify-between ${
                     isHovered
@@ -376,33 +375,33 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                     willChange: 'transform, opacity',
                   }}
                 >
-                  {/* Thematic Cover Image */}
                   <div className="relative h-[142px] sm:h-[150px] w-full rounded-2xl overflow-hidden mb-2.5 bg-[#080E0D] shadow-inner flex-shrink-0">
-                    <img
-                      src={coverUrl}
-                      alt={altText}
-                      loading="lazy"
-                      className="w-full h-full object-cover"
-                    />
+                    <img src={coverUrl} alt={altText} loading="lazy" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#080E0D]/90 via-[#080E0D]/25 to-transparent" />
 
-                    {/* Evidence Class Badge (Noble Emerald, no blue) */}
                     <div className="absolute top-2 left-2">
                       <span className="text-[10px] font-bold py-0.5 px-2 rounded-full backdrop-blur-md shadow-md bg-[#0E2C26]/90 text-[#2EC4A7] border border-[#17A884]/40">
-                        {isClassA
-                          ? (lang === 'tj' ? 'Класси А' : lang === 'en' ? 'Class A Evidence' : 'Класс A')
-                          : (lang === 'tj' ? 'Скрининги рақамӣ' : lang === 'en' ? 'Digital Screening' : 'Цифровой скрининг')}
+                        {isValidated
+                          ? lang === 'tj'
+                            ? 'Методикаи исботшуда'
+                            : lang === 'en'
+                            ? 'Validated Method'
+                            : 'Доказательная методика'
+                          : lang === 'tj'
+                          ? 'Машқи рақамӣ'
+                          : lang === 'en'
+                          ? 'Digital Exercise'
+                          : 'Цифровое упражнение'}
                       </span>
                     </div>
 
-                    {/* Bottom Meta in Image */}
                     <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[10px] text-white/90">
                       <div className="flex items-center gap-1.5 font-mono">
                         <Clock className="w-3 h-3 text-[#2EC4A7]" />
-                        <span>{lang === 'tj' ? '3 дақ' : lang === 'en' ? '3 min' : '3 мин'}</span>
+                        <span>{lang === 'tj' ? '2–3 дақ' : lang === 'en' ? '2–3 min' : '2–3 мин'}</span>
                         <span>•</span>
                         <UserCheck className="w-3 h-3 text-[#2EC4A7]" />
-                        <span>{test.min_age || 16}+</span>
+                        <span>{test.min_age || 12}+</span>
                       </div>
 
                       {credit && (
@@ -413,17 +412,13 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                     </div>
                   </div>
 
-                  {/* Full Title & Clinical Description */}
                   <div className="px-0.5 mb-2.5">
                     <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-1 leading-snug line-clamp-1">
                       {title}
                     </h3>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-snug line-clamp-2">
-                      {desc}
-                    </p>
+                    <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-snug line-clamp-2">{desc}</p>
                   </div>
 
-                  {/* Full Action Buttons */}
                   <div className="pt-2 border-t border-zinc-100 dark:border-[#1E302B] flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -435,7 +430,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                       className="flex-1 text-xs h-8 rounded-xl font-bold cursor-pointer border-zinc-200 dark:border-[#223832] dark:bg-[#15221F] hover:border-[#17A884] text-zinc-800 dark:text-zinc-200"
                     >
                       <FileText className="w-3.5 h-3.5 text-[#17A884]" />
-                      <span>{lang === 'tj' ? 'Паспорт' : lang === 'en' ? 'Passport' : 'Паспорт'}</span>
+                      <span>{lang === 'tj' ? 'Шиноснома' : lang === 'en' ? 'Passport' : 'Паспорт'}</span>
                     </Button>
 
                     <Button

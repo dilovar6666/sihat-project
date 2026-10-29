@@ -2,230 +2,330 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Brain, Award, CheckCircle, RotateCcw, Play, Sparkles } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
-import type { Language } from '../../i18n'
+import { noAdjacentRepeats, prefersReducedMotion, type InteractiveEngineProps } from './engineTypes'
 
-interface CorsiBlocksEngineProps {
-  lang: Language
-  onComplete: (result: { summary: string; metrics: Record<string, unknown> }) => void
+interface CorsiBlock {
+  id: number
+  x: number
+  y: number
 }
 
-export const CorsiBlocksEngine: React.FC<CorsiBlocksEngineProps> = ({ lang, onComplete }) => {
-  const [sequenceLength, setSequenceLength] = useState(3)
-  const [sequence, setSequence] = useState<number[]>([])
+interface CorsiTrial {
+  id: string
+  length: number
+  sequence: number[]
+}
+
+function buildFallbackCorsi(): { blocks: CorsiBlock[]; trials: CorsiTrial[] } {
+  const blocks: CorsiBlock[] = []
+  for (let idx = 0; idx < 9; idx++) {
+    const c = idx % 3
+    const r = Math.floor(idx / 3)
+    blocks.push({
+      id: idx,
+      x: Math.round((16 + c * 34 + (Math.random() * 10 - 5)) * 10) / 10,
+      y: Math.round((16 + r * 34 + (Math.random() * 10 - 5)) * 10) / 10,
+    })
+  }
+  const trials: CorsiTrial[] = []
+  const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  for (let length = 3; length <= 9; length++) {
+    for (const n of [1, 2]) {
+      trials.push({
+        id: `${length}-${n}`,
+        length,
+        sequence: noAdjacentRepeats(length, pool),
+      })
+    }
+  }
+  return { blocks, trials }
+}
+
+export const CorsiBlocksEngine: React.FC<InteractiveEngineProps> = ({
+  lang,
+  challenge,
+  onComplete,
+  onRequestNewTask,
+}) => {
+  const [task, setTask] = useState<{ blocks: CorsiBlock[]; trials: CorsiTrial[] }>(() =>
+    Array.isArray(challenge?.blocks) && Array.isArray(challenge?.trials)
+      ? { blocks: challenge.blocks as CorsiBlock[], trials: challenge.trials as CorsiTrial[] }
+      : buildFallbackCorsi()
+  )
+  const [trialIndex, setTrialIndex] = useState(0)
   const [userSequence, setUserSequence] = useState<number[]>([])
   const [activeHighlightBlock, setActiveHighlightBlock] = useState<number | null>(null)
   const [isShowingSequence, setIsShowingSequence] = useState(false)
   const [maxSpanAchieved, setMaxSpanAchieved] = useState(0)
-  const [strikes, setStrikes] = useState(0)
   const [isActive, setIsActive] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
-  const timeoutRef = useRef<number | null>(null)
+
+  const timersRef = useRef<number[]>([])
+  const responsesRef = useRef<Array<{ id: string; taps: number[] }>>([])
+  const byLengthPassedRef = useRef<Record<number, boolean[]>>({})
+  const usedChallengeRef = useRef(false)
+
+  const clearTimers = () => {
+    timersRef.current.forEach((id) => window.clearTimeout(id))
+    timersRef.current = []
+  }
+
+  useEffect(() => {
+    if (Array.isArray(challenge?.blocks) && Array.isArray(challenge?.trials) && !isActive && !isFinished) {
+      setTask({ blocks: challenge.blocks as CorsiBlock[], trials: challenge.trials as CorsiTrial[] })
+      usedChallengeRef.current = false
+    }
+  }, [challenge, isActive, isFinished])
+
+  useEffect(() => {
+    return () => clearTimers()
+  }, [])
 
   const t = {
     ru: {
-      title: 'Пространственная память',
-      subtitle: 'Запомните и повторите последовательность загорающихся кубиков.',
-      standard: 'Corsi Block-Tapping Test (CBTT)',
+      title: 'Блоки Корси (Пространственная память)',
+      subtitle: 'Запомните порядок загорающихся блоков на поле и повторите его нажатием. На каждой длине даётся по 2 попытки.',
+      standard: 'Corsi Block-Tapping • Зрительно-пространственная память',
       instructionWatch: 'Внимание: запоминайте последовательность вспышек...',
-      instructionClick: 'Ваш черёд: повторите порядок нажатием на блоки!',
+      instructionClick: 'Ваш черёд: нажмите блоки в том же порядке',
       spanLevel: 'Длина цепочки:',
       blocks: 'блоков',
-      strikes: 'Ошибок:',
-      startBtn: 'Начать тест памяти',
-      finishTitle: 'Тест пространственной памяти завершен',
-      spanResult: 'Максимальный объем пространственной памяти (Span)',
-      normOptimal: 'Высокий объем (Span ≥ 6)',
-      normGood: 'Нормальный объем (Span 5)',
-      normSub: 'Сниженный объем (Span ≤ 4)',
-      finishBtn: 'Завершить и сохранить',
-      tryAgain: 'Попробовать снова',
+      trialLabel: 'Попытка:',
+      startBtn: 'Начать упражнение',
+      finishTitle: 'Блоки Корси завершены',
+      spanResult: 'Максимальный объём (Span)',
+      finishBtn: 'Показать подробный отчёт',
+      tryAgain: 'Новый вариант',
     },
     tj: {
-      title: 'Хотираи фазоӣ',
-      subtitle: 'Пайдарпайии фурӯзон шудани блокҳоро ба хотир гиред ва такрор намоед.',
-      standard: 'Corsi Block-Tapping Test (CBTT)',
+      title: 'Блокҳои Корси (Хотираи фазоӣ)',
+      subtitle: 'Тартиби фурӯзон шудани блокҳоро дар хотир гиред ва бо пахш кардан такрор намоед.',
+      standard: 'Corsi Block-Tapping • Хотираи фазоии корӣ',
       instructionWatch: 'Диққат: пайдарпайиро дар хотир гиред...',
-      instructionClick: 'Навбати шумо: блокҳоро бо ҳамон тартиб пахш кунед!',
+      instructionClick: 'Навбати шумо: блокҳоро бо ҳамон тартиб пахш кунед',
       spanLevel: 'Дарозии занҷир:',
       blocks: 'блок',
-      strikes: 'Хатогиҳо:',
-      startBtn: 'Оғози санҷиши хотира',
-      finishTitle: 'Санҷиши хотираи фазоӣ анҷом ёфт',
+      trialLabel: 'Кӯшиш:',
+      startBtn: 'Оғози машқ',
+      finishTitle: 'Блокҳои Корси анҷом ёфт',
       spanResult: 'Ҳаҷми ниҳоии хотираи фазоӣ (Span)',
-      normOptimal: 'Хотираи фазоии баланд (Span ≥ 6)',
-      normGood: 'Хотираи муътадил (Span 5)',
-      normSub: 'Хотираи пастшуда (Span ≤ 4)',
-      finishBtn: 'Анҷом ва сабт кардан',
-      tryAgain: 'Аз нав гузаштан',
+      finishBtn: 'Дидани ҳисоботи муфассал',
+      tryAgain: 'Варианти нав',
     },
     en: {
-      title: 'Spatial Working Memory',
-      subtitle: 'Observe and replicate the sequence of illuminated spatial blocks.',
-      standard: 'Corsi Block-Tapping Paradigm',
-      instructionWatch: 'Observe carefully: memorize the spatial sequence...',
-      instructionClick: 'Your turn: click the blocks in the exact sequential order!',
+      title: 'Corsi Blocks (Spatial Memory)',
+      subtitle: 'Watch the blocks light up in sequence and tap them in the exact same order. Two trials are given at each sequence length.',
+      standard: 'Corsi Block-Tapping • Visuospatial Working Memory',
+      instructionWatch: 'Watch carefully: memorize the block sequence...',
+      instructionClick: 'Your turn: tap the blocks in the exact order',
       spanLevel: 'Sequence length:',
       blocks: 'blocks',
-      strikes: 'Strikes:',
-      startBtn: 'Start Memory Screening',
-      finishTitle: 'Spatial Evaluation Completed',
-      spanResult: 'Maximum Spatial Span Score',
-      normOptimal: 'Superior Spatial Span (Span ≥ 6)',
-      normGood: 'Normative Span (Span 5)',
-      normSub: 'Reduced Span (Span ≤ 4)',
-      finishBtn: 'Complete & Save',
-      tryAgain: 'Retry',
+      trialLabel: 'Trial:',
+      startBtn: 'Start Exercise',
+      finishTitle: 'Corsi Blocks Completed',
+      spanResult: 'Maximum Spatial Span',
+      finishBtn: 'View Detailed Report',
+      tryAgain: 'New Variant',
     },
   }[lang]
 
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    }
-  }, [])
-
-  const playSequence = (seq: number[]) => {
+  const playTrial = (trial: CorsiTrial) => {
+    clearTimers()
     setIsShowingSequence(true)
     setUserSequence([])
+    setActiveHighlightBlock(null)
 
-    let step = 0
-    const interval = setInterval(() => {
-      if (step < seq.length) {
-        setActiveHighlightBlock(seq[step])
-        setTimeout(() => {
-          setActiveHighlightBlock(null)
-        }, 550)
-        step++
-      } else {
-        clearInterval(interval)
-        setIsShowingSequence(false)
-      }
-    }, 850)
+    const reduced = prefersReducedMotion()
+    const flashMs = reduced ? 450 : 550
+    const stepMs = reduced ? 650 : 800
+
+    trial.sequence.forEach((blockId, idx) => {
+      const t1 = window.setTimeout(() => {
+        setActiveHighlightBlock(blockId)
+      }, 300 + idx * stepMs)
+      const t2 = window.setTimeout(() => {
+        setActiveHighlightBlock(null)
+      }, 300 + idx * stepMs + flashMs)
+      timersRef.current.push(t1, t2)
+    })
+
+    const doneTimer = window.setTimeout(() => {
+      setActiveHighlightBlock(null)
+      setIsShowingSequence(false)
+    }, 350 + trial.sequence.length * stepMs)
+    timersRef.current.push(doneTimer)
   }
 
-  const startLevel = (len: number) => {
-    const newSeq: number[] = []
-    for (let i = 0; i < len; i++) {
-      let nextBlock: number
-      do {
-        nextBlock = Math.floor(Math.random() * 9)
-      } while (newSeq.length > 0 && newSeq[newSeq.length - 1] === nextBlock)
-      newSeq.push(nextBlock)
+  const handleStart = (requestFresh = false) => {
+    if (requestFresh && onRequestNewTask) {
+      onRequestNewTask()
     }
-    setSequence(newSeq)
-    playSequence(newSeq)
-  }
+    let nextTask = task
+    if (!usedChallengeRef.current && Array.isArray(challenge?.blocks) && Array.isArray(challenge?.trials)) {
+      nextTask = { blocks: challenge.blocks as CorsiBlock[], trials: challenge.trials as CorsiTrial[] }
+      setTask(nextTask)
+      usedChallengeRef.current = true
+    } else {
+      nextTask = buildFallbackCorsi()
+      setTask(nextTask)
+    }
 
-  const handleStart = () => {
-    setSequenceLength(3)
+    responsesRef.current = []
+    byLengthPassedRef.current = {}
+    setTrialIndex(0)
     setMaxSpanAchieved(0)
-    setStrikes(0)
     setIsFinished(false)
     setIsActive(true)
-    startLevel(3)
+    playTrial(nextTask.trials[0])
   }
 
-  const handleBlockClick = (blockIdx: number) => {
-    if (isShowingSequence || isFinished || !isActive) return
+  const currentTrial = task.trials[trialIndex]
 
-    const nextUserSeq = [...userSequence, blockIdx]
-    setUserSequence(nextUserSeq)
-
-    // Flash block briefly on user touch
-    setActiveHighlightBlock(blockIdx)
-    setTimeout(() => setActiveHighlightBlock(null), 250)
-
-    const expectedBlock = sequence[userSequence.length]
-    if (blockIdx !== expectedBlock) {
-      // Mistake!
-      const nextStrikes = strikes + 1
-      setStrikes(nextStrikes)
-      if (nextStrikes >= 2) {
-        setIsActive(false)
-        setIsFinished(true)
-      } else {
-        // Retry current level
-        setTimeout(() => startLevel(sequenceLength), 800)
-      }
+  const advanceOrFinish = (nextIdx: number, activeTask: { blocks: CorsiBlock[]; trials: CorsiTrial[] }) => {
+    if (nextIdx >= activeTask.trials.length) {
+      setIsActive(false)
+      setIsFinished(true)
       return
     }
+    const nextTrial = activeTask.trials[nextIdx]
+    const prevLengthResults = byLengthPassedRef.current[nextTrial.length - 1]
+    if (
+      nextTrial.length > 3 &&
+      (! byLengthPassedRef.current[nextTrial.length] || byLengthPassedRef.current[nextTrial.length].length === 0) &&
+      prevLengthResults &&
+      prevLengthResults.length >= 2 &&
+      !prevLengthResults.some(Boolean)
+    ) {
+      setIsActive(false)
+      setIsFinished(true)
+      return
+    }
+    setTrialIndex(nextIdx)
+    const tId = window.setTimeout(() => playTrial(nextTrial), 550)
+    timersRef.current.push(tId)
+  }
 
-    // If completed full sequence correctly
-    if (nextUserSeq.length === sequence.length) {
-      const nextSpan = sequenceLength
-      setMaxSpanAchieved(nextSpan)
-      const nextLen = sequenceLength + 1
-      setSequenceLength(nextLen)
-      setTimeout(() => startLevel(nextLen), 1000)
+  const handleBlockClick = (blockId: number) => {
+    if (isShowingSequence || isFinished || !isActive || !currentTrial) return
+
+    const nextUserSeq = [...userSequence, blockId]
+    setUserSequence(nextUserSeq)
+    setActiveHighlightBlock(blockId)
+    const flashId = window.setTimeout(() => setActiveHighlightBlock(null), 200)
+    timersRef.current.push(flashId)
+
+    const clickedStep = nextUserSeq.length - 1
+    const isStepCorrect = blockId === currentTrial.sequence[clickedStep]
+
+    if (!isStepCorrect || nextUserSeq.length === currentTrial.sequence.length) {
+      const fullOk =
+        nextUserSeq.length === currentTrial.sequence.length &&
+        nextUserSeq.every((val, i) => val === currentTrial.sequence[i])
+
+      responsesRef.current.push({
+        id: currentTrial.id,
+        taps: nextUserSeq,
+      })
+
+      const arr = byLengthPassedRef.current[currentTrial.length] || []
+      arr.push(fullOk)
+      byLengthPassedRef.current[currentTrial.length] = arr
+
+      if (fullOk) {
+        setMaxSpanAchieved((prev) => Math.max(prev, currentTrial.length))
+      }
+
+      advanceOrFinish(trialIndex + 1, task)
     }
   }
 
   const handleFinish = () => {
-    let category = t.normGood
-    if (maxSpanAchieved >= 6) category = t.normOptimal
-    else if (maxSpanAchieved <= 4) category = t.normSub
+    const responses = responsesRef.current
+    const attempted = responses.length
+    const byLen = byLengthPassedRef.current
+    const series = Object.entries(byLen).map(([lenStr, arr]) => ({
+      length: Number(lenStr),
+      passed: arr.filter(Boolean).length,
+      of: arr.length,
+    }))
+    const passed = series.reduce((acc, s) => acc + s.passed, 0)
+    const accuracyPct = attempted > 0 ? Number(((passed / attempted) * 100).toFixed(1)) : 0
 
     onComplete({
-      summary: `${t.spanResult}: ${maxSpanAchieved} ${t.blocks} (${category}).`,
+      summary: `${t.spanResult}: ${maxSpanAchieved} ${t.blocks} (${passed}/${attempted})`,
       metrics: {
-        max_spatial_span: maxSpanAchieved,
-        strikes_count: strikes,
-        status_category: category,
+        version: 2,
+        engine: 'corsi',
+        metrics: {
+          max_span: maxSpanAchieved,
+          trials_passed: passed,
+          trials_attempted: attempted,
+          accuracy_pct: accuracyPct,
+        },
+        series: {
+          by_length: series,
+        },
+      },
+      telemetry: {
+        responses,
       },
     })
   }
 
   return (
     <div className="flex flex-col items-center max-w-xl mx-auto w-full select-none">
-      <div className="w-full flex items-center justify-between mb-4">
-        <Badge variant="cyan" className="gap-1">
-          <Brain className="w-3 h-3" />
-          <span>{t.standard}</span>
+      <div className="w-full flex items-center justify-between gap-2 mb-4">
+        <Badge variant="cyan" className="gap-1.5 py-1.5 px-3">
+          <Brain className="w-3.5 h-3.5 text-cyan-500" />
+          <span className="truncate">{t.standard}</span>
         </Badge>
-        {isActive && (
+        {isActive && currentTrial && (
           <div className="flex items-center gap-3 text-xs font-mono">
             <span className="text-zinc-500">
-              {t.spanLevel} <span className="font-bold text-cyan-500">{sequenceLength}</span>
+              {t.spanLevel} <strong className="text-cyan-500">{currentTrial.length}</strong>
             </span>
             <span className="text-zinc-500">
-              {t.strikes} <span className="font-bold text-rose-500">{strikes}/2</span>
+              {t.trialLabel} <strong className="text-emerald-500">{currentTrial.id}</strong>
             </span>
           </div>
         )}
       </div>
 
       {!isActive && !isFinished && (
-        <div className="w-full rounded-3xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/50 dark:bg-zinc-900/40 flex flex-col items-center justify-center p-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-500 mb-4">
+        <div className="w-full rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center p-8 text-center shadow-md">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-500 mb-4 border border-cyan-500/20">
             <Sparkles className="w-8 h-8" />
           </div>
           <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">{t.title}</h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mb-6">{t.subtitle}</p>
-          <Button variant="emerald" size="lg" onClick={handleStart} className="gap-2">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mb-6 leading-relaxed">{t.subtitle}</p>
+          <Button variant="emerald" size="lg" onClick={() => handleStart(false)} className="gap-2 cursor-pointer">
             <Play className="w-4 h-4" />
             <span>{t.startBtn}</span>
           </Button>
         </div>
       )}
 
-      {isActive && (
+      {isActive && currentTrial && (
         <div className="w-full flex flex-col items-center">
-          <div className="mb-4 text-xs font-medium px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-            {isShowingSequence ? t.instructionWatch : t.instructionClick}
+          <div className="mb-4 text-xs font-semibold px-4 py-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700">
+            {isShowingSequence ? t.instructionWatch : `${t.instructionClick} (${userSequence.length}/${currentTrial.length})`}
           </div>
 
-          {/* 3x3 Spatial Grid */}
-          <div className="w-full max-w-sm aspect-square grid grid-cols-3 gap-3 p-4 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl mb-6">
-            {Array.from({ length: 9 }).map((_, idx) => {
-              const isLit = activeHighlightBlock === idx
+          <div className="w-full max-w-md aspect-square relative rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl mb-6 overflow-hidden">
+            {task.blocks.map((block) => {
+              const isLit = activeHighlightBlock === block.id
               return (
                 <button
-                  key={idx}
-                  onClick={() => handleBlockClick(idx)}
-                  className={`rounded-2xl transition-all duration-150 transform active:scale-90 ${
+                  key={block.id}
+                  type="button"
+                  data-corsi-block={block.id}
+                  disabled={isShowingSequence}
+                  onClick={() => handleBlockClick(block.id)}
+                  style={{ left: `${block.x}%`, top: `${block.y}%` }}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl transition-all duration-150 cursor-pointer ${
                     isLit
-                      ? 'bg-cyan-400 ring-8 ring-cyan-400/40 shadow-2xl scale-105 z-10'
-                      : 'bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200/60 dark:border-zinc-700/60'
+                      ? 'bg-emerald-400 ring-8 ring-emerald-400/35 shadow-xl scale-105 z-10 border-2 border-white'
+                      : 'bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-2 border-zinc-300 dark:border-zinc-700 active:scale-95'
                   }`}
                 />
               )
@@ -241,19 +341,19 @@ export const CorsiBlocksEngine: React.FC<CorsiBlocksEngineProps> = ({ lang, onCo
           </div>
           <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">{t.finishTitle}</h3>
 
-          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/80 max-w-xs mx-auto my-6">
+          <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700 max-w-xs mx-auto my-6">
             <div className="text-xs text-zinc-500 mb-1">{t.spanResult}</div>
             <div className="text-4xl font-black text-cyan-500 font-mono">
               {maxSpanAchieved} <span className="text-base font-normal text-zinc-400">{t.blocks}</span>
             </div>
           </div>
 
-          <div className="flex gap-3 justify-center max-w-sm mx-auto">
-            <Button variant="outline" onClick={handleStart} className="gap-2 flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+            <Button variant="outline" onClick={() => handleStart(true)} className="gap-2 flex-1 cursor-pointer">
               <RotateCcw className="w-4 h-4" />
               <span>{t.tryAgain}</span>
             </Button>
-            <Button variant="emerald" onClick={handleFinish} className="gap-2 flex-1">
+            <Button variant="emerald" onClick={handleFinish} className="gap-2 flex-1 cursor-pointer">
               <CheckCircle className="w-4 h-4" />
               <span>{t.finishBtn}</span>
             </Button>

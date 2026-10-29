@@ -9,6 +9,7 @@ from sihat.admin_schemas import (
     AdminCategoryOutput,
     AdminCategoryUpdateInput,
     AdminDashboardOutput,
+    AdminPassportUpdateInput,
     AdminTestUpdateInput,
     AdminUserOutput,
     AdminUserUpdateInput,
@@ -40,6 +41,7 @@ from sihat.models import (
     TestDefinition,
     User,
 )
+from sihat.test_generators import ENGINE_SLUGS, generate_challenge, public_challenge
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -93,6 +95,17 @@ def _admin_ticket_output(item: SupportTicket) -> SupportTicketOutput:
         admin_notes=item.admin_notes,
         created_at=item.created_at.isoformat(),
     )
+
+
+async def _resolve_test(db: AsyncSession, test_id_or_slug: str) -> TestDefinition:
+    test = await db.get(TestDefinition, test_id_or_slug)
+    if not test:
+        test = await db.scalar(
+            select(TestDefinition).where(TestDefinition.slug == test_id_or_slug)
+        )
+    if not test:
+        raise HTTPException(status_code=404, detail="Test not found")
+    return test
 
 
 # ---------------------------------------------------------------------------
@@ -305,7 +318,7 @@ async def update_category(
 
 
 # ---------------------------------------------------------------------------
-# Test Catalog controls (Status, unpublish, block)
+# Test Catalog controls (Status, unpublish, block, passport update, generators)
 # ---------------------------------------------------------------------------
 
 
@@ -332,10 +345,10 @@ async def update_test_settings(
     db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    test = await db.get(TestDefinition, test_id)
-    if not test:
-        raise HTTPException(status_code=404, detail="Test not found")
+    test = await _resolve_test(db, test_id)
 
+    if payload.availability_status is not None:
+        test.availability_status = payload.availability_status
     if payload.localizations is not None:
         _validate_localizations(payload.localizations)
         test.localizations = payload.localizations
@@ -360,15 +373,60 @@ async def update_test_settings(
     return _test_output(test, passport)
 
 
+@router.patch("/tests/{test_id}/passport")
+async def update_test_passport(
+    test_id: str,
+    payload: AdminPassportUpdateInput,
+    db: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_admin),
+) -> dict:
+    test = await _resolve_test(db, test_id)
+    passport = await db.scalar(
+        select(MethodologyPassport).where(MethodologyPassport.test_id == test.id)
+    )
+    if not passport:
+        passport = MethodologyPassport(
+            test_id=test.id,
+            name=payload.name or test.slug,
+            version=payload.version or "2.0",
+            evidence_status=payload.evidence_status or "educational",
+            source=payload.source or "Educational protocol",
+            limitations=payload.limitations or "Not a medical diagnosis.",
+            disclaimer=payload.disclaimer or "Strictly educational self-check.",
+        )
+        db.add(passport)
+    else:
+        for key, val in payload.model_dump(exclude_unset=True).items():
+            if val is not None:
+                setattr(passport, key, val)
+
+    await db.commit()
+    await db.refresh(passport)
+    return _test_output(test, passport)
+
+
+@router.get("/generators/{slug}/preview")
+async def preview_task_generator(
+    slug: str,
+    _: User = Depends(require_admin),
+) -> dict:
+    if slug not in ENGINE_SLUGS:
+        raise HTTPException(status_code=404, detail="Generator not found for slug")
+    ch = generate_challenge(slug) or {}
+    return {
+        "slug": slug,
+        "seed": ch.get("seed"),
+        "public": public_challenge(ch),
+    }
+
+
 @router.post("/tests/{test_id}/block")
 async def block_test(
     test_id: str,
     db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    test = await db.get(TestDefinition, test_id)
-    if not test:
-        raise HTTPException(status_code=404, detail="Test not found")
+    test = await _resolve_test(db, test_id)
     test.availability_status = "blocked"
     await db.commit()
     passport = await db.scalar(
@@ -383,9 +441,7 @@ async def unpublish_test(
     db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> dict:
-    test = await db.get(TestDefinition, test_id)
-    if not test:
-        raise HTTPException(status_code=404, detail="Test not found")
+    test = await _resolve_test(db, test_id)
     test.availability_status = "draft"
     await db.commit()
     passport = await db.scalar(
@@ -605,7 +661,6 @@ async def draft_content(
         except GeminiUnavailableError:
             pass
 
-    # Clean fallback draft template
     return ContentDraftOutput(
         title=f"Draft: {payload.topic}",
         content=(

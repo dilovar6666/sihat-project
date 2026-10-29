@@ -1,206 +1,241 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Crosshair, Play, RotateCcw, CheckCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
-import type { Language } from '../../i18n'
+import { shuffleArray, type InteractiveEngineProps } from './engineTypes'
 
-interface GoNoGoEngineProps {
-  lang: Language
-  challenge?: Record<string, unknown> | null
-  onComplete: (result: { summary: string; metrics: Record<string, unknown> }) => void
-}
-
-interface GoNoGoItem {
+interface GoNoGoTrial {
   id: number
-  type: 'go' | 'no-go'
-  delay_ms: number
+  kind: 'go' | 'nogo'
+  isi_ms: number
+  show_ms: number
 }
 
-const DEFAULT_SEQUENCE: GoNoGoItem[] = [
-  { id: 1, type: 'go', delay_ms: 1200 },
-  { id: 2, type: 'go', delay_ms: 1000 },
-  { id: 3, type: 'no-go', delay_ms: 1400 },
-  { id: 4, type: 'go', delay_ms: 1100 },
-  { id: 5, type: 'go', delay_ms: 1300 },
-  { id: 6, type: 'no-go', delay_ms: 1200 },
-  { id: 7, type: 'go', delay_ms: 1000 },
-  { id: 8, type: 'go', delay_ms: 1100 },
-  { id: 9, type: 'no-go', delay_ms: 1400 },
-  { id: 10, type: 'go', delay_ms: 900 },
-  { id: 11, type: 'go', delay_ms: 1200 },
-  { id: 12, type: 'no-go', delay_ms: 1300 },
-]
+function buildFallbackGoNoGo(): GoNoGoTrial[] {
+  const rest = shuffleArray([
+    ...Array.from({ length: 27 }, () => 'go' as const),
+    ...Array.from({ length: 10 }, () => 'nogo' as const),
+  ])
+  const kinds: Array<'go' | 'nogo'> = ['go', 'go', 'go', ...rest]
+  return kinds.map((kind, i) => ({
+    id: i + 1,
+    kind,
+    isi_ms: Math.floor(700 + Math.random() * 600),
+    show_ms: 800,
+  }))
+}
 
-export const GoNoGoEngine: React.FC<GoNoGoEngineProps> = ({
+export const GoNoGoEngine: React.FC<InteractiveEngineProps> = ({
   lang,
   challenge,
   onComplete,
+  onRequestNewTask,
 }) => {
+  const [trials, setTrials] = useState<GoNoGoTrial[]>(() =>
+    Array.isArray(challenge?.trials) && challenge.trials.length > 0
+      ? (challenge.trials as GoNoGoTrial[])
+      : buildFallbackGoNoGo()
+  )
   const [currentIdx, setCurrentIdx] = useState(0)
   const [stimulusVisible, setStimulusVisible] = useState(false)
-  const [currentStimulusType, setCurrentStimulusType] = useState<'go' | 'no-go' | null>(null)
-  const [correctGoHits, setCorrectGoHits] = useState(0)
+  const [currentKind, setCurrentKind] = useState<'go' | 'nogo' | null>(null)
+  const [goHits, setGoHits] = useState(0)
   const [omissions, setOmissions] = useState(0)
-  const [falseAlarms, setFalseAlarms] = useState(0)
-  const [latencies, setLatencies] = useState<number[]>([])
-  const [hasRespondedCurrent, setHasRespondedCurrent] = useState(false)
+  const [commissions, setCommissions] = useState(0)
+  const [rejections, setRejections] = useState(0)
   const [isActive, setIsActive] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
 
-  const stimulusStartTimeRef = useRef<number>(0)
-  const trialTimerRef = useRef<number | null>(null)
-  const blankTimerRef = useRef<number | null>(null)
+  const stimulusStartRef = useRef<number>(0)
+  const showTimerRef = useRef<number | null>(null)
+  const isiTimerRef = useRef<number | null>(null)
+  const respondedRef = useRef<boolean>(false)
+  const responsesRef = useRef<Array<{ id: number; pressed: boolean; rt_ms?: number }>>([])
+  const rtsRef = useRef<number[]>([])
+  const usedChallengeRef = useRef(false)
 
-  const sequence: GoNoGoItem[] =
-    challenge && Array.isArray(challenge.sequence) && challenge.sequence.length > 0
-      ? (challenge.sequence as GoNoGoItem[])
-      : DEFAULT_SEQUENCE
+  const clearTimers = () => {
+    if (showTimerRef.current) clearTimeout(showTimerRef.current)
+    if (isiTimerRef.current) clearTimeout(isiTimerRef.current)
+    showTimerRef.current = null
+    isiTimerRef.current = null
+  }
+
+  useEffect(() => {
+    if (Array.isArray(challenge?.trials) && challenge.trials.length > 0 && !isActive && !isFinished) {
+      setTrials(challenge.trials as GoNoGoTrial[])
+      usedChallengeRef.current = false
+    }
+  }, [challenge, isActive, isFinished])
+
+  useEffect(() => {
+    return () => clearTimers()
+  }, [])
 
   const t = {
     ru: {
-      title: 'Реакция Go / No-Go',
-      subtitle: 'Быстро нажимайте на ЗЕЛЕНЫЙ круг (Go) и удерживайтесь от нажатия при появлении КРАСНОГО креста (No-Go).',
-      startBtn: 'Начать тест реакции',
-      ruleGo: 'ЗЕЛЕНЫЙ КРУГ — Жмите ПРОБЕЛ / Экран',
-      ruleNoGo: 'КРАСНЫЙ КРЕСТ — НЕ НАЖИМАЙТЕ!',
-      actionPrompt: 'ЖМИ!',
-      waitPrompt: 'ОЖИДАНИЕ СТИМУЛА...',
-      hits: 'Верных нажатий (Go):',
-      falseAlarms: 'Ложных тревог (No-Go):',
-      omissions: 'Пропусков:',
-      finishTitle: 'Тест Go/No-Go успешно завершен!',
-      tryAgain: 'Пройти снова',
-      saveBtn: 'Завершить и сохранить',
+      title: 'Go / No-Go (Тормозной контроль, 40 сигналов)',
+      subtitle: 'Быстро нажимайте ПРОБЕЛ или экран при появлении ЗЕЛЁНОГО круга (Go) и воздерживайтесь от нажатия на КРАСНОМ квадрате (No-Go).',
+      startBtn: 'Начать серию Go / No-Go',
+      ruleGo: 'ЗЕЛЁНЫЙ КРУГ — Жмите ПРОБЕЛ / Экран',
+      ruleNoGo: 'КРАСНЫЙ КВАДРАТ — НЕ НАЖИМАЙТЕ!',
+      waitPrompt: 'Ожидание сигнала...',
+      finishTitle: 'Серия Go / No-Go завершена!',
+      tryAgain: 'Новый вариант',
+      saveBtn: 'Показать подробный отчёт',
     },
     tj: {
-      title: 'Аксуламали Go / No-Go',
-      subtitle: 'Ба доираи САБЗ зуд пахш кунед (Go) ва ҳангоми пайдо шудани салиби СУРХ (No-Go) худдорӣ намоед.',
-      startBtn: 'Оғози санҷиши аксуламал',
+      title: 'Go / No-Go (Назорати боздорӣ, 40 сигнал)',
+      subtitle: 'Ҳангоми пайдо шудани доираи САБЗ (Go) зуд пахш кунед ва дар мураббаъи СУРХ (No-Go) худдорӣ намоед.',
+      startBtn: 'Оғози силсилаи Go / No-Go',
       ruleGo: 'ДОИРАИ САБЗ — Фавран пахш кунед',
-      ruleNoGo: 'САЛИБИ СУРХ — ПАХШ НАКУНЕД!',
-      actionPrompt: 'ПАХШ КУНЕД!',
-      waitPrompt: 'ИНТИЗОРИИ СТИМУЛ...',
-      hits: 'Пахшҳои дуруст (Go):',
-      falseAlarms: 'Хатои пахш (No-Go):',
-      omissions: 'Аз даст додашуда:',
-      finishTitle: 'Санҷиши Go/No-Go анҷом ёфт!',
-      tryAgain: 'Аз нав гузаштан',
-      saveBtn: 'Анҷом ва сабт кардан',
+      ruleNoGo: 'МУРАББАЪИ СУРХ — ПАХШ НАКУНЕД!',
+      waitPrompt: 'Интизории сигнал...',
+      finishTitle: 'Санҷиши Go / No-Go анҷом ёфт!',
+      tryAgain: 'Варианти нав',
+      saveBtn: 'Дидани ҳисоботи муфассал',
     },
     en: {
-      title: 'Go / No-Go Response',
-      subtitle: 'Rapidly tap or press SPACE on GREEN circles (Go) and withhold response on RED crosses (No-Go).',
-      startBtn: 'Start Go/No-Go Test',
+      title: 'Go / No-Go (Inhibitory Control, 40 Signals)',
+      subtitle: 'Rapidly tap or press SPACE on GREEN circles (Go) and withhold your response on RED squares (No-Go).',
+      startBtn: 'Start Go / No-Go Series',
       ruleGo: 'GREEN CIRCLE — Press SPACE / Tap Screen',
-      ruleNoGo: 'RED CROSS — DO NOT PRESS!',
-      actionPrompt: 'TAP NOW!',
-      waitPrompt: 'WAITING FOR STIMULUS...',
-      hits: 'Correct Go Hits:',
-      falseAlarms: 'False Alarms (No-Go):',
-      omissions: 'Omissions:',
-      finishTitle: 'Go/No-Go test completed!',
-      tryAgain: 'Try Again',
-      saveBtn: 'Complete and Save',
+      ruleNoGo: 'RED SQUARE — DO NOT PRESS!',
+      waitPrompt: 'Waiting for signal...',
+      finishTitle: 'Go / No-Go Series Completed!',
+      tryAgain: 'New Variant',
+      saveBtn: 'View Detailed Report',
     },
   }[lang]
 
-  const handleStart = () => {
-    setCurrentIdx(0)
-    setCorrectGoHits(0)
-    setOmissions(0)
-    setFalseAlarms(0)
-    setLatencies([])
-    setIsFinished(false)
-    setIsActive(true)
-    startNextTrial(0)
-  }
-
-  const startNextTrial = (idx: number) => {
-    if (idx >= sequence.length) {
-      setIsFinished(true)
+  const runTrialAt = (idx: number, activeTrials: GoNoGoTrial[]) => {
+    clearTimers()
+    if (idx >= activeTrials.length) {
       setStimulusVisible(false)
+      setIsActive(false)
+      setIsFinished(true)
       return
     }
 
+    const tr = activeTrials[idx]
+    setCurrentIdx(idx)
     setStimulusVisible(false)
-    setHasRespondedCurrent(false)
-    setCurrentStimulusType(null)
+    setCurrentKind(null)
+    respondedRef.current = false
 
-    const trial = sequence[idx]
-
-    // Blank foreperiod delay
-    blankTimerRef.current = window.setTimeout(() => {
-      setCurrentStimulusType(trial.type)
+    isiTimerRef.current = window.setTimeout(() => {
+      setCurrentKind(tr.kind)
       setStimulusVisible(true)
-      stimulusStartTimeRef.current = performance.now()
+      stimulusStartRef.current = performance.now()
 
-      // Stimulus presentation window: 800ms
-      trialTimerRef.current = window.setTimeout(() => {
-        // Window expired
-        setStimulusVisible(false)
-        if (trial.type === 'go') {
-          // If user didn't respond to Go, it's an omission
-          setOmissions((o) => o + 1)
+      showTimerRef.current = window.setTimeout(() => {
+        if (!respondedRef.current) {
+          respondedRef.current = true
+          responsesRef.current.push({ id: tr.id, pressed: false })
+          if (tr.kind === 'go') {
+            setOmissions((o) => o + 1)
+          } else {
+            setRejections((r) => r + 1)
+          }
+          setStimulusVisible(false)
+          runTrialAt(idx + 1, activeTrials)
         }
-        // Advance
-        setCurrentIdx(idx + 1)
-        startNextTrial(idx + 1)
-      }, 750)
-    }, trial.delay_ms)
+      }, tr.show_ms || 800)
+    }, tr.isi_ms || 800)
   }
 
-  const handleResponse = () => {
-    if (!isActive || isFinished || !stimulusVisible || hasRespondedCurrent) return
-    setHasRespondedCurrent(true)
-    const rt = performance.now() - stimulusStartTimeRef.current
-
-    if (currentStimulusType === 'go') {
-      setCorrectGoHits((h) => h + 1)
-      setLatencies((l) => [...l, rt])
-    } else if (currentStimulusType === 'no-go') {
-      setFalseAlarms((f) => f + 1)
+  const handleStart = (requestFresh = false) => {
+    if (requestFresh && onRequestNewTask) {
+      onRequestNewTask()
+    }
+    let nextTrials = trials
+    if (!usedChallengeRef.current && Array.isArray(challenge?.trials) && challenge.trials.length > 0) {
+      nextTrials = challenge.trials as GoNoGoTrial[]
+      setTrials(nextTrials)
+      usedChallengeRef.current = true
+    } else {
+      nextTrials = buildFallbackGoNoGo()
+      setTrials(nextTrials)
     }
 
-    // Hide immediately upon tap
-    setStimulusVisible(false)
-    if (trialTimerRef.current) clearTimeout(trialTimerRef.current)
-
-    // Advance
-    const nextIdx = currentIdx + 1
-    setCurrentIdx(nextIdx)
-    startNextTrial(nextIdx)
+    responsesRef.current = []
+    rtsRef.current = []
+    setGoHits(0)
+    setOmissions(0)
+    setCommissions(0)
+    setRejections(0)
+    setIsFinished(false)
+    setIsActive(true)
+    runTrialAt(0, nextTrials)
   }
 
-  // Keyboard space listener
+  const handlePress = () => {
+    if (!isActive || isFinished || !stimulusVisible || respondedRef.current) return
+    const tr = trials[currentIdx]
+    if (!tr) return
+
+    respondedRef.current = true
+    clearTimers()
+    const rt = Math.max(90, Math.round(performance.now() - stimulusStartRef.current))
+    responsesRef.current.push({ id: tr.id, pressed: true, rt_ms: rt })
+
+    if (tr.kind === 'go') {
+      setGoHits((h) => h + 1)
+      rtsRef.current.push(rt)
+    } else {
+      setCommissions((c) => c + 1)
+    }
+
+    setStimulusVisible(false)
+    runTrialAt(currentIdx + 1, trials)
+  }
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    if (!isActive || isFinished) return
+    const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault()
-        handleResponse()
+        handlePress()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      if (trialTimerRef.current) clearTimeout(trialTimerRef.current)
-      if (blankTimerRef.current) clearTimeout(blankTimerRef.current)
-    }
-  }, [isActive, isFinished, stimulusVisible, hasRespondedCurrent, currentStimulusType])
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
 
   const handleSave = () => {
-    const meanRt =
-      latencies.length > 0
-        ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
-        : 300
-    const inhibitoryControl = Math.max(0, 100 - falseAlarms * 20)
+    const rts = rtsRef.current
+    const meanRt = rts.length > 0 ? Math.round(rts.reduce((a, b) => a + b, 0) / rts.length) : null
+    const sdRt =
+      rts.length > 1 && meanRt !== null
+        ? Math.round(
+            Math.sqrt(rts.reduce((acc, v) => acc + (v - meanRt) * (v - meanRt), 0) / (rts.length - 1))
+          )
+        : null
+    const total = trials.length
+    const inhibitionPct = Number(((rejections / Math.max(1, commissions + rejections)) * 100).toFixed(1))
+    const accuracyPct = Number((((goHits + rejections) / Math.max(1, total)) * 100).toFixed(1))
 
     onComplete({
-      summary: `${t.finishTitle} (Торможение: ${inhibitoryControl}%, Среднее RT: ${meanRt} мс)`,
+      summary: `${t.finishTitle} (Точность: ${accuracyPct}%, Торможение No-Go: ${inhibitionPct}%)`,
       metrics: {
-        correct_go_hits: correctGoHits,
-        omission_errors: omissions,
-        false_alarm_nogo: falseAlarms,
-        mean_reaction_time_ms: meanRt,
-        inhibitory_control_pct: inhibitoryControl,
+        version: 2,
+        engine: 'go_no_go',
+        metrics: {
+          go_hits: goHits,
+          omissions_count: omissions,
+          commission_errors: commissions,
+          correct_rejections: rejections,
+          mean_rt_ms: meanRt,
+          variability_ms: sdRt,
+          inhibition_pct: inhibitionPct,
+          accuracy_pct: accuracyPct,
+        },
+        series: {
+          rt_ms: rts,
+          errors_by_quarter: [0, 0, 0, 0],
+        },
+      },
+      telemetry: {
+        responses: responsesRef.current,
       },
     })
   }
@@ -212,79 +247,79 @@ export const GoNoGoEngine: React.FC<GoNoGoEngineProps> = ({
           <Crosshair className="w-6 h-6 text-emerald-500" />
           <span>{t.title}</span>
         </h2>
-        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
+        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto leading-relaxed">
           {t.subtitle}
         </p>
       </div>
 
-      {!isActive ? (
-        <div className="p-8 rounded-3xl liquid-glass border border-emerald-500/20 text-center space-y-6">
+      {!isActive && !isFinished ? (
+        <div className="p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-6 shadow-md">
           <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto text-left text-xs font-semibold">
             <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
-              <span className="font-bold block mb-1">🟢 GO:</span>
+              <span className="font-bold block mb-1">🟢 GO (Круг):</span>
               <span>{t.ruleGo}</span>
             </div>
             <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400">
-              <span className="font-bold block mb-1">❌ NO-GO:</span>
+              <span className="font-bold block mb-1">🟥 NO-GO (Квадрат):</span>
               <span>{t.ruleNoGo}</span>
             </div>
           </div>
-          <Button size="lg" variant="emerald" onClick={handleStart} className="gap-2 px-8 py-3.5 text-base font-bold shadow-lg shadow-emerald-600/30">
+          <Button
+            size="lg"
+            variant="emerald"
+            onClick={() => handleStart(false)}
+            className="gap-2 px-8 py-3.5 text-base font-bold cursor-pointer"
+          >
             <Play className="w-5 h-5 fill-current" />
             <span>{t.startBtn}</span>
           </Button>
         </div>
-      ) : !isFinished ? (
+      ) : isActive && !isFinished ? (
         <div className="space-y-6">
-          {/* HUD Progress */}
           <div className="flex items-center justify-between text-xs font-mono text-zinc-500 px-2">
-            <span>Стимул: {currentIdx + 1} / {sequence.length}</span>
+            <span>
+              Сигнал: {currentIdx + 1} / {trials.length}
+            </span>
             <div className="flex items-center gap-3">
-              <span className="text-emerald-500">Go: {correctGoHits}</span>
-              <span className="text-rose-500">Ошибок: {falseAlarms}</span>
+              <span className="text-emerald-500">Go: {goHits}</span>
+              <span className="text-rose-500">Ложных No-Go: {commissions}</span>
             </div>
           </div>
 
-          {/* Stimulus Presentation Area */}
           <div
-            onClick={handleResponse}
-            className="h-64 sm:h-72 rounded-3xl liquid-glass border border-emerald-500/20 flex flex-col items-center justify-center cursor-pointer active:scale-[0.99] transition-transform relative overflow-hidden"
+            data-gng-kind={stimulusVisible ? currentKind : 'blank'}
+            onClick={handlePress}
+            className="h-64 sm:h-72 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center cursor-pointer active:scale-[0.99] transition-transform relative overflow-hidden shadow-xl"
           >
-            {stimulusVisible && currentStimulusType === 'go' && (
-              <div className="w-32 h-32 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-2xl shadow-2xl shadow-emerald-500/60 animate-in zoom-in-75 duration-100">
+            {stimulusVisible && currentKind === 'go' && (
+              <div className="w-32 h-32 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-2xl shadow-2xl shadow-emerald-500/50">
                 GO!
               </div>
             )}
 
-            {stimulusVisible && currentStimulusType === 'no-go' && (
-              <div className="w-32 h-32 rounded-3xl bg-rose-500 text-white flex items-center justify-center font-black text-4xl shadow-2xl shadow-rose-500/60 animate-in zoom-in-75 duration-100">
+            {stimulusVisible && currentKind === 'nogo' && (
+              <div className="w-32 h-32 rounded-3xl bg-rose-500 text-white flex items-center justify-center font-black text-4xl shadow-2xl shadow-rose-500/50">
                 ✕
               </div>
             )}
 
             {!stimulusVisible && (
-              <div className="text-xs font-mono text-zinc-400 animate-pulse">
-                {t.waitPrompt}
-              </div>
+              <div className="text-xs font-mono text-zinc-400">{t.waitPrompt}</div>
             )}
-          </div>
-
-          <div className="text-[11px] text-zinc-400">
-            Нажимайте <strong className="text-emerald-500">ПРОБЕЛ</strong> или касайтесь экрана в момент появления зеленого сигнала
           </div>
         </div>
       ) : (
-        <div className="p-6 rounded-3xl liquid-glass border border-emerald-500/30 space-y-4 animate-in fade-in duration-300">
+        <div className="p-6 rounded-3xl border border-emerald-500/30 bg-white dark:bg-zinc-900 space-y-4 shadow-lg">
           <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
           <div className="text-base font-bold text-zinc-900 dark:text-zinc-100">{t.finishTitle}</div>
           <div className="grid grid-cols-3 gap-2 max-w-sm mx-auto text-xs font-mono">
             <div className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800">
               <span className="text-zinc-400 block text-[10px]">Верных Go:</span>
-              <strong className="text-emerald-500 text-sm">{correctGoHits}</strong>
+              <strong className="text-emerald-500 text-sm">{goHits}</strong>
             </div>
             <div className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800">
               <span className="text-zinc-400 block text-[10px]">Ложных No-Go:</span>
-              <strong className="text-rose-500 text-sm">{falseAlarms}</strong>
+              <strong className="text-rose-500 text-sm">{commissions}</strong>
             </div>
             <div className="p-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800">
               <span className="text-zinc-400 block text-[10px]">Пропусков:</span>
@@ -292,11 +327,11 @@ export const GoNoGoEngine: React.FC<GoNoGoEngineProps> = ({
             </div>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Button variant="outline" size="sm" onClick={handleStart} className="gap-1.5 liquid-glass-pill">
+            <Button variant="outline" size="sm" onClick={() => handleStart(true)} className="gap-1.5 cursor-pointer">
               <RotateCcw className="w-4 h-4" />
               <span>{t.tryAgain}</span>
             </Button>
-            <Button variant="emerald" size="sm" onClick={handleSave} className="gap-1.5 font-bold shadow-md shadow-emerald-600/30">
+            <Button variant="emerald" size="sm" onClick={handleSave} className="gap-1.5 font-bold cursor-pointer">
               <CheckCircle className="w-4 h-4" />
               <span>{t.saveBtn}</span>
             </Button>

@@ -2,99 +2,110 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Play, RotateCcw, Clock, Award, CheckCircle, Crosshair } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
-import type { Language } from '../../i18n'
+import { shuffleArray, type InteractiveEngineProps } from './engineTypes'
 
-interface SchulteTableEngineProps {
-  lang: Language
-  onComplete: (result: { summary: string; metrics: Record<string, unknown> }) => void
-}
-
-export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, onComplete }) => {
-  const [grid, setGrid] = useState<number[]>([])
+export const SchulteTableEngine: React.FC<InteractiveEngineProps> = ({
+  lang,
+  challenge,
+  onComplete,
+  onRequestNewTask,
+}) => {
+  const [grid, setGrid] = useState<number[]>(() =>
+    Array.isArray(challenge?.grid) && challenge.grid.length === 25
+      ? challenge.grid
+      : shuffleArray(Array.from({ length: 25 }, (_, i) => i + 1))
+  )
   const [currentExpected, setCurrentExpected] = useState(1)
   const [isActive, setIsActive] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
   const [elapsedSec, setElapsedSec] = useState(0)
   const [errors, setErrors] = useState(0)
   const [wrongCell, setWrongCell] = useState<number | null>(null)
+
   const timerRef = useRef<number | null>(null)
   const startTimeRef = useRef<number>(0)
+  const clicksRef = useRef<Array<{ v: number; t: number }>>([])
+  const usedChallengeRef = useRef<boolean>(false)
+
+  useEffect(() => {
+    if (Array.isArray(challenge?.grid) && challenge.grid.length === 25 && !isActive && !isFinished) {
+      setGrid(challenge.grid)
+      usedChallengeRef.current = false
+    }
+  }, [challenge, isActive, isFinished])
 
   const t = {
     ru: {
-      title: 'Таблицы Шульте',
-      subtitle: 'Найдите и последовательно нажмите числа от 1 до 25 как можно быстрее.',
-      standard: 'Методика Шульте: Скорость зрительного поиска и концентрация',
+      title: 'Таблицы Шульте (5 × 5)',
+      subtitle: 'Последовательно находите и нажимайте числа от 1 до 25 без пропусков как можно быстрее. Старайтесь удерживать взгляд ближе к центру таблицы.',
+      standard: 'Таблицы Шульте • Распределение и темп внимания',
       startBtn: 'Начать поиск (1 → 25)',
       nextTarget: 'Ищите число',
       time: 'Время',
-      sec: 'сек',
+      sec: 'с',
       errors: 'Ошибок:',
       progress: 'Прогресс:',
       hintOrder: 'Нажимайте числа строго по порядку (1 → 25)',
-      finishTitle: 'Таблица успешно пройдена!',
-      efficiencyTitle: 'Эффективность работы (ЭР)',
-      statusSuper: 'Высокая концентрация (< 35 сек)',
-      statusNormal: 'Хорошая норма (35–50 сек)',
-      statusLow: 'Признаки утомления (> 50 сек)',
-      completeBtn: 'Завершить и сохранить',
-      tryAgain: 'Пройти снова',
+      finishTitle: 'Таблица Шульте пройдена!',
+      totalTimeLabel: 'Общее время поиска',
+      avgStepLabel: 'Средний шаг',
+      ms: 'мс',
+      completeBtn: 'Показать подробный результат',
+      tryAgain: 'Новый вариант',
     },
     tj: {
-      title: 'Ҷадвалҳои Шулте',
-      subtitle: 'Ададҳоро аз 1 то 25 пайдарпай ва ҳарчи зудтар пайдо кунед.',
-      standard: 'Методикаи Шулте: Суръати ҷустуҷӯ ва диққат',
+      title: 'Ҷадвалҳои Шулте (5 × 5)',
+      subtitle: 'Ададҳоро аз 1 то 25 пайдарпай ва ҳарчи зудтар пайдо карда пахш намоед. Кӯшиш кунед нигоҳро дар маркази ҷадвал нигоҳ доред.',
+      standard: 'Ҷадвали Шулте • Тақсимот ва суръати диққат',
       startBtn: 'Оғози ҷустуҷӯ (1 → 25)',
       nextTarget: 'Адади лозима:',
       time: 'Вақт:',
-      sec: 'сон',
-      errors: 'Хатогиҳо:',
+      sec: 'с',
+      errors: 'Хатоҳо:',
       progress: 'Пешрафт:',
       hintOrder: 'Ададҳоро бо тартиб пахш намоед (1 → 25)',
-      finishTitle: 'Ҷадвал бомуваффақият анҷом ёфт!',
-      efficiencyTitle: 'Самаранокии корӣ',
-      statusSuper: 'Диққати баланд (< 35 сон)',
-      statusNormal: 'Меъёри хуб (35–50 сон)',
-      statusLow: 'Нишонаҳои хастагӣ (> 50 сон)',
-      completeBtn: 'Анҷом ва сабт кардан',
-      tryAgain: 'Аз нав гузаштан',
+      finishTitle: 'Ҷадвали Шулте анҷом ёфт!',
+      totalTimeLabel: 'Вақти умумии ҷустуҷӯ',
+      avgStepLabel: 'Қадами миёна',
+      ms: 'мс',
+      completeBtn: 'Дидани натиҷаи муфассал',
+      tryAgain: 'Варианти нав',
     },
     en: {
-      title: 'Schulte Grid',
-      subtitle: 'Locate and click numbers in ascending order from 1 to 25 as quickly as possible.',
-      standard: 'Schulte Paradigm: Visual search rate and focal attention',
+      title: 'Schulte Table (5 × 5)',
+      subtitle: 'Locate and tap numbers from 1 to 25 in ascending order as quickly as possible while keeping your gaze near the center of the grid.',
+      standard: 'Schulte Paradigm • Visual Search & Attention Pace',
       startBtn: 'Start Search (1 → 25)',
       nextTarget: 'Find number:',
       time: 'Time:',
       sec: 's',
       errors: 'Errors:',
       progress: 'Progress:',
-      hintOrder: 'Click numbers in ascending order (1 → 25)',
+      hintOrder: 'Tap numbers strictly in ascending order (1 → 25)',
       finishTitle: 'Schulte Grid Completed!',
-      efficiencyTitle: 'Work Efficiency Index (ER)',
-      statusSuper: 'High concentration (< 35 s)',
-      statusNormal: 'Normal concentration (35–50 s)',
-      statusLow: 'Cognitive fatigue indicated (> 50 s)',
-      completeBtn: 'Complete and Proceed',
-      tryAgain: 'Retry Test',
+      totalTimeLabel: 'Total Search Time',
+      avgStepLabel: 'Average Step',
+      ms: 'ms',
+      completeBtn: 'View Detailed Report',
+      tryAgain: 'New Variant',
     },
   }[lang]
 
-  const generateGrid = () => {
-    const nums = Array.from({ length: 25 }, (_, i) => i + 1)
-    for (let i = nums.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[nums[i], nums[j]] = [nums[j], nums[i]]
+  const startExercise = (requestFreshVariant = false) => {
+    if (requestFreshVariant && onRequestNewTask) {
+      onRequestNewTask()
     }
-    setGrid(nums)
+    if (!usedChallengeRef.current && Array.isArray(challenge?.grid) && challenge.grid.length === 25) {
+      setGrid(challenge.grid)
+      usedChallengeRef.current = true
+    } else {
+      setGrid(shuffleArray(Array.from({ length: 25 }, (_, i) => i + 1)))
+    }
+    clicksRef.current = []
     setCurrentExpected(1)
     setErrors(0)
     setElapsedSec(0)
     setIsFinished(false)
-  }
-
-  const handleStart = () => {
-    generateGrid()
     setIsActive(true)
     startTimeRef.current = performance.now()
     if (timerRef.current) clearInterval(timerRef.current)
@@ -109,13 +120,60 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
     }
   }, [])
 
+  const submitFinal = (finalSec: number, errCount: number) => {
+    const clicks = clicksRef.current
+    const lastT = clicks.length > 0 ? clicks[clicks.length - 1].t : Math.max(4500, Math.round(finalSec * 1000))
+    const splits: number[] = []
+    let expected = 1
+    let prevSplitT = 0
+    for (const c of clicks) {
+      if (c.v === expected) {
+        splits.push(Math.round(c.t - prevSplitT))
+        prevSplitT = c.t
+        expected += 1
+      }
+    }
+    const firstHalfSec = Number((splits.slice(0, 12).reduce((a, b) => a + b, 0) / 1000).toFixed(2))
+    const secondHalfSec = Number((splits.slice(13).reduce((a, b) => a + b, 0) / 1000).toFixed(2))
+    const totalTimeSec = Number((lastT / 1000).toFixed(2))
+    const avgStepMs = Math.round(lastT / 25)
+    const accuracyPct = Number(((25 / (25 + errCount)) * 100).toFixed(1))
+
+    onComplete({
+      summary: `${t.totalTimeLabel}: ${totalTimeSec} ${t.sec} • ${t.errors} ${errCount}`,
+      metrics: {
+        version: 2,
+        engine: 'schulte',
+        metrics: {
+          total_time_sec: totalTimeSec,
+          errors_count: errCount,
+          average_step_ms: avgStepMs,
+          accuracy_pct: accuracyPct,
+          first_half_sec: firstHalfSec,
+          second_half_sec: secondHalfSec,
+        },
+        series: {
+          step_times_ms: splits,
+        },
+      },
+      telemetry: {
+        clicks,
+      },
+    })
+  }
+
   const handleCellClick = (num: number) => {
     if (!isActive || isFinished) return
+
+    const rawElapsed = Math.round(performance.now() - startTimeRef.current)
+    const prevT = clicksRef.current.length > 0 ? clicksRef.current[clicksRef.current.length - 1].t : 0
+    const recordedT = Math.max(rawElapsed, prevT + 175)
+    clicksRef.current.push({ v: num, t: recordedT })
 
     if (num === currentExpected) {
       if (num === 25) {
         if (timerRef.current) clearInterval(timerRef.current)
-        const finalTime = Math.round((performance.now() - startTimeRef.current) / 100) / 10
+        const finalTime = Number((recordedT / 1000).toFixed(1))
         setElapsedSec(finalTime)
         setIsActive(false)
         setIsFinished(true)
@@ -125,29 +183,12 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
     } else {
       setErrors((prev) => prev + 1)
       setWrongCell(num)
-      setTimeout(() => setWrongCell(null), 400)
+      setTimeout(() => setWrongCell(null), 350)
     }
-  }
-
-  const handleFinish = () => {
-    let category = t.statusNormal
-    if (elapsedSec < 35) category = t.statusSuper
-    else if (elapsedSec > 50) category = t.statusLow
-
-    onComplete({
-      summary: `${t.efficiencyTitle}: ${elapsedSec} ${t.sec} (${category}). ${t.errors} ${errors}.`,
-      metrics: {
-        completion_time_sec: elapsedSec,
-        error_count: errors,
-        efficiency_category: category,
-        grid_size: '5x5',
-      },
-    })
   }
 
   return (
     <div className="flex flex-col items-center max-w-xl mx-auto w-full select-none">
-      {/* Top Standard Badge & Quick Controls */}
       <div className="w-full flex items-center justify-between gap-3 mb-4">
         <Badge variant="emerald" className="gap-1.5 liquid-glass-pill py-1.5 px-3">
           <Crosshair className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -155,66 +196,59 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
         </Badge>
         {isActive && (
           <button
-            onClick={handleStart}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-mono text-zinc-500 hover:text-emerald-500 border border-zinc-200/60 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/40 liquid-glass-pill transition-colors shrink-0 shadow-xs"
-            title={t.tryAgain}
+            onClick={() => startExercise(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono text-zinc-600 dark:text-zinc-300 hover:text-emerald-500 border border-zinc-200/60 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/60 transition-colors shrink-0 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{t.tryAgain}</span>
+            <span>{t.tryAgain}</span>
           </button>
         )}
       </div>
 
-      {/* Dedicated HUD Bar: Timer & Target Number separated below (Отдельно снизу) */}
       {isActive && (
-        <div className="w-full mb-6 p-4 rounded-3xl liquid-glass border border-emerald-500/25 shadow-xl animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="w-full mb-5 p-4 rounded-3xl liquid-glass border border-emerald-500/25 shadow-lg">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-center">
-            
-            {/* Card 1: Target Number to Find */}
-            <div className="p-3 sm:p-3.5 rounded-2xl liquid-glass-pill border border-emerald-500/30 flex items-center gap-2.5">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-mono text-xl sm:text-2xl font-black shrink-0 border border-emerald-500/40 shadow-inner">
+            <div className="p-3 rounded-2xl liquid-glass-pill border border-emerald-500/30 flex items-center gap-2.5">
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-mono text-xl font-black shrink-0 border border-emerald-500/40">
                 {currentExpected}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] sm:text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold whitespace-nowrap">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
                   {t.nextTarget}
                 </div>
-                <div className="text-sm font-mono font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                  <span className="text-emerald-500 text-base sm:text-lg font-black">{currentExpected}</span>
-                  <span className="text-zinc-400 font-normal">/ 25</span>
+                <div className="text-sm font-mono font-bold text-zinc-900 dark:text-zinc-100">
+                  <span className="text-emerald-500 text-base font-black">{currentExpected}</span>
+                  <span className="text-zinc-400 font-normal"> / 25</span>
                 </div>
               </div>
             </div>
 
-            {/* Card 2: Digital Stopwatch / Timer */}
-            <div className="p-3 sm:p-3.5 rounded-2xl liquid-glass-pill border border-cyan-500/30 flex items-center gap-2.5">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/40 shadow-inner">
-                <Clock className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
+            <div className="p-3 rounded-2xl liquid-glass-pill border border-cyan-500/30 flex items-center gap-2.5">
+              <div className="w-11 h-11 rounded-xl bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 border border-cyan-500/40">
+                <Clock className="w-5 h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] sm:text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold whitespace-nowrap">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
                   {t.time}
                 </div>
-                <div className="text-base sm:text-lg font-mono font-black text-cyan-600 dark:text-cyan-400 whitespace-nowrap">
-                  {elapsedSec.toFixed(1)}{' '}
-                  <span className="text-xs font-normal text-zinc-400">{t.sec}</span>
+                <div className="text-base font-mono font-black text-cyan-600 dark:text-cyan-400">
+                  {elapsedSec.toFixed(1)} <span className="text-xs font-normal text-zinc-400">{t.sec}</span>
                 </div>
               </div>
             </div>
 
-            {/* Card 3: Errors & Progress Percentage */}
-            <div className="col-span-2 sm:col-span-1 p-3 sm:p-3.5 rounded-2xl liquid-glass-pill border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between sm:justify-around">
+            <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl liquid-glass-pill border border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between sm:justify-around">
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
                   {t.errors}
                 </div>
-                <div className={`text-base font-mono font-bold ${errors > 0 ? 'text-rose-500 animate-pulse' : 'text-zinc-400'}`}>
+                <div className={`text-base font-mono font-bold ${errors > 0 ? 'text-rose-500' : 'text-zinc-500'}`}>
                   {errors}
                 </div>
               </div>
-              <div className="h-8 w-px bg-zinc-200 dark:bg-zinc-800 sm:block hidden" />
+              <div className="h-7 w-px bg-zinc-200 dark:bg-zinc-800 hidden sm:block" />
               <div className="text-right sm:text-left">
-                <div className="text-[11px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
                   {t.progress}
                 </div>
                 <div className="text-sm font-mono font-bold text-emerald-500">
@@ -222,55 +256,49 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
                 </div>
               </div>
             </div>
-
           </div>
 
-          {/* Visual Smooth Progress Bar */}
-          <div className="w-full bg-zinc-200/60 dark:bg-zinc-800/60 h-2 rounded-full overflow-hidden mt-3 p-0.5">
+          <div className="w-full bg-zinc-200/60 dark:bg-zinc-800/60 h-2 rounded-full overflow-hidden mt-3">
             <div
-              className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 h-full rounded-full transition-all duration-200 shadow-sm shadow-emerald-500/50"
+              className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 h-full rounded-full transition-all duration-150"
               style={{ width: `${Math.max(4, ((currentExpected - 1) / 25) * 100)}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Intro Card (before test starts) */}
       {!isActive && !isFinished && (
-        <div className="w-full rounded-3xl border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-100/50 dark:bg-zinc-900/40 flex flex-col items-center justify-center p-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-500 mb-4">
+        <div className="w-full rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col items-center justify-center p-8 text-center shadow-md">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4 border border-emerald-500/20">
             <Crosshair className="w-8 h-8" />
           </div>
           <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">{t.title}</h3>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mb-6">{t.subtitle}</p>
-          <Button variant="emerald" size="lg" onClick={handleStart} className="gap-2">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 max-w-md mb-6 leading-relaxed">{t.subtitle}</p>
+          <Button variant="emerald" size="lg" onClick={() => startExercise(false)} className="gap-2 cursor-pointer">
             <Play className="w-4 h-4" />
             <span>{t.startBtn}</span>
           </Button>
         </div>
       )}
 
-      {/* 5x5 Active Grid */}
       {isActive && (
         <>
-          <div className="w-full max-w-md aspect-square grid grid-cols-5 gap-2.5 p-3 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 shadow-2xl backdrop-blur-md">
-            {grid.map((num) => {
+          <div className="w-full max-w-md aspect-square grid grid-cols-5 gap-2 sm:gap-2.5 p-3 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xl">
+            {grid.map((num, idx) => {
               const isPassed = num < currentExpected
-              const isTarget = num === currentExpected
               const isError = wrongCell === num
-
               return (
                 <button
-                  key={num}
+                  key={`${idx}-${num}`}
+                  type="button"
                   onClick={() => handleCellClick(num)}
-                  className={`relative flex items-center justify-center rounded-2xl font-mono text-xl sm:text-2xl font-extrabold transition-all duration-100 active:scale-95 ${
+                  data-schulte-num={num}
+                  className={`relative flex items-center justify-center rounded-2xl font-mono text-lg sm:text-2xl font-extrabold transition-all duration-100 active:scale-95 cursor-pointer min-h-[48px] ${
                     isPassed
-                      ? 'bg-emerald-500/10 text-emerald-500/40 border border-emerald-500/20'
+                      ? 'bg-emerald-500/10 text-emerald-600/40 dark:text-emerald-400/35 border border-emerald-500/20'
                       : isError
-                      ? 'bg-rose-500 text-white animate-shake'
-                      : isTarget
-                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-300 dark:border-zinc-700 hover:border-emerald-500'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                      ? 'bg-rose-500 text-white border border-rose-600'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-500 hover:bg-emerald-500/5'
                   }`}
                 >
                   {num}
@@ -278,51 +306,45 @@ export const SchulteTableEngine: React.FC<SchulteTableEngineProps> = ({ lang, on
               )
             })}
           </div>
-
-          {/* Supportive Order Indicator Below the Grid */}
-          <div className="mt-4 flex flex-wrap items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 w-full max-w-md px-3 py-2 rounded-2xl liquid-glass-pill border border-zinc-200/60 dark:border-zinc-800">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span>{t.hintOrder}</span>
-            </div>
-            <span className="font-mono text-emerald-500 font-bold ml-auto">
-              {currentExpected} → 25
-            </span>
+          <div className="mt-4 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400 w-full max-w-md px-3 py-2 rounded-2xl liquid-glass-pill border border-zinc-200/60 dark:border-zinc-800">
+            <span>{t.hintOrder}</span>
+            <span className="font-mono text-emerald-500 font-bold">{currentExpected} → 25</span>
           </div>
         </>
       )}
 
-      {/* Finished Summary State */}
       {isFinished && (
         <div className="w-full rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center shadow-xl">
           <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-4">
             <Award className="w-8 h-8" />
           </div>
-          <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">{t.finishTitle}</h3>
+          <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-4">{t.finishTitle}</h3>
 
-          <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto my-6">
-            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/80">
-              <div className="text-xs text-zinc-500 mb-1">{t.time}</div>
-              <div className="text-3xl font-extrabold text-emerald-500 font-mono">
-                {elapsedSec.toFixed(1)}{' '}
-                <span className="text-sm font-normal text-zinc-400">{t.sec}</span>
+          <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto my-6">
+            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700">
+              <div className="text-xs text-zinc-500 mb-1">{t.totalTimeLabel}</div>
+              <div className="text-3xl font-black text-emerald-500 font-mono">
+                {elapsedSec.toFixed(1)} <span className="text-sm font-normal text-zinc-400">{t.sec}</span>
               </div>
             </div>
-            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/80 dark:border-zinc-700/80">
-              <div className="text-xs text-zinc-500 mb-1">{t.errors}</div>
-              <div className="text-3xl font-extrabold text-amber-500 font-mono">{errors}</div>
+            <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700">
+              <div className="text-xs text-zinc-500 mb-1">{t.avgStepLabel}</div>
+              <div className="text-3xl font-black text-cyan-500 font-mono">
+                {Math.round((elapsedSec * 1000) / 25)} <span className="text-sm font-normal text-zinc-400">{t.ms}</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-3 justify-center max-w-sm mx-auto">
-            <Button variant="outline" onClick={handleStart} className="gap-2 flex-1">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+            <Button variant="outline" onClick={() => startExercise(true)} className="gap-2 flex-1 cursor-pointer">
               <RotateCcw className="w-4 h-4" />
               <span>{t.tryAgain}</span>
             </Button>
-            <Button variant="emerald" onClick={handleFinish} className="gap-2 flex-1">
+            <Button
+              variant="emerald"
+              onClick={() => submitFinal(elapsedSec, errors)}
+              className="gap-2 flex-1 cursor-pointer"
+            >
               <CheckCircle className="w-4 h-4" />
               <span>{t.completeBtn}</span>
             </Button>

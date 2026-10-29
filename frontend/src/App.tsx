@@ -276,7 +276,7 @@ export default function App() {
       const newToast: ToastItem = { id, message, type }
 
       // 1. Show floating toast in the bottom right corner
-      setToasts((prev) => [...prev, newToast])
+      setToasts((prev) => [...prev, newToast].slice(-4))
 
       // 2. Also log every notification into the site Notification Center
       setNotifications((prev) => {
@@ -298,13 +298,13 @@ export default function App() {
       })
 
       // Auto-dismiss timeouts based on specification:
-      // Success: 4000ms, Info: 5000ms, Warning: 7000ms, Error: 8000ms
-      const timeoutMs =
-        type === 'success' ? 4000 : type === 'warning' ? 7000 : type === 'error' ? 8000 : 5000
-
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id))
-      }, timeoutMs)
+      // Success: 4000ms, Info: 5000ms, Warning: 7000ms, Critical/Error: persistent until closed
+      if (type !== 'error') {
+        const timeoutMs = type === 'success' ? 4000 : type === 'warning' ? 7000 : 5000
+        setTimeout(() => {
+          setToasts((prev) => prev.filter((t) => t.id !== id))
+        }, timeoutMs)
+      }
     },
     []
   )
@@ -688,7 +688,13 @@ export default function App() {
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-slate-950 px-4 py-2 text-center text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-lg animate-pulse">
           <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>Режим офлайн: подключение к серверу потеряно. Ваши ответы сохранены локально.</span>
+          <span>
+            {lang === 'tj'
+              ? 'Алоқа бо интернет канда шуд. Кӯшиши фаъол дар сервер ҳифз шудааст ва пас аз барқарор шудани шабака идома меёбад.'
+              : lang === 'en'
+              ? 'Network connection lost. Your active server attempt snapshot is preserved and can be resumed once back online.'
+              : 'Режим офлайн: соединение с сервером потеряно. Снимок активной попытки сохранён на сервере — прохождение можно продолжить после восстановления связи.'}
+          </span>
         </div>
       )}
       {/* Floating Dynamic Navbar */}

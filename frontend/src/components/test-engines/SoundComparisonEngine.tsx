@@ -1,136 +1,146 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Volume2, Play, RotateCcw, CheckCircle, Sparkles } from 'lucide-react'
 import { Button } from '../ui/Button'
-import type { Language } from '../../i18n'
+import { shuffleArray, type InteractiveEngineProps } from './engineTypes'
 
-interface SoundComparisonEngineProps {
-  lang: Language
-  challenge?: Record<string, unknown> | null
-  onComplete: (result: { summary: string; metrics: Record<string, unknown> }) => void
-}
-
-interface ToneTrial {
-  trial: number
+interface SoundTrial {
+  id: string
   freq_a: number
   freq_b: number
-  diff: 'higher' | 'lower' | 'same'
+  tone_ms?: number
+  gap_ms?: number
 }
 
-const BASE_FREQS = [350, 500, 750, 900, 1000, 1250, 1500, 2000, 2500, 3000]
+const DELTAS_PCT = [9.0, 6.0, 4.0, 2.8, 1.8, 1.2]
 
-function generateRandomToneTrials(): ToneTrial[] {
-  // 10 randomized trials: 4 higher, 4 lower, 2 same
-  const types: ('higher' | 'lower' | 'same')[] = [
-    'higher', 'higher', 'higher', 'higher',
-    'lower', 'lower', 'lower', 'lower',
-    'same', 'same'
-  ]
-  for (let i = types.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[types[i], types[j]] = [types[j], types[i]]
+function buildFallbackSoundTrials(): SoundTrial[] {
+  const specs: Array<{ delta: number; kind: 'higher' | 'lower' | 'same' }> = []
+  for (const d of DELTAS_PCT) {
+    specs.push({ delta: d, kind: 'higher' })
+    specs.push({ delta: d, kind: 'lower' })
   }
-
-  const shuffledFreqs = [...BASE_FREQS]
-  for (let i = shuffledFreqs.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffledFreqs[i], shuffledFreqs[j]] = [shuffledFreqs[j], shuffledFreqs[i]]
-  }
-
-  return types.map((diff, idx) => {
-    const freq_a = shuffledFreqs[idx] || 1000
-    const delta = Math.floor(35 + Math.random() * 45) // 35 - 80 Hz shift
-    let freq_b = freq_a
-    if (diff === 'higher') freq_b = freq_a + delta
-    else if (diff === 'lower') freq_b = freq_a - delta
-
+  specs.push({ delta: 0, kind: 'same' }, { delta: 0, kind: 'same' })
+  const shuffled = shuffleArray(specs)
+  return shuffled.map((sp, i) => {
+    const base = 500 + Math.floor(Math.random() * 110) * 10
+    let second = base
+    if (sp.kind === 'higher') second = Math.round(base * (1 + sp.delta / 100))
+    else if (sp.kind === 'lower') second = Math.round(base * (1 - sp.delta / 100))
     return {
-      trial: idx + 1,
-      freq_a,
-      freq_b,
-      diff,
+      id: `s${i + 1}`,
+      freq_a: base,
+      freq_b: second,
+      tone_ms: 650,
+      gap_ms: 450,
     }
   })
 }
 
-
-export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
+export const SoundComparisonEngine: React.FC<InteractiveEngineProps> = ({
   lang,
   challenge,
   onComplete,
+  onRequestNewTask,
 }) => {
+  const [trials, setTrials] = useState<SoundTrial[]>(() =>
+    Array.isArray(challenge?.trials) && challenge.trials.length > 0
+      ? (challenge.trials as Array<{ id?: string; trial?: number; freq_a: number; freq_b: number; tone_ms?: number; gap_ms?: number }>).map(
+          (tr, idx) => ({
+            id: tr.id || `s${tr.trial || idx + 1}`,
+            freq_a: tr.freq_a,
+            freq_b: tr.freq_b,
+            tone_ms: tr.tone_ms || 650,
+            gap_ms: tr.gap_ms || 450,
+          })
+        )
+      : buildFallbackSoundTrials()
+  )
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({})
   const [isPlaying, setIsPlaying] = useState(false)
   const [isActive, setIsActive] = useState(false)
   const [isFinished, setIsFinished] = useState(false)
-  const audioCtxRef = useRef<AudioContext | null>(null)
 
-  const [trials, setTrials] = useState<ToneTrial[]>(() => {
-    if (challenge && Array.isArray(challenge.trials) && challenge.trials.length > 0) {
-      return challenge.trials as ToneTrial[]
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const answersRef = useRef<Array<{ id: string; answer: 'higher' | 'lower' | 'same' }>>([])
+  const usedChallengeRef = useRef(false)
+
+  useEffect(() => {
+    if (Array.isArray(challenge?.trials) && challenge.trials.length > 0 && !isActive && !isFinished) {
+      setTrials(
+        (challenge.trials as Array<{ id?: string; trial?: number; freq_a: number; freq_b: number; tone_ms?: number; gap_ms?: number }>).map(
+          (tr, idx) => ({
+            id: tr.id || `s${tr.trial || idx + 1}`,
+            freq_a: tr.freq_a,
+            freq_b: tr.freq_b,
+            tone_ms: tr.tone_ms || 650,
+            gap_ms: tr.gap_ms || 450,
+          })
+        )
+      )
+      usedChallengeRef.current = false
     }
-    return generateRandomToneTrials()
-  })
+  }, [challenge, isActive, isFinished])
 
   const currentTrial = trials[currentIdx]
 
   const t = {
     ru: {
-      title: 'Сравнение звуков',
-      subtitle: 'Прослушайте два коротких звуковых сигнала и определите, как изменилась высота второго звука.',
-      startBtn: 'Начать тест слуха (10 проб)',
-      playTones: 'Воспроизвести пару звуков',
-      playing: 'Воспроизведение...',
-      question: 'Второй звук относительно первого был:',
-      higher: 'Выше по тону ↑',
-      same: 'Одинаковый =',
-      lower: 'Ниже по тону ↓',
-      volumeNotice: 'Рекомендуется комфортная громкость в наушниках (без превышения безопасного уровня).',
-      trialOf: 'Попытка',
+      title: 'Сравнение звуков (Различение высоты тона)',
+      subtitle: 'Прослушайте пару чистых тонов и определите, стал ли второй тон выше, ниже или остался таким же по высоте.',
+      startBtn: 'Начать проверку слуха',
+      playTones: 'Воспроизвести пару тонов',
+      playing: 'Звучит пара тонов...',
+      question: 'Второй тон по сравнению с первым:',
+      higher: 'Выше ↑',
+      same: 'Такой же =',
+      lower: 'Ниже ↓',
+      volumeNotice: 'Рекомендуется использовать наушники на комфортной громкости (40–60%).',
+      trialOf: 'Проба',
       of: 'из',
-      tryAgain: 'Пройти снова (10 новых случайных проб)',
-      saveBtn: 'Завершить и сохранить',
-      finishTitle: 'Тест различения звуков завершен!',
+      tryAgain: 'Новый вариант',
+      saveBtn: 'Показать подробный отчёт',
+      finishTitle: 'Сравнение звуков завершено!',
     },
     tj: {
-      title: 'Муқоисаи овозҳо',
-      subtitle: 'Ду садои кӯтоҳро гӯш кунед ва муайян намоед, ки баландии садои дуюм чӣ гуна тағйир ёфт.',
+      title: 'Муқоисаи овозҳо (Фарқкунии баландии садо)',
+      subtitle: 'Ду садои кӯтоҳро гӯш кунед ва муайян намоед, ки садои дуюм баландтар, пасттар ё якхела буд.',
       startBtn: 'Оғози санҷиши шунавоӣ',
       playTones: 'Пахши ҷуфти овозҳо',
       playing: 'Дар ҳоли пахш...',
-      question: 'Овози дуюм нисбат ба аввал чӣ гуна буд:',
+      question: 'Овози дуюм нисбат ба аввал:',
       higher: 'Баландтар ↑',
       same: 'Якхела =',
       lower: 'Пасттар ↓',
       volumeNotice: 'Гӯшмонакҳоро дар сатҳи бехатари овоз истифода баред.',
       trialOf: 'Кӯшиши',
       of: 'аз',
-      tryAgain: 'Аз нав гузаштан',
-      saveBtn: 'Анҷом ва сабт кардан',
+      tryAgain: 'Варианти нав',
+      saveBtn: 'Дидани ҳисоботи муфассал',
       finishTitle: 'Санҷиши муқоисаи овозҳо анҷом ёфт!',
     },
     en: {
-      title: 'Sound Comparison',
-      subtitle: 'Listen to two short acoustic tones and determine whether the second tone was higher, lower, or identical.',
-      startBtn: 'Start Tone Comparison',
+      title: 'Sound Pitch Comparison',
+      subtitle: 'Listen to two pure tones and judge whether the second tone is higher, lower, or identical in pitch.',
+      startBtn: 'Start Pitch Comparison',
       playTones: 'Play Tone Pair',
-      playing: 'Playing tones...',
-      question: 'The second tone compared to the first was:',
-      higher: 'Higher Pitch ↑',
-      same: 'Same Pitch =',
-      lower: 'Lower Pitch ↓',
-      volumeNotice: 'Please maintain a comfortable, safe listening volume in headphones.',
+      playing: 'Playing tone pair...',
+      question: 'Compared to the first tone, the second tone was:',
+      higher: 'Higher ↑',
+      same: 'Same =',
+      lower: 'Lower ↓',
+      volumeNotice: 'Headphones at a comfortable volume (40–60%) are recommended.',
       trialOf: 'Trial',
       of: 'of',
-      tryAgain: 'Try Again',
-      saveBtn: 'Complete and Save',
-      finishTitle: 'Sound comparison completed!',
+      tryAgain: 'New Variant',
+      saveBtn: 'View Detailed Report',
+      finishTitle: 'Sound Pitch Comparison Completed!',
     },
   }[lang]
 
   const getAudioContext = () => {
     if (!audioCtxRef.current) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const AudioCtx =
+        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       audioCtxRef.current = new AudioCtx()
     }
     if (audioCtxRef.current.state === 'suspended') {
@@ -139,57 +149,82 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
     return audioCtxRef.current
   }
 
-  const playTone = (freq: number, startTime: number, duration: number) => {
-    const ctx = getAudioContext()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(freq, startTime)
-
-    // Smooth envelope to prevent clicks
-    gain.gain.setValueAtTime(0.001, startTime)
-    gain.gain.exponentialRampToValueAtTime(0.15, startTime + 0.05)
-    gain.gain.setValueAtTime(0.15, startTime + duration - 0.05)
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
-
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-
-    osc.start(startTime)
-    osc.stop(startTime + duration)
+  const playTone = (freq: number, startTime: number, durationSec: number) => {
+    try {
+      const ctx = getAudioContext()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, startTime)
+      gain.gain.setValueAtTime(0.001, startTime)
+      gain.gain.exponentialRampToValueAtTime(0.15, startTime + 0.04)
+      gain.gain.setValueAtTime(0.15, startTime + durationSec - 0.04)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + durationSec)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(startTime)
+      osc.stop(startTime + durationSec)
+    } catch {
+      // Audio context unavailable in headless env
+    }
   }
 
-  const playTrialTones = () => {
-    if (!currentTrial || isPlaying) return
+  const playTrialTones = (trial?: SoundTrial) => {
+    const tr = trial || currentTrial
+    if (!tr || isPlaying) return
     setIsPlaying(true)
-    const ctx = getAudioContext()
-    const now = ctx.currentTime
-
-    // Tone 1: 400ms
-    playTone(currentTrial.freq_a, now + 0.1, 0.4)
-    // Tone 2: 400ms after 250ms silence
-    playTone(currentTrial.freq_b, now + 0.75, 0.4)
-
+    const toneSec = (tr.tone_ms || 650) / 1000
+    const gapSec = (tr.gap_ms || 450) / 1000
+    try {
+      const ctx = getAudioContext()
+      const now = ctx.currentTime
+      playTone(tr.freq_a, now + 0.08, toneSec)
+      playTone(tr.freq_b, now + 0.08 + toneSec + gapSec, toneSec)
+    } catch {
+      // ignore audio error in headless browser
+    }
     setTimeout(() => {
       setIsPlaying(false)
-    }, 1300)
+    }, Math.round((toneSec * 2 + gapSec + 0.15) * 1000))
   }
 
-  const handleStart = () => {
-    setTrials(generateRandomToneTrials())
+  const handleStart = (requestFresh = false) => {
+    if (requestFresh && onRequestNewTask) {
+      onRequestNewTask()
+    }
+    let nextTrials = trials
+    if (!usedChallengeRef.current && Array.isArray(challenge?.trials) && challenge.trials.length > 0) {
+      nextTrials = (challenge.trials as Array<{ id?: string; trial?: number; freq_a: number; freq_b: number; tone_ms?: number; gap_ms?: number }>).map(
+        (tr, idx) => ({
+          id: tr.id || `s${tr.trial || idx + 1}`,
+          freq_a: tr.freq_a,
+          freq_b: tr.freq_b,
+          tone_ms: tr.tone_ms || 650,
+          gap_ms: tr.gap_ms || 450,
+        })
+      )
+      setTrials(nextTrials)
+      usedChallengeRef.current = true
+    } else {
+      nextTrials = buildFallbackSoundTrials()
+      setTrials(nextTrials)
+    }
+
+    answersRef.current = []
     setCurrentIdx(0)
-    setUserAnswers({})
     setIsFinished(false)
     setIsActive(true)
+    setTimeout(() => playTrialTones(nextTrials[0]), 200)
   }
 
   const handleSelectChoice = (choice: 'higher' | 'lower' | 'same') => {
-    const nextAnswers = { ...userAnswers, [currentTrial.trial]: choice }
-    setUserAnswers(nextAnswers)
+    if (!isActive || isFinished || !currentTrial) return
+    answersRef.current.push({ id: currentTrial.id, answer: choice })
 
     if (currentIdx + 1 < trials.length) {
-      setCurrentIdx((i) => i + 1)
+      const nextIdx = currentIdx + 1
+      setCurrentIdx(nextIdx)
+      setTimeout(() => playTrialTones(trials[nextIdx]), 250)
     } else {
       setIsFinished(true)
     }
@@ -197,43 +232,68 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
 
   const handleSave = () => {
     let correct = 0
-    trials.forEach((tItem) => {
-      if (userAnswers[tItem.trial] === tItem.diff) {
-        correct += 1
+    let sameOk = 0
+    let sameTotal = 0
+    for (const tr of trials) {
+      const truth: 'higher' | 'lower' | 'same' =
+        tr.freq_b > tr.freq_a ? 'higher' : tr.freq_b < tr.freq_a ? 'lower' : 'same'
+      const given = answersRef.current.find((a) => a.id === tr.id)?.answer
+      if (truth === 'same') {
+        sameTotal += 1
+        if (given === 'same') sameOk += 1
       }
-    })
+      if (given === truth) correct += 1
+    }
     const total = trials.length
-    const accuracy = Math.round((correct / Math.max(1, total)) * 100)
+    const accuracyPct = Number(((correct / Math.max(1, total)) * 100).toFixed(1))
 
     onComplete({
-      summary: `${t.finishTitle} (${correct}/${total} верно, точность ${accuracy}%)`,
+      summary: `${t.finishTitle} (${correct}/${total}, ${accuracyPct}%)`,
       metrics: {
-        correct_trials: correct,
-        total_trials: total,
-        accuracy_pct: accuracy,
+        version: 2,
+        engine: 'sound_compare',
+        metrics: {
+          correct_count: correct,
+          total_trials: total,
+          accuracy_pct: accuracyPct,
+          smallest_reliable_delta_pct: null,
+          same_pairs_correct: sameOk,
+          same_pairs_total: sameTotal,
+        },
+        series: {
+          by_delta: [],
+        },
+      },
+      telemetry: {
+        answers: answersRef.current,
       },
     })
   }
 
   return (
-    <div className="space-y-6 max-w-xl mx-auto text-center">
+    <div className="space-y-6 max-w-xl mx-auto text-center select-none">
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-100 flex items-center justify-center gap-2">
           <Volume2 className="w-6 h-6 text-emerald-500" />
           <span>{t.title}</span>
         </h2>
-        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
+        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-md mx-auto leading-relaxed">
           {t.subtitle}
         </p>
       </div>
 
       {!isActive ? (
-        <div className="p-8 rounded-3xl liquid-glass border border-emerald-500/20 text-center space-y-5">
+        <div className="p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-center space-y-5 shadow-md">
           <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 text-emerald-500 mx-auto flex items-center justify-center border border-emerald-500/30">
             <Sparkles className="w-8 h-8" />
           </div>
-          <p className="text-xs text-zinc-400 max-w-sm mx-auto">{t.volumeNotice}</p>
-          <Button size="lg" variant="emerald" onClick={handleStart} className="gap-2 px-8 py-3.5 text-base font-bold shadow-lg shadow-emerald-600/30">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">{t.volumeNotice}</p>
+          <Button
+            size="lg"
+            variant="emerald"
+            onClick={() => handleStart(false)}
+            className="gap-2 px-8 py-3.5 text-base font-bold cursor-pointer"
+          >
             <Play className="w-5 h-5 fill-current" />
             <span>{t.startBtn}</span>
           </Button>
@@ -241,19 +301,28 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
       ) : !isFinished && currentTrial ? (
         <div className="space-y-6">
           <div className="flex items-center justify-between text-xs font-mono text-zinc-500 px-2">
-            <span>{t.trialOf} {currentIdx + 1} {t.of} {trials.length}</span>
-            <span className="text-emerald-500 font-bold">Прогресс: {Math.round(((currentIdx + 1) / trials.length) * 100)}%</span>
+            <span>
+              {t.trialOf} {currentIdx + 1} {t.of} {trials.length}
+            </span>
+            <span className="text-emerald-500 font-bold">
+              {Math.round(((currentIdx + 1) / trials.length) * 100)}%
+            </span>
           </div>
 
-          {/* Sound play button */}
-          <div className="p-8 rounded-3xl liquid-glass border border-emerald-500/20 space-y-4 text-center">
+          <div
+            data-sound-trial={currentTrial.id}
+            data-freq-a={currentTrial.freq_a}
+            data-freq-b={currentTrial.freq_b}
+            className="p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 space-y-4 text-center shadow-lg"
+          >
             <button
-              onClick={playTrialTones}
+              type="button"
+              onClick={() => playTrialTones(currentTrial)}
               disabled={isPlaying}
-              className={`w-24 h-24 rounded-full mx-auto flex items-center justify-center transition-all duration-300 shadow-xl ${
+              className={`w-24 h-24 rounded-full mx-auto flex items-center justify-center transition-all duration-200 shadow-xl cursor-pointer ${
                 isPlaying
-                  ? 'bg-emerald-500 text-white scale-110 shadow-emerald-500/50 animate-pulse'
-                  : 'bg-emerald-500/20 text-emerald-500 border-2 border-emerald-500/50 hover:bg-emerald-500 hover:text-white hover:scale-105 active:scale-95'
+                  ? 'bg-emerald-500 text-white scale-105 shadow-emerald-500/40'
+                  : 'bg-emerald-500/15 text-emerald-500 border-2 border-emerald-500/50 hover:bg-emerald-500 hover:text-white active:scale-95'
               }`}
             >
               <Volume2 className="w-10 h-10" />
@@ -263,28 +332,30 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
             </div>
           </div>
 
-          {/* Answer options */}
           <div className="space-y-3">
             <div className="text-xs font-medium text-zinc-500">{t.question}</div>
             <div className="grid grid-cols-3 gap-3">
               <Button
                 variant="outline"
+                data-sound-choice="higher"
                 onClick={() => handleSelectChoice('higher')}
-                className="py-3 text-xs sm:text-sm font-bold border-zinc-200 dark:border-zinc-800 hover:border-emerald-500 hover:text-emerald-500 liquid-glass-pill"
+                className="py-3 text-xs sm:text-sm font-bold cursor-pointer"
               >
                 {t.higher}
               </Button>
               <Button
                 variant="outline"
+                data-sound-choice="same"
                 onClick={() => handleSelectChoice('same')}
-                className="py-3 text-xs sm:text-sm font-bold border-zinc-200 dark:border-zinc-800 hover:border-emerald-500 hover:text-emerald-500 liquid-glass-pill"
+                className="py-3 text-xs sm:text-sm font-bold cursor-pointer"
               >
                 {t.same}
               </Button>
               <Button
                 variant="outline"
+                data-sound-choice="lower"
                 onClick={() => handleSelectChoice('lower')}
-                className="py-3 text-xs sm:text-sm font-bold border-zinc-200 dark:border-zinc-800 hover:border-emerald-500 hover:text-emerald-500 liquid-glass-pill"
+                className="py-3 text-xs sm:text-sm font-bold cursor-pointer"
               >
                 {t.lower}
               </Button>
@@ -292,15 +363,15 @@ export const SoundComparisonEngine: React.FC<SoundComparisonEngineProps> = ({
           </div>
         </div>
       ) : (
-        <div className="p-6 rounded-3xl liquid-glass border border-emerald-500/30 space-y-4 animate-in fade-in duration-300">
+        <div className="p-6 rounded-3xl border border-emerald-500/30 bg-white dark:bg-zinc-900 space-y-4 shadow-lg">
           <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
           <div className="text-base font-bold text-zinc-900 dark:text-zinc-100">{t.finishTitle}</div>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Button variant="outline" size="sm" onClick={handleStart} className="gap-1.5 liquid-glass-pill">
+            <Button variant="outline" size="sm" onClick={() => handleStart(true)} className="gap-1.5 cursor-pointer">
               <RotateCcw className="w-4 h-4" />
               <span>{t.tryAgain}</span>
             </Button>
-            <Button variant="emerald" size="sm" onClick={handleSave} className="gap-1.5 font-bold shadow-md shadow-emerald-600/30">
+            <Button variant="emerald" size="sm" onClick={handleSave} className="gap-1.5 font-bold cursor-pointer">
               <CheckCircle className="w-4 h-4" />
               <span>{t.saveBtn}</span>
             </Button>

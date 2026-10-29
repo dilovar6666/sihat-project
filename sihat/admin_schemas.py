@@ -59,6 +59,7 @@ class AdminCategoryOutput(BaseModel):
 class AdminTestUpdateInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    availability_status: Literal["published", "draft", "blocked"] | None = None
     guest_allowed: bool | None = None
     min_age: int | None = Field(default=None, ge=0, le=120)
     max_age: int | None = Field(default=None, ge=0, le=120)
@@ -73,6 +74,17 @@ class AdminTestUpdateInput(BaseModel):
     ) = None
     test_engine_key: str | None = None
     localizations: dict[str, dict[str, str]] | None = None
+
+
+class AdminPassportUpdateInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    version: str | None = None
+    evidence_status: str | None = None
+    source: str | None = None
+    limitations: str | None = None
+    disclaimer: str | None = None
 
 
 class ContentDraftInput(BaseModel):

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   ArrowRight,
   ShieldCheck,
@@ -10,14 +10,17 @@ import {
   RotateCcw,
   Eye,
   Sparkles,
+  Grid,
+  Zap,
+  Shapes,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
 import { Card } from './ui/Card'
-import { PseudoisochromaticPlateCanvas, pick10RandomPlates, type ClinicalPlate } from './test-engines/ColorPerceptionEngine'
 import type { Language, Translations } from '../i18n'
 import type { TestItem } from '../types'
 import { TestMarquee } from './TestMarquee'
+import { shuffleArray } from './test-engines/engineTypes'
 
 interface LandingHeroProps {
   t: Translations
@@ -29,6 +32,68 @@ interface LandingHeroProps {
   onStartScreening: (slug: string) => void
 }
 
+type DemoMode = 'schulte' | 'pattern' | 'reaction'
+
+interface PatternDemoQuestion {
+  seedId: string
+  sequence: { shape: 'circle' | 'square' | 'triangle' | 'diamond'; angle: number; count: number }[]
+  options: { id: number; shape: 'circle' | 'square' | 'triangle' | 'diamond'; angle: number; count: number; isCorrect: boolean }[]
+}
+
+function generatePatternDemoQuestion(): PatternDemoQuestion {
+  const allShapes: ('circle' | 'square' | 'triangle' | 'diamond')[] = ['circle', 'square', 'triangle', 'diamond']
+  const startIdx = Math.floor(Math.random() * allShapes.length)
+  const stepShape = Math.random() > 0.4 ? 1 : 0
+  const startAngle = [0, 45, 90][Math.floor(Math.random() * 3)]
+  const stepAngle = [45, 90][Math.floor(Math.random() * 2)]
+  const startCount = 1 + Math.floor(Math.random() * 2)
+  const stepCount = Math.random() > 0.5 ? 1 : 0
+
+  const sequence = [0, 1, 2, 3].map((i) => ({
+    shape: allShapes[(startIdx + i * stepShape) % allShapes.length],
+    angle: (startAngle + i * stepAngle) % 360,
+    count: ((startCount - 1 + i * stepCount) % 4) + 1,
+  }))
+
+  const answer = {
+    shape: allShapes[(startIdx + 4 * stepShape) % allShapes.length],
+    angle: (startAngle + 4 * stepAngle) % 360,
+    count: ((startCount - 1 + 4 * stepCount) % 4) + 1,
+  }
+
+  const distractors = [
+    {
+      shape: allShapes[(startIdx + 4 * stepShape + 1) % allShapes.length],
+      angle: answer.angle,
+      count: answer.count,
+      isCorrect: false,
+    },
+    {
+      shape: answer.shape,
+      angle: (answer.angle + 90) % 360,
+      count: answer.count,
+      isCorrect: false,
+    },
+    {
+      shape: allShapes[(startIdx + 4 * stepShape + 2) % allShapes.length],
+      angle: (answer.angle + 45) % 360,
+      count: (answer.count % 4) + 1,
+      isCorrect: false,
+    },
+  ]
+
+  const options = shuffleArray([{ ...answer, isCorrect: true }, ...distractors]).map((item, idx) => ({
+    ...item,
+    id: idx,
+  }))
+
+  return {
+    seedId: Math.random().toString(36).slice(2, 7).toUpperCase(),
+    sequence,
+    options,
+  }
+}
+
 export const LandingHero: React.FC<LandingHeroProps> = ({
   t,
   lang,
@@ -38,111 +103,164 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
   onSelectTest,
   onStartScreening,
 }) => {
-  // 10 randomized plates selected from the 50-plate library
-  const [activePlates, setActivePlates] = useState<ClinicalPlate[]>(() => pick10RandomPlates())
-  const [currentPlateIdx, setCurrentPlateIdx] = useState(0)
-  const [userAnswers, setUserAnswers] = useState<string[]>([])
-  const [isFinished, setIsFinished] = useState(false)
+  const [demoMode, setDemoMode] = useState<DemoMode>('schulte')
+  const [variantSeed, setVariantSeed] = useState<string>(() =>
+    Math.random().toString(36).slice(2, 7).toUpperCase()
+  )
 
-  const currentPlate = activePlates[currentPlateIdx] || activePlates[0]
+  // Mode 1: Mini Schulte 3x3 (1..9)
+  const [schulteGrid, setSchulteGrid] = useState<number[]>(() =>
+    shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9])
+  )
+  const [schulteNext, setSchulteNext] = useState(1)
+  const [schulteErrors, setSchulteErrors] = useState(0)
+  const [schulteStartMs, setSchulteStartMs] = useState<number | null>(null)
+  const [schulteElapsedSec, setSchulteElapsedSec] = useState<number | null>(null)
 
-  // Shuffled options for current plate so positions are randomized
-  const currentOptions = useMemo(() => {
-    if (!currentPlate) return []
-    const raw =
-      lang === 'tj'
-        ? currentPlate.optionsTj
-        : lang === 'en'
-        ? currentPlate.optionsEn
-        : currentPlate.optionsRu
-    const shuffled = [...raw]
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  // Mode 2: Pattern sequence
+  const [patternQ, setPatternQ] = useState<PatternDemoQuestion>(() => generatePatternDemoQuestion())
+  const [patternPicked, setPatternPicked] = useState<number | null>(null)
+
+  // Mode 3: Mini Reaction check
+  const [reactionState, setReactionState] = useState<'idle' | 'waiting' | 'ready' | 'done' | 'early'>('idle')
+  const [reactionMs, setReactionMs] = useState<number | null>(null)
+  const reactionTimerRef = useRef<number | null>(null)
+  const reactionShowAtRef = useRef<number>(0)
+
+  const clearReactionTimer = () => {
+    if (reactionTimerRef.current) {
+      window.clearTimeout(reactionTimerRef.current)
+      reactionTimerRef.current = null
     }
-    return shuffled
-  }, [currentPlate, lang])
+  }
 
-  const handleSelectOption = (opt: string) => {
-    const updated = [...userAnswers, opt]
-    setUserAnswers(updated)
-    if (currentPlateIdx < activePlates.length - 1) {
-      setCurrentPlateIdx((prev) => prev + 1)
+  useEffect(() => {
+    return () => clearReactionTimer()
+  }, [])
+
+  const generateNewDemoVariant = useCallback((nextMode?: DemoMode) => {
+    clearReactionTimer()
+    const targetMode = nextMode || demoMode
+    setVariantSeed(Math.random().toString(36).slice(2, 7).toUpperCase())
+
+    // Reset Schulte
+    setSchulteGrid(shuffleArray([1, 2, 3, 4, 5, 6, 7, 8, 9]))
+    setSchulteNext(1)
+    setSchulteErrors(0)
+    setSchulteStartMs(null)
+    setSchulteElapsedSec(null)
+
+    // Reset Pattern
+    setPatternQ(generatePatternDemoQuestion())
+    setPatternPicked(null)
+
+    // Reset Reaction
+    setReactionState('idle')
+    setReactionMs(null)
+
+    if (nextMode) {
+      setDemoMode(targetMode)
+    }
+  }, [demoMode])
+
+  const handleSchulteCellClick = (num: number) => {
+    if (schulteElapsedSec !== null) return
+    const now = performance.now()
+    const start = schulteStartMs ?? now
+    if (schulteStartMs === null) {
+      setSchulteStartMs(now)
+    }
+    if (num === schulteNext) {
+      if (num === 9) {
+        const sec = Math.max(1.2, Math.round(((now - start) / 1000) * 100) / 100)
+        setSchulteElapsedSec(sec)
+      } else {
+        setSchulteNext(num + 1)
+      }
     } else {
-      setIsFinished(true)
+      setSchulteErrors((prev) => prev + 1)
     }
   }
 
-  const handleResetMiniTest = () => {
-    setActivePlates(pick10RandomPlates())
-    setCurrentPlateIdx(0)
-    setUserAnswers([])
-    setIsFinished(false)
+  const handleReactionStart = () => {
+    clearReactionTimer()
+    setReactionMs(null)
+    setReactionState('waiting')
+    const waitMs = 1100 + Math.floor(Math.random() * 1600)
+    reactionTimerRef.current = window.setTimeout(() => {
+      reactionShowAtRef.current = performance.now()
+      setReactionState('ready')
+    }, waitMs)
   }
 
-  const getPromptText = () => {
-    if (!currentPlate) return ''
-    if (currentPlate.type === 'number') {
-      return lang === 'tj'
-        ? 'Кадом рақамро дар дохили доира мебинед?'
-        : lang === 'en'
-        ? 'Which number do you perceive inside the circle?'
-        : 'Какое число вы видите внутри круга?'
+  const handleReactionTap = () => {
+    if (reactionState === 'waiting') {
+      clearReactionTimer()
+      setReactionState('early')
+    } else if (reactionState === 'ready') {
+      const rt = Math.max(110, Math.round(performance.now() - reactionShowAtRef.current))
+      setReactionMs(rt)
+      setReactionState('done')
     }
-    if (currentPlate.type === 'letter') {
-      return lang === 'tj'
-        ? 'Кадом ҳарфро дар дохили доира мебинед?'
-        : lang === 'en'
-        ? 'Which letter do you perceive inside the circle?'
-        : 'Какую букву вы видите внутри круга?'
-    }
-    if (
-      currentPlate.type === 'circle-triangle' ||
-      currentPlate.type === 'square-circle' ||
-      currentPlate.type === 'triangle-square' ||
-      currentPlate.type === 'star-circle' ||
-      currentPlate.type === 'diamond-triangle'
-    ) {
-      return lang === 'tj'
-        ? 'Кадом шаклҳоро дар дохили доира мебинед?'
-        : lang === 'en'
-        ? 'Which shapes do you perceive inside the circle?'
-        : 'Какие фигуры вы видите внутри круга?'
-    }
-    return lang === 'tj'
-      ? 'Кадом шаклро дар дохили доира мебинед?'
-      : lang === 'en'
-      ? 'Which shape do you perceive inside the circle?'
-      : 'Какую фигуру вы видите внутри круга?'
   }
 
-  const heroBadge = lang === 'ru' 
-    ? 'SIHAT 3.0 • Доказательный HealthTech без псевдодиагнозов'
-    : lang === 'tj'
-    ? 'SIHAT 3.0 • HealthTech-и исботшуда бе ташхиси бардурӯғ'
-    : 'SIHAT 3.0 • Evidence-Bounded HealthTech Without Fake Scores'
+  const renderShapeGlyph = (
+    shape: 'circle' | 'square' | 'triangle' | 'diamond',
+    angle: number,
+    count: number
+  ) => (
+    <svg viewBox="0 0 60 60" className="w-11 h-11 text-emerald-600 dark:text-emerald-400">
+      <g transform={`rotate(${angle} 30 30)`}>
+        {shape === 'circle' && <circle cx="30" cy="30" r="16" fill="none" stroke="currentColor" strokeWidth="3.5" />}
+        {shape === 'square' && <rect x="15" y="15" width="30" height="30" rx="4" fill="none" stroke="currentColor" strokeWidth="3.5" />}
+        {shape === 'triangle' && <polygon points="30,12 47,44 13,44" fill="none" stroke="currentColor" strokeWidth="3.5" />}
+        {shape === 'diamond' && <polygon points="30,11 49,30 30,49 11,30" fill="none" stroke="currentColor" strokeWidth="3.5" />}
+        <circle cx="30" cy="14" r="3" fill="currentColor" />
+      </g>
+      <text x="50" y="54" fontSize="11" fontWeight="bold" fill="currentColor" textAnchor="end">
+        ×{count}
+      </text>
+    </svg>
+  )
 
-  const heroTitle = lang === 'ru'
-    ? 'Где забота о здоровье встречает'
-    : lang === 'tj'
-    ? 'Дар куҷое, ки ғамхорӣ ба саломатӣ ба'
-    : 'Where Health Care Meets'
+  const heroBadge =
+    lang === 'ru'
+      ? 'SIHAT 3.0 • Интерактивный когнитивный и сенсорный скрининг'
+      : lang === 'tj'
+      ? 'SIHAT 3.0 • Скрининги интерактивии маърифатӣ ва сенсорӣ'
+      : 'SIHAT 3.0 • Interactive Cognitive & Sensory Screening'
 
-  const heroHighlight = lang === 'ru'
-    ? 'научную ясность.'
-    : lang === 'tj'
-    ? 'равшании илмӣ мерасад.'
-    : 'Scientific Clarity.'
+  const heroTitle =
+    lang === 'ru'
+      ? 'Где забота о здоровье встречает'
+      : lang === 'tj'
+      ? 'Дар куҷое, ки ғамхорӣ ба саломатӣ ба'
+      : 'Where Health Care Meets'
 
-  const heroSubtitle = lang === 'ru'
-    ? '15 интерактивных скринингов сенсорных и моторных функций. Открытые паспорта методик, доказательная медицина и строгая конфиденциальность с правом на немедленное удаление.'
-    : lang === 'tj'
-    ? '15 санҷиши интерактивии функсияҳои сенсорӣ ва моторӣ. Шиносномаҳои озоди методӣ, тибби исботшуда ва махфияти комил.'
-    : '15 interactive screenings of sensory and motor functions. Transparent methodology passports, evidence-based medicine, and strict privacy with immediate deletion rights.'
+  const heroHighlight =
+    lang === 'ru'
+      ? 'научную ясность.'
+      : lang === 'tj'
+      ? 'равшании илмӣ мерасад.'
+      : 'Scientific Clarity.'
+
+  const heroSubtitle =
+    lang === 'ru'
+      ? '15 интерактивных упражнений для проверки внимания, памяти, зрительного восприятия, слуха и координации. Динамическая генерация заданий, прозрачные паспорта методик и полный контроль над сохранением результатов.'
+      : lang === 'tj'
+      ? '15 машқи интерактивӣ барои санҷиши таваҷҷуҳ, хотира, дарки визуалӣ, шунавоӣ ва ҳамоҳангӣ. Генератсияи динамикии супоришҳо ва шиносномаҳои кушодаи методӣ.'
+      : '15 interactive exercises for attention, memory, visual perception, hearing, and motor coordination. Dynamic server-generated tasks, transparent methodology passports, and full privacy control.'
+
+  const activeFullSlug =
+    demoMode === 'schulte'
+      ? 'attention-concentration'
+      : demoMode === 'pattern'
+      ? 'pattern-matrix'
+      : 'reaction-speed'
 
   return (
     <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden">
-      {/* Cinematic Hero Background Image with Smart Scrim - "чтобы было видно, но не мозолило глаза" */}
+      {/* Background Image with Scrim */}
       <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-0">
         <div
           className="absolute inset-0 overflow-hidden"
@@ -153,17 +271,11 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
         >
           <img
             src="/hero-bg.jpg"
-            alt="SIHAT Clinical Screening Environment"
+            alt="SIHAT Screening Environment"
             className="w-full h-full object-cover object-[70%_25%] md:object-[68%_30%] transition-opacity duration-700 opacity-30 dark:opacity-75 filter contrast-[1.04] brightness-[0.92]"
           />
-
-          {/* Theme-adaptive Scrim for eye comfort and text legibility */}
-          <div
-            className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_32%,rgba(250,250,250,0.85)_0%,rgba(250,250,250,0.6)_55%,rgba(250,250,250,0.96)_100%)] dark:bg-[radial-gradient(ellipse_at_50%_32%,rgba(7,11,10,0.78)_0%,rgba(7,11,10,0.52)_55%,rgba(7,11,10,0.88)_100%)]"
-          />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_32%,rgba(250,250,250,0.85)_0%,rgba(250,250,250,0.6)_55%,rgba(250,250,250,0.96)_100%)] dark:bg-[radial-gradient(ellipse_at_50%_32%,rgba(7,11,10,0.78)_0%,rgba(7,11,10,0.52)_55%,rgba(7,11,10,0.88)_100%)]" />
         </div>
-
-        {/* Ambient volumetric glow aligned with the monitor's LED strip */}
         <div className="absolute top-1/4 right-1/4 w-[520px] h-[340px] bg-emerald-500/15 dark:bg-emerald-400/20 blur-[130px] rounded-full pointer-events-none mix-blend-screen" />
       </div>
 
@@ -211,7 +323,13 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
             className="w-full sm:w-auto gap-2 text-base"
           >
             <Compass className="w-4 h-4 text-emerald-500" />
-            <span>{lang === 'ru' ? 'Изучить паспорта методик' : lang === 'tj' ? 'Шиносномаҳои методӣ' : 'Methodology Passports'}</span>
+            <span>
+              {lang === 'ru'
+                ? 'Изучить паспорта методик'
+                : lang === 'tj'
+                ? 'Шиносномаҳои методӣ'
+                : 'Methodology Passports'}
+            </span>
           </Button>
         </div>
 
@@ -226,7 +344,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                 {lang === 'tj' ? 'Бе ташхис' : lang === 'en' ? 'No Diagnoses' : 'Без диагнозов'}
               </div>
               <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                {lang === 'tj' ? 'Танҳо ченакҳои сенсорӣ' : lang === 'en' ? 'Only Sensory Metrics' : 'Только сенсорные метрики'}
+                {lang === 'tj' ? 'Танҳо ченакҳои дақиқ' : lang === 'en' ? 'Objective Metrics Only' : 'Объективные метрики'}
               </div>
             </div>
           </div>
@@ -251,10 +369,10 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
             </div>
             <div>
               <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                {lang === 'tj' ? '15 методика' : lang === 'en' ? '15 Methods' : '15 методик'}
+                {lang === 'tj' ? '15 машқ' : lang === 'en' ? '15 Exercises' : '15 упражнений'}
               </div>
               <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                {lang === 'tj' ? 'Дальтонизм, Струп, реаксия' : lang === 'en' ? 'Color vision, Stroop, Reaction' : 'Дальтонизм, Струп, реакция'}
+                {lang === 'tj' ? 'Шулте, Корси, Габор' : lang === 'en' ? 'Schulte, Corsi, Gabor' : 'Шульте, Корси, Габор'}
               </div>
             </div>
           </div>
@@ -272,193 +390,374 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
           </div>
         </div>
 
-        {/* Real Interactive Screening for Color Blindness (Ishihara / Rabkin Mini-Test) */}
+        {/* Dynamic Interactive Demo Card */}
         <div className="mt-14 text-left">
           <Card className="p-6 md:p-8 liquid-glass shadow-2xl overflow-hidden relative rounded-3xl">
+            {/* Mode Switcher + Try Another Variant Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-6 mb-6 border-b border-zinc-200/70 dark:border-zinc-800/80">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => generateNewDemoVariant('schulte')}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    demoMode === 'schulte'
+                      ? 'bg-[#103D35] text-white shadow-sm'
+                      : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 hover:text-emerald-600'
+                  }`}
+                >
+                  <Grid className="w-3.5 h-3.5" />
+                  <span>{lang === 'tj' ? 'Ҷадвали Шулте 3×3' : lang === 'en' ? 'Schulte 3×3' : 'Таблица Шульте 3×3'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generateNewDemoVariant('pattern')}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    demoMode === 'pattern'
+                      ? 'bg-[#103D35] text-white shadow-sm'
+                      : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 hover:text-emerald-600'
+                  }`}
+                >
+                  <Shapes className="w-3.5 h-3.5" />
+                  <span>
+                    {lang === 'tj' ? 'Пайдарпайии шаклҳо' : lang === 'en' ? 'Pattern Sequence' : 'Продолжи ряд'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generateNewDemoVariant('reaction')}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    demoMode === 'reaction'
+                      ? 'bg-[#103D35] text-white shadow-sm'
+                      : 'bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-300 hover:text-emerald-600'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>
+                    {lang === 'tj' ? 'Суръати вокуниш' : lang === 'en' ? 'Reaction Speed' : 'Скорость реакции'}
+                  </span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => generateNewDemoVariant()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>
+                  {lang === 'tj'
+                    ? 'Варианти дигарро санҷед'
+                    : lang === 'en'
+                    ? 'Try another variant'
+                    : 'Попробовать другой вариант'}
+                </span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              
-              {/* Left Column: Interactive Ishihara Plate OR Gated Result State */}
-              <div className="lg:col-span-6 liquid-glass rounded-3xl p-6 flex flex-col items-center justify-center min-h-[340px] relative shadow-inner">
-                {!isFinished ? (
-                  <>
-                    <div className="w-full flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-                        <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                          {lang === 'tj' ? currentPlate.labelTj : lang === 'en' ? currentPlate.labelEn : currentPlate.labelRu}
-                        </span>
+              {/* Left Column: Interactive Mini-Exercise Stage */}
+              <div className="lg:col-span-6 liquid-glass rounded-3xl p-6 flex flex-col items-center justify-center min-h-[320px] relative shadow-inner">
+                <div className="w-full flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                      {lang === 'tj'
+                        ? `Намунаи интерактивӣ #${variantSeed}`
+                        : lang === 'en'
+                        ? `Interactive Demo #${variantSeed}`
+                        : `Демо-вариант #${variantSeed}`}
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] font-mono">
+                    {demoMode === 'schulte' ? '3×3 (1→9)' : demoMode === 'pattern' ? 'SVG Logic' : 'Latency ms'}
+                  </Badge>
+                </div>
+
+                {demoMode === 'schulte' && (
+                  <div className="w-full flex flex-col items-center">
+                    {schulteElapsedSec === null ? (
+                      <>
+                        <div className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-3">
+                          {lang === 'tj'
+                            ? `Рақамҳоро аз 1 то 9 пахш кунед • Ҳадафи ҷорӣ: ${schulteNext}`
+                            : lang === 'en'
+                            ? `Tap numbers in order 1 → 9 • Current target: ${schulteNext}`
+                            : `Нажимайте числа по порядку от 1 до 9 • Ищите: ${schulteNext}`}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2.5 w-full max-w-[240px]">
+                          {schulteGrid.map((num) => {
+                            const done = num < schulteNext
+                            return (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => handleSchulteCellClick(num)}
+                                className={`h-16 rounded-2xl font-mono text-xl font-black border transition-all cursor-pointer ${
+                                  done
+                                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 scale-95'
+                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 hover:border-emerald-500 shadow-xs'
+                                }`}
+                              >
+                                {num}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center space-y-3 py-4">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center mx-auto">
+                          <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <div className="text-2xl font-mono font-black text-emerald-600 dark:text-emerald-400">
+                          {schulteElapsedSec} {lang === 'en' ? 's' : 'сек'}
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {lang === 'tj'
+                            ? `Хатоҳо: ${schulteErrors}. Барои ҷадвали пурраи 5×5 (1–25) машқро кушоед.`
+                            : lang === 'en'
+                            ? `Errors: ${schulteErrors}. Launch the full 5×5 (1–25) Schulte table for complete metrics.`
+                            : `Ошибок: ${schulteErrors}. Запустите полную таблицу 5×5 (1–25) для расчёта индекса внимания.`}
+                        </p>
                       </div>
-                      <Badge variant="outline" className="text-[10px] font-mono">
-                        {currentPlateIdx + 1} / {activePlates.length}
-                      </Badge>
-                    </div>
+                    )}
+                  </div>
+                )}
 
-                    {/* Canvas Plate */}
-                    <div className="my-2 transition-transform duration-200 hover:scale-[1.02]">
-                      <PseudoisochromaticPlateCanvas plate={currentPlate} size={230} />
+                {demoMode === 'pattern' && (
+                  <div className="w-full flex flex-col items-center space-y-4">
+                    <div className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 text-center">
+                      {lang === 'tj'
+                        ? 'Кадом шакл пайдарпайиро давом медиҳад?'
+                        : lang === 'en'
+                        ? 'Which element completes the visual sequence?'
+                        : 'Какой элемент продолжает логическую последовательность?'}
                     </div>
-
-                    <div className="text-xs text-zinc-600 dark:text-zinc-400 my-3 font-semibold text-center">
-                      {getPromptText()}
-                    </div>
-
-                    {/* Interactive Choice Buttons (Dynamic Grid) */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full max-w-sm">
-                      {currentOptions.map((opt) => (
-                        <Button
-                          key={opt}
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSelectOption(opt)}
-                          className="h-9 font-bold text-xs hover:border-emerald-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-500/10 transition-all shadow-xs truncate px-2"
+                    <div className="grid grid-cols-5 gap-2 w-full max-w-sm">
+                      {patternQ.sequence.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="h-16 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center"
                         >
-                          {opt}
-                        </Button>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  /* Gated Completion State (User requirement: результат только когда нажмет полный) */
-                  <div className="w-full flex flex-col items-center justify-center text-center p-2 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-500 flex items-center justify-center border border-amber-500/30 shadow-lg shadow-amber-500/10">
-                      <Lock className="w-7 h-7" />
-                    </div>
-
-                    <div>
-                      <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center justify-center gap-2">
-                        <span>{lang === 'tj' ? 'Санҷиш анҷом ёфт (10 ҷадвал)' : lang === 'en' ? 'Test Completed (10 Plates)' : 'Тест завершён (10 таблиц)'}</span>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      </h4>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                        {lang === 'tj'
-                          ? `${activePlates.length} аз ${activePlates.length} посух дар хотираи маҳаллӣ сабт шуд`
-                          : lang === 'en'
-                          ? `${activePlates.length} of ${activePlates.length} plate responses securely recorded`
-                          : `${activePlates.length} из ${activePlates.length} ответов сохранены в защищённой памяти`}
-                      </p>
-                    </div>
-
-                    {/* Recorded Answers Status for all 10 plates */}
-                    <div className="w-full max-h-48 overflow-y-auto space-y-1.5 bg-zinc-50 dark:bg-zinc-900/60 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-left text-xs">
-                      {activePlates.map((p, idx) => (
-                        <div key={`${p.id}-${idx}`} className="flex items-center justify-between">
-                          <span className="text-zinc-600 dark:text-zinc-400 text-[11px] truncate pr-2">
-                            #{idx + 1} {lang === 'tj' ? p.labelTj : lang === 'en' ? p.labelEn : p.labelRu}:
-                          </span>
-                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1 shrink-0">
-                            <CheckCircle2 className="w-3 h-3" />
-                            {userAnswers[idx] ? `«${userAnswers[idx]}»` : 'Зафиксировано'}
-                          </span>
+                          {renderShapeGlyph(item.shape, item.angle, item.count)}
                         </div>
                       ))}
+                      <div className="h-16 rounded-xl border-2 border-dashed border-emerald-500/50 bg-emerald-500/5 flex items-center justify-center font-mono font-black text-lg text-emerald-600 dark:text-emerald-400">
+                        ?
+                      </div>
                     </div>
 
-                    {/* Teaser: Redacted Clinical Metric */}
-                    <div className="w-full p-2.5 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400 text-[11px] flex items-center justify-center gap-2 font-mono">
-                      <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>{lang === 'tj' ? 'Хулосаи клиникӣ: [Басташуда]' : lang === 'en' ? 'Clinical Verdict: [Locked]' : 'Клинический вердикт: [Заблокировано]'}</span>
+                    <div className="grid grid-cols-4 gap-2 w-full max-w-sm pt-1">
+                      {patternQ.options.map((opt) => {
+                        const isSelected = patternPicked === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setPatternPicked(opt.id)}
+                            className={`h-16 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                              isSelected
+                                ? opt.isCorrect
+                                  ? 'border-emerald-500 bg-emerald-500/15'
+                                  : 'border-rose-500 bg-rose-500/15'
+                                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 hover:border-emerald-500'
+                            }`}
+                          >
+                            {renderShapeGlyph(opt.shape, opt.angle, opt.count)}
+                          </button>
+                        )
+                      })}
                     </div>
 
-                    <button
-                      onClick={handleResetMiniTest}
-                      className="text-[11px] text-zinc-500 hover:text-emerald-500 underline flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>{lang === 'tj' ? 'Аз нав гузаштан (10 ҷадвали нави тасодуфӣ)' : lang === 'en' ? 'Retry with 10 new random plates' : 'Пройти заново (10 новых случайных таблиц)'}</span>
-                    </button>
+                    {patternPicked !== null && (
+                      <div className="text-xs font-bold text-center">
+                        {patternQ.options.find((o) => o.id === patternPicked)?.isCorrect ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            {lang === 'tj'
+                              ? 'Дуруст! Қонуният муайян шуд.'
+                              : lang === 'en'
+                              ? 'Correct! Pattern rule identified.'
+                              : 'Верно! Закономерность определена точно.'}
+                          </span>
+                        ) : (
+                          <span className="text-rose-500">
+                            {lang === 'tj'
+                              ? 'Нодуруст — варианти дигарро санҷед.'
+                              : lang === 'en'
+                              ? 'Not quite — try another option or variant.'
+                              : 'Неверно — обратите внимание на поворот и число элементов.'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {demoMode === 'reaction' && (
+                  <div className="w-full flex flex-col items-center justify-center">
+                    {reactionState === 'idle' && (
+                      <button
+                        type="button"
+                        onClick={handleReactionStart}
+                        className="w-full max-w-xs h-44 rounded-3xl bg-zinc-900 text-white flex flex-col items-center justify-center gap-2 border border-zinc-700 hover:border-emerald-500 transition-all cursor-pointer shadow-lg"
+                      >
+                        <Zap className="w-8 h-8 text-emerald-400" />
+                        <span className="font-bold text-sm">
+                          {lang === 'tj'
+                            ? 'Барои оғоз пахш кунед'
+                            : lang === 'en'
+                            ? 'Click to Start Reaction Check'
+                            : 'Нажмите, чтобы начать замер'}
+                        </span>
+                      </button>
+                    )}
+
+                    {reactionState === 'waiting' && (
+                      <button
+                        type="button"
+                        onClick={handleReactionTap}
+                        className="w-full max-w-xs h-44 rounded-3xl bg-amber-500/20 border-2 border-amber-500/50 text-amber-700 dark:text-amber-300 flex flex-col items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <span className="font-bold text-base">
+                          {lang === 'tj'
+                            ? 'Ранги сабзро интизор шавед...'
+                            : lang === 'en'
+                            ? 'Wait for GREEN signal...'
+                            : 'Ждите зелёного сигнала...'}
+                        </span>
+                      </button>
+                    )}
+
+                    {reactionState === 'ready' && (
+                      <button
+                        type="button"
+                        onClick={handleReactionTap}
+                        className="w-full max-w-xs h-44 rounded-3xl bg-emerald-500 text-white flex flex-col items-center justify-center gap-2 cursor-pointer shadow-xl shadow-emerald-500/30"
+                      >
+                        <span className="font-black text-xl uppercase tracking-wide">
+                          {lang === 'tj' ? 'ҲОЗИР ПАХШ КУНЕД!' : lang === 'en' ? 'CLICK NOW!' : 'ЖМИТЕ СЕЙЧАС!'}
+                        </span>
+                      </button>
+                    )}
+
+                    {reactionState === 'early' && (
+                      <div className="text-center space-y-3 py-4">
+                        <p className="text-sm font-bold text-rose-500">
+                          {lang === 'tj'
+                            ? 'Фалстарт! Пеш аз сигнал пахш кардед.'
+                            : lang === 'en'
+                            ? 'Too early! Wait for the green signal.'
+                            : 'Фальстарт! Вы нажали до появления сигнала.'}
+                        </p>
+                        <Button size="sm" variant="outline" onClick={handleReactionStart}>
+                          {lang === 'tj' ? 'Аз нав' : lang === 'en' ? 'Try Again' : 'Повторить'}
+                        </Button>
+                      </div>
+                    )}
+
+                    {reactionState === 'done' && (
+                      <div className="text-center space-y-3 py-4">
+                        <div className="text-3xl font-mono font-black text-emerald-600 dark:text-emerald-400">
+                          {reactionMs} {lang === 'en' ? 'ms' : 'мс'}
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {lang === 'tj'
+                            ? 'Вақти вокуниши шумо сабт шуд.'
+                            : lang === 'en'
+                            ? 'Visuomotor response latency recorded.'
+                            : 'Время зрительно-моторного отклика зафиксировано.'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Right Column: Telemetry & Gate Call-to-Action */}
+              {/* Right Column: Description & Launch Full Exercise */}
               <div className="lg:col-span-6 flex flex-col justify-between h-full space-y-5">
                 <div>
                   <Badge variant="emerald" className="mb-3 font-mono">
-                    {isFinished
-                      ? (lang === 'tj' ? 'Посухҳо сабт шуданд' : lang === 'en' ? 'Responses Stored' : 'Ответы зафиксированы')
-                      : (lang === 'tj' ? 'Санҷиши биноии рангӣ' : lang === 'en' ? 'Color Perception Screening' : 'Тест на дальтонизм')}
+                    {lang === 'tj'
+                      ? 'Генератори динамикии супоришҳо'
+                      : lang === 'en'
+                      ? 'Dynamic Task Generator'
+                      : 'Динамический генератор вариантов'}
                   </Badge>
 
                   <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                    {isFinished
-                      ? (lang === 'tj'
-                          ? 'Натиҷаҳо дар контури пӯшида маҳфузанд'
-                          : lang === 'en'
-                          ? 'Results Ready for Full Decryption'
-                          : 'Результат зафиксирован в закрытом контуре')
-                      : (lang === 'tj'
-                          ? 'Санҷиши зуд барои дальтонизм'
-                          : lang === 'en'
-                          ? 'Color Vision Mini-Screening'
-                          : 'Экспресс-тест на дальтонизм')}
+                    {demoMode === 'schulte'
+                      ? lang === 'tj'
+                        ? 'Санҷиши суръати ҷустуҷӯи визуалӣ'
+                        : lang === 'en'
+                        ? 'Visual Search & Attention Tempo'
+                        : 'Концентрация и темп внимания (Таблицы Шульте)'
+                      : demoMode === 'pattern'
+                      ? lang === 'tj'
+                        ? 'Таҳлили пайдарпайиҳои визуалӣ'
+                        : lang === 'en'
+                        ? 'Inductive Visual Pattern Analysis'
+                        : 'Продолжи последовательность (Зрительная логика)'
+                      : lang === 'tj'
+                      ? 'Хронометражи реаксияи сенсомоторӣ'
+                      : lang === 'en'
+                      ? 'Visuomotor Reaction Chronometry'
+                      : 'Хронометраж зрительно-моторной реакции'}
                   </h3>
 
                   <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">
-                    {isFinished
-                      ? (lang === 'tj'
-                          ? 'Шумо ҳамаи 10 лавҳаи тасодуфиро посух додед. Барои кушодани шарҳи мукаммали клиникӣ (ташхиси дейтеранопия, протанопия ва ахроматопсия), спектрограмма ва содироти шиносномаи расмии тиббии PDF — тугмаи «Оғози скрининги комил»-ро пахш намоед.'
-                          : lang === 'en'
-                          ? 'You have completed all 10 randomized test plates. To decrypt the full clinical evaluation (differential analysis of deutan, protan, and tritan defects), view full hue spectrogram, and export official PDF passport — click "Launch Full Screening".'
-                          : 'Вы успешно ответили на все 10 случайно отобранных таблиц. Чтобы расшифровать клинический вердикт (дифференциация протанопии, дейтераномалии и ахроматопсии по стандарту Рабкина), спектрограмму и получить официальный медицинский PDF-паспорт — нажмите кнопку ниже.')
-                      : (lang === 'tj'
-                          ? 'Арзёбии фаврии қобилияти системаи биноӣ барои фарқ кардани дарозии мавҷҳои сурх ва сабз (колбачаҳои L ва M) дар матритсаи нуқтавии полихроматикӣ.'
-                          : lang === 'en'
-                          ? 'Rapid screening of the visual pathway capacity to discriminate red and green wavelengths (L and M cones) embedded in a pseudoisochromatic dot matrix.'
-                          : 'Оценка способности зрительной системы различать длины волн красного и зелёного спектров (колбочки L и M) внутри псевдоизохроматической точечной матрицы.')}
+                    {lang === 'tj'
+                      ? 'Ҳангоми ҳар як оғози нав сервер варианти тасодуфии супоришро эҷод мекунад. Дар ин ҷо шумо метавонед версияи кӯтоҳро санҷед ё ба машқи пурра бо графики натиҷаҳо ва содироти PDF гузаред.'
+                      : lang === 'en'
+                      ? 'Every new attempt generates a fresh randomized task on the server. Try the mini-exercise here or launch the full protocol with detailed charts and PDF report export.'
+                      : 'При каждом новом прохождении сервер создаёт уникальный вариант задания: меняются расстановки чисел, последовательности, маршруты и стимулы. Попробуйте мини-версию прямо здесь или перейдите к полному упражнению.'}
                   </p>
                 </div>
 
-                {/* Progress / Status Bar Card */}
-                <div className="space-y-3 bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <div className="flex justify-between items-center text-xs">
+                <div className="space-y-2.5 bg-zinc-50 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs">
+                  <div className="flex justify-between items-center">
                     <span className="text-zinc-600 dark:text-zinc-400">
-                      {lang === 'tj' ? 'Пешрафти санҷиш:' : lang === 'en' ? 'Test Progress:' : 'Прогресс теста:'}
+                      {lang === 'tj' ? 'Генератсияи вариант:' : lang === 'en' ? 'Variant Generation:' : 'Генерация варианта:'}
                     </span>
                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      {isFinished ? `100% (${activePlates.length}/${activePlates.length})` : `${Math.round((userAnswers.length / activePlates.length) * 100)}% (${userAnswers.length}/${activePlates.length})`}
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Seed #{variantSeed}
                     </span>
                   </div>
-
-                  <div className="w-full bg-zinc-200 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-300"
-                      style={{ width: `${isFinished ? 100 : Math.max(10, (userAnswers.length / activePlates.length) * 100)}%` }}
-                    />
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs">
+                  <div className="flex justify-between items-center">
                     <span className="text-zinc-600 dark:text-zinc-400">
-                      {lang === 'tj' ? 'Ҳолати калибровка:' : lang === 'en' ? 'Display Calibration:' : 'Калибровка дисплея:'}
+                      {lang === 'tj' ? 'Ҳисоби натиҷа:' : lang === 'en' ? 'Scoring Engine:' : 'Проверка результата:'}
                     </span>
-                    <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-emerald-500" />
-                      sRGB Standard (50 cm)
+                    <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
+                      {lang === 'tj' ? 'Серверӣ + Графикҳои SVG' : lang === 'en' ? 'Server Replay + SVG Charts' : 'Серверная верификация + SVG-графики'}
                     </span>
                   </div>
                 </div>
 
-                {/* CTA Action Buttons */}
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
                   <Button
                     variant="emerald"
                     className="w-full sm:flex-1 gap-2 shadow-md shadow-emerald-600/25 py-2.5 font-bold"
-                    onClick={() => onStartScreening('color-perception')}
+                    onClick={() => onStartScreening(activeFullSlug)}
                   >
                     <span>
-                      {isFinished
-                        ? (lang === 'tj'
-                            ? 'Дидани натиҷа ва санҷиши пурра (10 ҷадвал)'
-                            : lang === 'en'
-                            ? 'View Results & Start Full Test (10 Plates)'
-                            : 'Посмотреть результат и пройти полный тест (10 таблиц)')
-                        : (lang === 'tj'
-                            ? 'Оғози санҷиши пурраи дальтонизм (10 ҷадвал)'
-                            : lang === 'en'
-                            ? 'Start Full Color Blindness Test (10 Plates)'
-                            : 'Запустить полный тест на дальтонизм (10 таблиц)')}
+                      {lang === 'tj'
+                        ? 'Оғози машқи пурра'
+                        : lang === 'en'
+                        ? 'Start Full Exercise'
+                        : 'Пройти полное упражнение'}
                     </span>
                     <ArrowRight className="w-4 h-4" />
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => generateNewDemoVariant()}
+                    className="w-full sm:w-auto text-xs gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>
+                      {lang === 'tj' ? 'Варианти нав' : lang === 'en' ? 'New Variant' : 'Другой вариант'}
+                    </span>
                   </Button>
 
                   <Button
@@ -467,15 +766,13 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
                     className="w-full sm:w-auto text-xs"
                   >
                     <Eye className="w-3.5 h-3.5 mr-1 text-emerald-500" />
-                    <span>{lang === 'tj' ? 'Шиносномаи методӣ' : lang === 'en' ? 'Methodology Passport' : 'Паспорт методики'}</span>
+                    <span>{lang === 'tj' ? 'Шиноснома' : lang === 'en' ? 'Passport' : 'Паспорт'}</span>
                   </Button>
                 </div>
               </div>
-
             </div>
           </Card>
 
-          {/* Continuous Infinite Marquee Ribbon of All Available Protocols */}
           <TestMarquee
             tests={tests}
             lang={lang}
