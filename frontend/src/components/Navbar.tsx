@@ -73,8 +73,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   }
 
   return (
-    <header className="fixed top-3 sm:top-4 inset-x-0 z-40 flex justify-center px-4 sm:px-6 lg:px-8 pointer-events-none">
-      <div className="pointer-events-auto w-full max-w-7xl rounded-full liquid-glass shadow-xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between transition-all">
+    <header className="fixed top-2 sm:top-4 inset-x-0 z-40 flex justify-center px-2 sm:px-6 lg:px-8 pointer-events-none w-full max-w-full">
+      <div className="pointer-events-auto w-full max-w-7xl rounded-full liquid-glass shadow-xl px-2.5 sm:px-6 h-12 sm:h-16 flex items-center justify-between transition-all">
         {/* Left: Brand Logo */}
         <button
           onClick={() => handleNavClick('home')}
@@ -84,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <img
             src="/sihat-logo.png"
             alt="SIHAT"
-            className="h-7 sm:h-8 w-auto object-contain dark:brightness-175 dark:contrast-110 transition-transform group-hover:scale-105"
+            className="h-6 sm:h-8 w-auto object-contain dark:brightness-175 dark:contrast-110 transition-transform group-hover:scale-105"
           />
         </button>
 
@@ -118,12 +118,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Right: Controls & Direct Profile / Login Navigation */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Language Selector Dropdown */}
           <div className="relative" ref={langRef}>
             <button
               onClick={() => setLangMenuOpen(!langMenuOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full liquid-glass-pill text-slate-700 dark:text-slate-300 text-xs font-bold uppercase transition-all duration-200 active:scale-95 hover:scale-105 hover:text-[#17A884] dark:hover:text-[#2EC4A7] cursor-pointer"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full liquid-glass-pill text-slate-700 dark:text-slate-300 text-[11px] sm:text-xs font-bold uppercase transition-all duration-200 active:scale-95 hover:scale-105 hover:text-[#17A884] dark:hover:text-[#2EC4A7] cursor-pointer"
               aria-label="Выбрать язык"
               aria-expanded={langMenuOpen}
             >
@@ -183,7 +183,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onToggleNotifications && (
             <button
               onClick={onToggleNotifications}
-              className="relative w-9 h-9 rounded-full liquid-glass-pill text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all hover:text-[#17A884] cursor-pointer"
+              className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full liquid-glass-pill text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all hover:text-[#17A884] cursor-pointer shrink-0"
               aria-label="Центр уведомлений"
               title="Уведомления"
             >
@@ -203,7 +203,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {user ? (
             <button
               onClick={() => onNavigate('profile')}
-              className={`flex items-center gap-2 pl-1.5 pr-3 py-1 rounded-full liquid-glass-pill transition-all text-xs font-semibold group shadow-xs cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-full liquid-glass-pill transition-all text-xs font-semibold group shadow-xs cursor-pointer shrink-0 ${
                 currentSection === 'profile'
                   ? 'border-[#17A884] bg-[#17A884]/20 text-[#103D35] dark:text-[#2EC4A7]'
                   : 'border-[#17A884]/40 bg-[#17A884]/10 hover:bg-[#17A884]/20 text-slate-800 dark:text-slate-200'
@@ -222,7 +222,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={() => onNavigate('login')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full liquid-glass-pill transition-all text-xs font-bold group shadow-xs cursor-pointer ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full liquid-glass-pill transition-all text-xs font-bold whitespace-nowrap group shadow-xs cursor-pointer shrink-0 ${
                 currentSection === 'login' || currentSection === 'register'
                   ? 'border-[#17A884] bg-[#17A884] text-white shadow-md'
                   : 'hover:border-[#17A884]/50 hover:text-[#17A884] text-slate-700 dark:text-slate-300'

@@ -276,7 +276,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
           />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_32%,rgba(250,250,250,0.85)_0%,rgba(250,250,250,0.6)_55%,rgba(250,250,250,0.96)_100%)] dark:bg-[radial-gradient(ellipse_at_50%_32%,rgba(7,11,10,0.78)_0%,rgba(7,11,10,0.52)_55%,rgba(7,11,10,0.88)_100%)]" />
         </div>
-        <div className="absolute top-1/4 right-1/4 w-[520px] h-[340px] bg-emerald-500/15 dark:bg-emerald-400/20 blur-[130px] rounded-full pointer-events-none mix-blend-screen" />
+        <div className="absolute top-1/4 right-1/4 w-64 sm:w-[520px] max-w-full h-56 sm:h-[340px] bg-emerald-500/15 dark:bg-emerald-400/20 blur-[90px] sm:blur-[130px] rounded-full pointer-events-none mix-blend-screen" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">

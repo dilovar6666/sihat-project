@@ -431,7 +431,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
       </div>
 
       {/* INFINITE MARQUEE WITH EXPANDABLE CARDS (NO CLIPPING, NO CUT OFF!) */}
-      <div className="relative w-full overflow-hidden marquee-edge-mask py-8 sm:py-10 marquee-container group select-none">
+      <div className="relative w-full max-w-full overflow-x-hidden marquee-edge-mask py-8 sm:py-10 marquee-container group select-none [contain:paint]">
         <div className="flex items-stretch gap-5 w-max will-change-transform animate-marquee-scroll">
           {marqueeItems.map((test, index) => {
             const key = `${test.slug}-${index}`

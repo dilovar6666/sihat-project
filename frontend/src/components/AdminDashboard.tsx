@@ -522,7 +522,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   ]
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 animate-in fade-in duration-300 w-full max-w-full overflow-x-hidden">
       {/* Mobile Horizontal Admin Nav */}
       <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-3 mb-5 no-scrollbar">
         {sidebarItems.map((item) => {
@@ -819,7 +819,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span className="text-slate-400">
                     Страница {testsPage} из {totalTestPages}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1292,7 +1292,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* 8. KNOWLEDGE BASE */}
           {activeTab === 'knowledge' && (
             <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-[#1E302B] space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-[#1E302B]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-[#1E302B]">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                     База знаний ({adminKnowledge.length})
@@ -1404,7 +1404,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* 10. SUPPORT TICKETS */}
           {activeTab === 'support' && (
             <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-[#1E302B] space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-[#1E302B]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-[#1E302B]">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">
                   Обращения в поддержку ({adminTickets.length})
                 </h3>

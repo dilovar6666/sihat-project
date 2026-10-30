@@ -133,7 +133,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
       {/* Floating Compact Notification Popover */}
       <aside
         aria-label="Панель уведомлений"
-        className="fixed top-16 sm:top-20 right-3 sm:right-16 md:right-24 w-[calc(100vw-24px)] sm:w-[410px] max-h-[520px] bg-white dark:bg-[#0E1715] border border-slate-200/90 dark:border-[#1E302B] rounded-3xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto origin-top-right transition-all duration-250 ease-out animate-in fade-in zoom-in-95"
+        className="fixed top-14 sm:top-20 left-3 right-3 sm:left-auto sm:right-16 md:right-24 w-auto sm:w-[410px] max-w-[calc(100vw-24px)] max-h-[520px] bg-white dark:bg-[#0E1715] border border-slate-200/90 dark:border-[#1E302B] rounded-3xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto origin-top-right transition-all duration-250 ease-out animate-in fade-in zoom-in-95"
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#1E302B] bg-slate-50/70 dark:bg-[#131C1A]/80">

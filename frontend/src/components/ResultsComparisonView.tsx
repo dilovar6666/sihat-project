@@ -1750,11 +1750,11 @@ export const ResultsComparisonView: React.FC<ResultsComparisonViewProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Grouped Bar Chart (7 cols) */}
           <div className="lg:col-span-7 p-5 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-1">
               <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
                 {t.barChartTitle}
               </h4>
-              <div className="flex items-center gap-3 text-[11px] font-mono">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-[11px] font-mono">
                 <div className="flex items-center gap-1.5 text-blue-400">
                   <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
                   <span>Попытка A</span>

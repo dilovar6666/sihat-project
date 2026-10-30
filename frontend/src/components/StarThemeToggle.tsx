@@ -109,11 +109,11 @@ export const StarThemeToggle: React.FC<StarThemeToggleProps> = ({ theme, onToggl
     <div
       id="theme-toggle-btn"
       onClick={handleClick}
-      className="w-9 h-9 flex items-center justify-center shrink-0 cursor-pointer select-none"
+      className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0 cursor-pointer select-none"
       title={isDark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему'}
       aria-label="Переключатель темы"
     >
-      <div className="scale-[0.72] origin-center flex items-center justify-center pointer-events-none">
+      <div className="scale-[0.62] sm:scale-[0.72] origin-center flex items-center justify-center pointer-events-none">
         <label
           ref={toggleRef}
           className="star-toggle"

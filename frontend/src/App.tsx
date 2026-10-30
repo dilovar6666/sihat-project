@@ -695,7 +695,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9F5] dark:bg-[#101716] text-[#202827] dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F8F9F5] dark:bg-[#101716] text-[#202827] dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
       <CustomCursor />
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-slate-950 px-4 py-2 text-center text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-lg animate-pulse">
@@ -728,7 +728,7 @@ export default function App() {
       />
 
       {/* Main Content Pages (Separated by Route) */}
-      <main className="min-h-[75vh] pt-20 sm:pt-24">
+      <main className="min-h-[75vh] pt-18 sm:pt-24 w-full max-w-full overflow-x-hidden">
         <div key={currentPage} className="animate-in fade-in-50 duration-200">
           {currentPage === 'home' && (
           <>
