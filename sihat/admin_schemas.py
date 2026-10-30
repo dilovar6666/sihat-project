@@ -39,6 +39,7 @@ class AdminDashboardOutput(BaseModel):
     tickets_by_status: dict[str, int]
     results_by_test: dict[str, int] = Field(default_factory=dict)
     results_by_category: dict[str, int] = Field(default_factory=dict)
+    pending_ai_incidents_count: int = 0
 
 
 class AdminCategoryUpdateInput(BaseModel):
@@ -101,3 +102,24 @@ class ContentDraftOutput(BaseModel):
     title: str
     content: str
     note: str = DRAFT_NOTE
+
+class AiSecurityIncidentOutput(BaseModel):
+    id: str
+    user_id: str
+    user_email: str
+    user_name: str | None = None
+    suspicious_count: int
+    severity: str
+    status: str
+    last_category: str | None = None
+    queries_log: list[dict[str, Any]] = Field(default_factory=list)
+    admin_notes: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class AiSecurityIncidentActionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    admin_notes: str | None = None
+

@@ -223,13 +223,6 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
     </svg>
   )
 
-  const heroBadge =
-    lang === 'ru'
-      ? 'SIHAT 3.0 • Интерактивный когнитивный и сенсорный скрининг'
-      : lang === 'tj'
-      ? 'SIHAT 3.0 • Скрининги интерактивии маърифатӣ ва сенсорӣ'
-      : 'SIHAT 3.0 • Interactive Cognitive & Sensory Screening'
-
   const heroTitle =
     lang === 'ru'
       ? 'Где забота о здоровье встречает'
@@ -280,15 +273,6 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-        {/* Status Pill Badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-6 shadow-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span>{heroBadge}</span>
-        </div>
-
         {/* Main Heading */}
         <h1 className="font-manrope text-4xl sm:text-5xl lg:text-6xl font-extrabold text-zinc-900 dark:text-zinc-50 max-w-4xl mx-auto leading-[1.15] drop-shadow-sm tracking-tight">
           {heroTitle}{' '}

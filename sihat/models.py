@@ -1,3 +1,4 @@
+from typing import Any
 from datetime import datetime
 from uuid import uuid4
 
@@ -280,3 +281,27 @@ class SupportMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     ticket: Mapped["SupportTicket"] = relationship("SupportTicket", back_populates="messages")
+
+class AiSecurityIncident(Base):
+    __tablename__ = "ai_security_incidents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_email: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    user_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    suspicious_count: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    severity: Mapped[str] = mapped_column(String(16), default="high", server_default="high")
+    status: Mapped[str] = mapped_column(
+        String(24), default="pending_review", server_default="pending_review", index=True
+    )
+    last_category: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    queries_log: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+

@@ -4,12 +4,15 @@ and intelligent multilingual support for Russian (RU), Tajik (TJ), and English (
 
 import asyncio
 from collections import defaultdict, deque
+from datetime import datetime, timezone
 from time import monotonic
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sihat.ai_guard import classify_ai_request
 
 from sihat.assistant_schemas import AssistantAction, AssistantMessageInput, AssistantMessageOutput
 from sihat.auth import get_current_user_optional
@@ -20,7 +23,7 @@ from sihat.gemini import (
     generate_assistant_response,
     generate_assistant_response_async,
 )
-from sihat.models import SavedResult, TestDefinition, User
+from sihat.models import AiSecurityIncident, SavedResult, TestDefinition, User
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 _timestamps: dict[str, deque[float]] = defaultdict(deque)
@@ -804,8 +807,70 @@ async def send_message(
     user: User | None = Depends(get_current_user_optional),
     settings: Settings = Depends(get_settings),
 ) -> AssistantMessageOutput:
+    if user and not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="Ваш аккаунт заблокирован за нарушение правил платформы и подозрительную активность.",
+        )
+
     user_id = user.id if user else (request.client.host if request.client else "guest")
-    _enforce_rate_limit(f"{user_id}:{request.client.host if request.client else 'unknown'}")
+    client_ip = request.client.host if request.client else "unknown"
+    _enforce_rate_limit(f"{user_id}:{client_ip}")
+
+    # 1. AI Safety Guard Check (detecting adversarial, prompt injection or harmful prompts)
+    suspicion = classify_ai_request(payload.text)
+    if suspicion:
+        if user:
+            # Query existing pending incident or create a new one
+            incident = await db.scalar(
+                select(AiSecurityIncident).where(
+                    AiSecurityIncident.user_id == user.id,
+                    AiSecurityIncident.status == "pending_review",
+                )
+            )
+            query_record = {
+                "text": payload.text.strip(),
+                "category": suspicion["category"],
+                "reason": suspicion["reason"],
+                "severity": suspicion["severity"],
+                "ip": client_ip,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            if incident:
+                incident.suspicious_count += 1
+                incident.severity = suspicion["severity"]
+                incident.last_category = suspicion["category"]
+                logs = list(incident.queries_log or [])
+                logs.append(query_record)
+                incident.queries_log = logs
+                incident.updated_at = func.now()
+            else:
+                incident = AiSecurityIncident(
+                    user_id=user.id,
+                    user_email=user.email or f"user_{user.id[:8]}",
+                    user_name=user.full_name,
+                    suspicious_count=1,
+                    severity=suspicion["severity"],
+                    status="pending_review",
+                    last_category=suspicion["category"],
+                    queries_log=[query_record],
+                )
+                db.add(incident)
+            await db.commit()
+
+            # If user has sent 2 or more suspicious queries, alert the user and abort LLM call
+            if incident.suspicious_count >= 2:
+                warning_text = (
+                    "⚠️ **Предупреждение безопасности:** Зафиксированы повторяющиеся подозрительные запросы "
+                    f"к ИИ-ассистенту ({suspicion['reason']}). "
+                    "Информация о вашем аккаунте и история сообщений автоматически передана администратору "
+                    "для проверки и принятия решения о возможной блокировке доступа к сервису."
+                )
+                return AssistantMessageOutput(
+                    message=warning_text,
+                    actions=[],
+                    provider_available=False,
+                )
     shared_results = await _safe_result_context(db, user, payload.shared_result_ids)
     conversation = [message.model_dump() for message in payload.conversation]
     conversation.append({"role": "user", "text": payload.text})

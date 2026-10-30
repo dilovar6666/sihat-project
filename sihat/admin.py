@@ -15,6 +15,8 @@ from sihat.admin_schemas import (
     AdminTestUpdateInput,
     AdminUserOutput,
     AdminUserUpdateInput,
+    AiSecurityIncidentActionInput,
+    AiSecurityIncidentOutput,
     ContentDraftInput,
     ContentDraftOutput,
 )
@@ -36,6 +38,7 @@ from sihat.content_schemas import (
 from sihat.db import get_db_session
 from sihat.gemini import GeminiUnavailableError, generate_assistant_response_async
 from sihat.models import (
+    AiSecurityIncident,
     Category,
     FaqItem,
     KnowledgeArticle,
@@ -246,6 +249,14 @@ async def dashboard_analytics(
     ).all()
     tickets_by_status = {str(row[0]): int(row[1]) for row in ticket_rows}
 
+    pending_ai_incidents_count = (
+        await db.scalar(
+            select(func.count(AiSecurityIncident.id)).where(
+                AiSecurityIncident.status == "pending_review"
+            )
+        )
+    ) or 0
+
     return AdminDashboardOutput(
         total_users=total_users,
         users_by_age_group=users_by_age,
@@ -259,6 +270,7 @@ async def dashboard_analytics(
         tickets_by_status=tickets_by_status,
         results_by_test=results_by_test,
         results_by_category=results_by_category,
+        pending_ai_incidents_count=pending_ai_incidents_count,
     )
 
 
@@ -893,3 +905,98 @@ async def system_diagnostics(
         "ai_engine": "Gemini 2.5 Flash Triage Engine",
         "server_time": datetime.now(timezone.utc).isoformat(),
     }
+
+# ---------------------------------------------------------------------------
+# AI Security Incidents: Reviewing & Blocking suspicious AI query abuse
+# ---------------------------------------------------------------------------
+
+
+def _incident_output(item: AiSecurityIncident) -> AiSecurityIncidentOutput:
+    return AiSecurityIncidentOutput(
+        id=item.id,
+        user_id=item.user_id,
+        user_email=item.user_email,
+        user_name=item.user_name,
+        suspicious_count=item.suspicious_count,
+        severity=item.severity,
+        status=item.status,
+        last_category=item.last_category,
+        queries_log=item.queries_log or [],
+        admin_notes=item.admin_notes,
+        created_at=item.created_at.isoformat(),
+        updated_at=item.updated_at.isoformat() if item.updated_at else item.created_at.isoformat(),
+    )
+
+
+@router.get("/ai-incidents", response_model=list[AiSecurityIncidentOutput])
+async def list_ai_security_incidents(
+    status_filter: str | None = Query(default=None, alias="status"),
+    db: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_admin),
+) -> list[AiSecurityIncidentOutput]:
+    stmt = select(AiSecurityIncident).order_by(AiSecurityIncident.updated_at.desc())
+    if status_filter:
+        stmt = stmt.where(AiSecurityIncident.status == status_filter)
+    incidents = (await db.scalars(stmt)).all()
+    return [_incident_output(inc) for inc in incidents]
+
+
+@router.get("/ai-incidents/{incident_id}", response_model=AiSecurityIncidentOutput)
+async def get_ai_security_incident_detail(
+    incident_id: str,
+    db: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_admin),
+) -> AiSecurityIncidentOutput:
+    incident = await db.get(AiSecurityIncident, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return _incident_output(incident)
+
+
+@router.post("/ai-incidents/{incident_id}/block", response_model=AiSecurityIncidentOutput)
+async def block_user_from_ai_incident(
+    incident_id: str,
+    payload: AiSecurityIncidentActionInput,
+    db: AsyncSession = Depends(get_db_session),
+    current_admin: User = Depends(require_admin),
+) -> AiSecurityIncidentOutput:
+    incident = await db.get(AiSecurityIncident, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    target_user = await db.get(User, incident.user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Associated user not found")
+
+    if target_user.id == current_admin.id:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+
+    target_user.is_active = False
+    incident.status = "blocked"
+    incident.admin_notes = payload.admin_notes or "Заблокирован администратором за подозрительные запросы к ИИ"
+    incident.reviewed_by = current_admin.id
+
+    await db.commit()
+    await db.refresh(incident)
+    return _incident_output(incident)
+
+
+@router.post("/ai-incidents/{incident_id}/dismiss", response_model=AiSecurityIncidentOutput)
+async def dismiss_ai_incident(
+    incident_id: str,
+    payload: AiSecurityIncidentActionInput,
+    db: AsyncSession = Depends(get_db_session),
+    current_admin: User = Depends(require_admin),
+) -> AiSecurityIncidentOutput:
+    incident = await db.get(AiSecurityIncident, incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    incident.status = "resolved_safe"
+    incident.admin_notes = payload.admin_notes or "Проверено администратором, признано безопасным"
+    incident.reviewed_by = current_admin.id
+
+    await db.commit()
+    await db.refresh(incident)
+    return _incident_output(incident)
+

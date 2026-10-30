@@ -2,6 +2,9 @@ import { SplineAreaChart } from './ui/SplineAreaChart'
 import React, { useEffect, useState, useMemo } from 'react'
 import {
   Users,
+  ShieldAlert,
+  Eye,
+  UserX,
   HelpCircle,
   Shield,
   RefreshCw,
@@ -36,7 +39,7 @@ import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { apiRequest } from '../api'
 import type { Language } from '../i18n'
-import type { UserProfile, SupportTicket, SupportMessage } from '../types'
+import type { UserProfile, SupportTicket, SupportMessage, AiSecurityIncident } from '../types'
 import { APPROVED_15_SLUGS } from './test-engines/engineTypes'
 
 interface AdminDashboardProps {
@@ -60,6 +63,7 @@ type AdminTab =
   | 'support'
   | 'analytics'
   | 'settings'
+  | 'ai-security'
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   token,
@@ -68,6 +72,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNavigate,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard')
+  const [aiIncidents, setAiIncidents] = useState<AiSecurityIncident[]>([])
+  const [selectedIncidentForInspection, setSelectedIncidentForInspection] = useState<AiSecurityIncident | null>(null)
+  const [aiIncidentActionLoading, setAiIncidentActionLoading] = useState(false)
+  const [aiIncidentFilter, setAiIncidentFilter] = useState<'all' | 'pending' | 'blocked' | 'resolved'>('all')
   const [data, setData] = useState<any>(null)
   const [adminTests, setAdminTests] = useState<any[]>([])
   const [adminUsers, setAdminUsers] = useState<any[]>([])
@@ -228,7 +236,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!token || !isAdmin) return
     setLoading(true)
     try {
-      const [dashRes, testsRes, usersRes, catsRes, knowledgeRes, faqsRes, ticketsRes] =
+      const [dashRes, testsRes, usersRes, catsRes, knowledgeRes, faqsRes, ticketsRes, aiIncidentsRes] =
         await Promise.all([
           apiRequest('/admin/dashboard').catch(() => null),
           apiRequest<any[]>('/admin/tests').catch(() => []),
@@ -237,6 +245,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           apiRequest<any[]>('/admin/knowledge').catch(() => []),
           apiRequest<any[]>('/admin/faq').catch(() => []),
           apiRequest<any[]>('/admin/support/tickets').catch(() => []),
+          apiRequest<AiSecurityIncident[]>('/admin/ai-incidents').catch(() => []),
         ])
 
       if (dashRes) setData(dashRes)
@@ -246,6 +255,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (knowledgeRes) setAdminKnowledge(knowledgeRes)
       if (faqsRes) setAdminFaqs(faqsRes)
       if (ticketsRes) setAdminTickets(ticketsRes)
+      if (aiIncidentsRes) setAiIncidents(aiIncidentsRes)
     } catch (err: unknown) {
       onNotify(err instanceof Error ? err.message : 'Не удалось загрузить данные администратора', 'error')
     } finally {
@@ -580,6 +590,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     usersPage * USERS_PER_PAGE
   )
 
+
+  const handleBlockUserFromIncident = async (incident: AiSecurityIncident) => {
+    if (!token || !isAdmin) return
+    if (!confirm(`Вы действительно хотите заблокировать пользователя ${incident.user_email}? Он потеряет доступ к платформе и ИИ-ассистенту.`)) return
+    setAiIncidentActionLoading(true)
+    try {
+      await apiRequest(`/admin/ai-incidents/${incident.id}/block`, {
+        method: 'POST',
+        body: JSON.stringify({ notes: 'Заблокирован администратором из-за подозрительных запросов к ИИ' }),
+      })
+      onNotify(`Пользователь ${incident.user_email} заблокирован!`, 'success')
+      setAiIncidents((prev) =>
+        prev.map((item) => (item.id === incident.id ? { ...item, status: 'blocked' } : item))
+      )
+      if (selectedIncidentForInspection?.id === incident.id) {
+        setSelectedIncidentForInspection((prev) => (prev ? { ...prev, status: 'blocked' } : null))
+      }
+      loadAllAdminData()
+    } catch (err: unknown) {
+      onNotify(err instanceof Error ? err.message : 'Ошибка при блокировке пользователя', 'error')
+    } finally {
+      setAiIncidentActionLoading(false)
+    }
+  }
+
+  const handleDismissIncident = async (incident: AiSecurityIncident) => {
+    if (!token || !isAdmin) return
+    setAiIncidentActionLoading(true)
+    try {
+      await apiRequest(`/admin/ai-incidents/${incident.id}/dismiss`, {
+        method: 'POST',
+        body: JSON.stringify({ notes: 'Помилован администратором после ручной проверки' }),
+      })
+      onNotify(`Инцидент #${incident.id.slice(0, 8)} помечен как проверенный и безопасный`, 'info')
+      setAiIncidents((prev) =>
+        prev.map((item) => (item.id === incident.id ? { ...item, status: 'resolved_safe' } : item))
+      )
+      if (selectedIncidentForInspection?.id === incident.id) {
+        setSelectedIncidentForInspection((prev) => (prev ? { ...prev, status: 'resolved_safe' } : null))
+      }
+    } catch (err: unknown) {
+      onNotify(err instanceof Error ? err.message : 'Ошибка при обработке инцидента', 'error')
+    } finally {
+      setAiIncidentActionLoading(false)
+    }
+  }
+
   const sidebarItems: Array<{ id: AdminTab; label: string; icon: React.ReactNode }> = [
     { id: 'dashboard', label: 'Dashboard', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'tests', label: 'Тесты', icon: <Activity className="w-4 h-4" /> },
@@ -591,6 +648,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     { id: 'knowledge', label: 'База знаний', icon: <Globe className="w-4 h-4" /> },
     { id: 'faq', label: 'FAQ', icon: <HelpCircle className="w-4 h-4" /> },
     { id: 'support', label: 'Поддержка', icon: <LifeBuoy className="w-4 h-4" /> },
+    { id: 'ai-security', label: 'Безопасность ИИ', icon: <ShieldAlert className="w-4 h-4 text-amber-500" /> },
     { id: 'analytics', label: 'Аналитика', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'settings', label: 'Настройки', icon: <Settings className="w-4 h-4" /> },
   ]
@@ -613,7 +671,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               }`}
             >
               {item.icon}
-              <span>{item.label}</span>
+              <span className="flex items-center gap-1.5">
+                {item.label}
+                {item.id === 'ai-security' && aiIncidents.filter((i) => i.status === 'pending_review').length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                    {aiIncidents.filter((i) => i.status === 'pending_review').length}
+                  </span>
+                )}
+              </span>
             </button>
           )
         })}
@@ -683,6 +748,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* 1. DASHBOARD */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
+              {aiIncidents.filter((i) => i.status === 'pending_review').length > 0 && (
+                <div className="bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-transparent border border-amber-500/40 rounded-3xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg backdrop-blur-sm">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+                      <ShieldAlert className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>Подозрительные запросы к ИИ-ассистенту</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          {aiIncidents.filter((i) => i.status === 'pending_review').length} новых
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Обнаружены попытки jailbreak, взлома системных промптов или запрещенных тем. Проверьте запросы и примите решение о блокировке.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab('ai-security')}
+                    className="shrink-0 border-amber-500/40 text-amber-400 hover:bg-amber-500/15 font-semibold text-xs gap-1.5"
+                  >
+                    <span>Открыть мониторинг ИИ</span>
+                    <span>→</span>
+                  </Button>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-5 shadow-md border border-slate-200/80 dark:border-[#1E302B]">
                   <span className="text-xs font-semibold text-slate-400 uppercase block mb-2">
@@ -1783,6 +1877,198 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           )}
 
+          
+          {/* 10.5 AI SECURITY MONITORING */}
+          {activeTab === 'ai-security' && (
+            <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-[#1E302B] space-y-6">
+              <div className="pb-4 border-b border-slate-100 dark:border-[#1E302B] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-500" />
+                    Мониторинг безопасности ИИ-ассистента
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Перехват аномальных запросов, попыток взлома системного промпта, джейлбрейков и деструктивных тем.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={loadAllAdminData}
+                    className="gap-2 text-xs"
+                    disabled={loading}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                    <span>Обновить</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B]">
+                  <span className="text-[11px] font-semibold text-slate-400 block mb-1">Всего инцидентов</span>
+                  <div className="text-2xl font-mono font-bold text-slate-900 dark:text-white">{aiIncidents.length}</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                  <span className="text-[11px] font-semibold text-amber-400 block mb-1">Требуют решения</span>
+                  <div className="text-2xl font-mono font-bold text-amber-400">
+                    {aiIncidents.filter((i) => i.status === 'pending_review').length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30">
+                  <span className="text-[11px] font-semibold text-rose-400 block mb-1">Заблокировано</span>
+                  <div className="text-2xl font-mono font-bold text-rose-400">
+                    {aiIncidents.filter((i) => i.status === 'blocked').length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                  <span className="text-[11px] font-semibold text-emerald-400 block mb-1">Помиловано / Безопасно</span>
+                  <div className="text-2xl font-mono font-bold text-emerald-400">
+                    {aiIncidents.filter((i) => i.status === 'resolved_safe').length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs">
+                {(['all', 'pending', 'blocked', 'resolved'] as const).map((filterKey) => (
+                  <button
+                    key={filterKey}
+                    type="button"
+                    onClick={() => setAiIncidentFilter(filterKey)}
+                    className={`px-3 py-1.5 rounded-xl font-medium transition-colors cursor-pointer shrink-0 ${
+                      aiIncidentFilter === filterKey
+                        ? 'bg-[#103D35] text-white dark:bg-[#17A884] dark:text-[#0E1715] font-bold'
+                        : 'bg-slate-100 dark:bg-[#131C1A] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1E302B]'
+                    }`}
+                  >
+                    {filterKey === 'all' && `Все (${aiIncidents.length})`}
+                    {filterKey === 'pending' && `Ожидают решения (${aiIncidents.filter((i) => i.status === 'pending_review').length})`}
+                    {filterKey === 'blocked' && `Заблокированные (${aiIncidents.filter((i) => i.status === 'blocked').length})`}
+                    {filterKey === 'resolved' && `Безопасные (${aiIncidents.filter((i) => i.status === 'resolved_safe').length})`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Incidents Table / List */}
+              {aiIncidents.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-slate-200 dark:border-[#1E302B] rounded-2xl">
+                  <ShieldAlert className="w-10 h-10 text-emerald-500/50 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Аномальной активности не обнаружено</p>
+                  <p className="text-xs text-slate-400 mt-1">Все запросы пользователей к ИИ-ассистенту соответствуют нормам безопасности.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {aiIncidents
+                    .filter((inc) => {
+                      if (aiIncidentFilter === 'pending') return inc.status === 'pending_review'
+                      if (aiIncidentFilter === 'blocked') return inc.status === 'blocked'
+                      if (aiIncidentFilter === 'resolved') return inc.status === 'resolved_safe'
+                      return true
+                    })
+                    .map((inc) => (
+                      <div
+                        key={inc.id}
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                          inc.status === 'pending_review'
+                            ? 'bg-amber-500/5 border-amber-500/30 dark:bg-amber-950/10'
+                            : inc.status === 'blocked'
+                            ? 'bg-rose-500/5 border-rose-500/20 dark:bg-rose-950/10'
+                            : 'bg-slate-50/60 dark:bg-[#131C1A] border-slate-200/80 dark:border-[#1E302B]'
+                        }`}
+                      >
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-sm text-slate-900 dark:text-white">
+                                {inc.user_name || 'Без имени'}
+                              </span>
+                              <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                                ({inc.user_email})
+                              </span>
+                              {inc.status === 'pending_review' && (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                                  Требует решения
+                                </span>
+                              )}
+                              {inc.status === 'blocked' && (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                                  Заблокирован
+                                </span>
+                              )}
+                              {inc.status === 'resolved_safe' && (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                  Безопасно
+                                </span>
+                              )}
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                inc.severity === 'critical' ? 'bg-rose-600 text-white' :
+                                inc.severity === 'high' ? 'bg-amber-600 text-white' :
+                                'bg-slate-600 text-white'
+                              }`}>
+                                {inc.severity}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-slate-600 dark:text-slate-300">
+                              <span className="text-slate-400">Категория: </span>
+                              <span className="font-medium text-amber-500">{inc.last_category || 'Неизвестно'}</span>
+                              <span className="mx-2 text-slate-400">•</span>
+                              <span className="text-slate-400">Подозрительных запросов: </span>
+                              <span className="font-bold text-slate-900 dark:text-white">{inc.suspicious_count}</span>
+                              <span className="mx-2 text-slate-400">•</span>
+                              <span className="text-slate-400">Дата: </span>
+                              <span>{new Date(inc.created_at).toLocaleString('ru-RU')}</span>
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedIncidentForInspection(inc)}
+                              className="gap-1.5 text-xs font-semibold"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>Запросы ({inc.queries_log?.length || 0})</span>
+                            </Button>
+
+                            {inc.status !== 'blocked' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleBlockUserFromIncident(inc)}
+                                disabled={aiIncidentActionLoading}
+                                className="gap-1.5 text-xs font-semibold text-rose-400 border-rose-500/30 hover:bg-rose-500/15"
+                              >
+                                <UserX className="w-3.5 h-3.5" />
+                                <span>Блокнуть</span>
+                              </Button>
+                            )}
+
+                            {inc.status === 'pending_review' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDismissIncident(inc)}
+                                disabled={aiIncidentActionLoading}
+                                className="gap-1.5 text-xs font-semibold text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/15"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Помиловать</span>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 11. ANALYTICS */}
           {activeTab === 'analytics' && (
             <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-[#1E302B] space-y-8">
@@ -2461,6 +2747,92 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* AI INCIDENT INSPECTION MODAL */}
+      {selectedIncidentForInspection && (
+        <Modal
+          isOpen={Boolean(selectedIncidentForInspection)}
+          onClose={() => setSelectedIncidentForInspection(null)}
+          title={`Анализ подозрительных запросов: ${selectedIncidentForInspection.user_email}`}
+        >
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Пользователь:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{selectedIncidentForInspection.user_name || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Email:</span>
+                <span className="font-mono text-slate-900 dark:text-white">{selectedIncidentForInspection.user_email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Статус:</span>
+                <span className="font-bold">{selectedIncidentForInspection.status}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Всего перехвачено:</span>
+                <span className="font-bold text-amber-400">{selectedIncidentForInspection.queries_log?.length || 0} запросов</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Журнал перехваченных промптов</h4>
+              {selectedIncidentForInspection.queries_log?.map((q, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-xs font-mono"
+                >
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800 pb-1.5">
+                    <span className="text-amber-400 font-bold">[{q.category}]</span>
+                    <span>{q.timestamp ? new Date(q.timestamp).toLocaleString('ru-RU') : 'Недавно'}</span>
+                  </div>
+                  <div className="text-rose-300 font-bold text-[11px]">
+                    Причина: {q.reason} (Уровень: {q.severity})
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-black/60 text-slate-100 whitespace-pre-wrap break-words border border-slate-800/80">
+                    {q.text}
+                  </div>
+                  {q.ip && (
+                    <div className="text-[10px] text-slate-500 text-right">
+                      IP: {q.ip}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 dark:border-[#1E302B] flex flex-wrap items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedIncidentForInspection(null)}
+              >
+                Закрыть
+              </Button>
+              {selectedIncidentForInspection.status === 'pending_review' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDismissIncident(selectedIncidentForInspection)}
+                  className="text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10"
+                >
+                  Помиловать / Отклонить
+                </Button>
+              )}
+              {selectedIncidentForInspection.status !== 'blocked' && (
+                <Button
+                  size="sm"
+                  onClick={() => handleBlockUserFromIncident(selectedIncidentForInspection)}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+                >
+                  Заблокировать пользователя
+                </Button>
+              )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
     </div>
   )
 }

@@ -138,6 +138,28 @@ export type SupportTicket = {
   messages?: SupportMessage[]
 }
 
+export type AiSecurityIncident = {
+  id: string
+  user_id: string
+  user_email: string
+  user_name?: string | null
+  suspicious_count: number
+  severity: string
+  status: 'pending_review' | 'resolved_safe' | 'blocked'
+  last_category?: string | null
+  queries_log: Array<{
+    text: string
+    category: string
+    reason: string
+    severity: string
+    ip: string
+    timestamp: string
+  }>
+  admin_notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type AdminDashboard = {
   total_users: number
   users_by_age_group: Record<string, number>
@@ -149,6 +171,7 @@ export type AdminDashboard = {
   total_completed_attempts: number
   total_saved_results: number
   tickets_by_status: Record<string, number>
+  pending_ai_incidents_count?: number
 }
 
 export type AdminUser = {
