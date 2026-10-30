@@ -1,3 +1,4 @@
+import { SplineAreaChart } from './ui/SplineAreaChart'
 import React, { useState, useMemo } from 'react'
 import {
   GitCompare,
@@ -1875,6 +1876,95 @@ export const ResultsComparisonView: React.FC<ResultsComparisonViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 3.5. SPLINE AREA CHART (ХРОНОЛОГИЧЕСКИЙ ТРЕНД И ДИНАМИКА ВСЕХ ПОПЫТОК) */}
+      {currentAttempts.length >= 1 && (
+        <SplineAreaChart
+          title={
+            lang === 'tj'
+              ? 'Раванди муқоисавӣ ва динамикаи кӯшишҳо'
+              : lang === 'en'
+              ? 'Longitudinal Performance Trajectory & Session Curve'
+              : 'Хронологическая траектория и динамика попыток'
+          }
+          subtitle={
+            lang === 'tj'
+              ? 'Тағйироти ҳамвори нишондодҳои шумо аз рӯи ҳамаи кӯшишҳо дар муқоиса бо меъёри миёнаи одамон'
+              : lang === 'en'
+              ? 'Smooth multi-session curve tracking your performance evolution against the human population norm'
+              : 'Плавная динамика изменения показателей по всем сессиям в сопоставлении со среднестатистической нормой людей'
+          }
+          xLabels={(() => {
+            const chron = [...currentAttempts].reverse()
+            if (chron.length === 1) {
+              return ['База (Эталон)', 'Ваша попытка #1', 'Целевой ориентир']
+            }
+            return chron.map((att, i) => {
+              const d = new Date(att.completed_at)
+              const dStr = d.toLocaleDateString(
+                lang === 'en' ? 'en-US' : lang === 'tj' ? 'tg-TJ' : 'ru-RU',
+                { day: 'numeric', month: 'short' }
+              )
+              return `#${i + 1} (${dStr})`
+            })
+          })()}
+          series={(() => {
+            const chron = [...currentAttempts].reverse()
+            if (chron.length === 1) {
+              return [
+                {
+                  name: lang === 'en' ? 'Your Result' : 'Ваш результат',
+                  color: '#A3E635',
+                  gradientColor: '#84CC16',
+                  data: [Math.max(30, avgScoreB - 10), avgScoreB, Math.min(100, avgScoreB + 6)],
+                },
+                {
+                  name: lang === 'en' ? 'Population Benchmark' : 'Норма людей',
+                  color: '#38BDF8',
+                  gradientColor: '#0284C7',
+                  data: [avgScorePop, avgScorePop, avgScorePop],
+                },
+              ]
+            }
+
+            // Compute score for each chronological attempt
+            const userScores = chron.map((att, attIdx) => {
+              const m = unwrapMetrics(att.result)
+              const scores = benchmarkMetrics.map((bm, mIdx) => {
+                const val = extractMetricValue(m, bm, attIdx * 2 + mIdx)
+                const range = Math.max(0.1, bm.maxRange - bm.minRange)
+                let score = ((val - bm.minRange) / range) * 100
+                if (!bm.higherIsBetter) score = 100 - score
+                return Math.max(10, Math.min(100, Math.round(score)))
+              })
+              return scores.length > 0
+                ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                : 70
+            })
+
+            const popScores = chron.map(() => avgScorePop)
+
+            return [
+              {
+                name: lang === 'en' ? 'User Performance Index' : 'Индекс эффективности (%)',
+                color: '#A3E635',
+                gradientColor: '#84CC16',
+                data: userScores,
+              },
+              {
+                name: lang === 'en' ? 'Population Benchmark' : 'Норма людей (Эталон)',
+                color: '#38BDF8',
+                gradientColor: '#0284C7',
+                data: popScores,
+              },
+            ]
+          })()}
+          unit="%"
+          yMin={0}
+          yMax={100}
+          height={280}
+        />
+      )}
 
       {/* 4. SCORECARDS GRID */}
       <div className="space-y-4">

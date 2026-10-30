@@ -1,3 +1,4 @@
+import { SplineAreaChart } from './ui/SplineAreaChart'
 import React, { useEffect, useState, useMemo } from 'react'
 import {
   Users,
@@ -657,6 +658,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Spline Area Chart: Platform Activity (Day vs Night) */}
+              <SplineAreaChart
+                title="Активность скринингов платформы (Day vs Night)"
+                subtitle="Помесячное распределение завершённых тестирований в дневное (08:00–20:00) и ночное (20:00–08:00) время"
+                xLabels={['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']}
+                series={[
+                  {
+                    name: 'Day (Дневные скрининги)',
+                    color: '#A3E635',
+                    gradientColor: '#84CC16',
+                    data: [120, 195, 445, 398, 510, 310, 715, 820, 620, 710, 615, 830],
+                  },
+                  {
+                    name: 'Night (Ночные сессии)',
+                    color: '#38BDF8',
+                    gradientColor: '#0284C7',
+                    data: [195, 148, 238, 180, 150, 240, 225, 310, 198, 150, 275, 195],
+                  },
+                ]}
+                unit="сессий"
+                height={270}
+              />
 
               <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 shadow-md border border-slate-200/80 dark:border-[#1E302B]">
                 <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-[#1E302B]">
@@ -1507,6 +1531,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Spline Area Chart: Platform Volume (Completed vs Saved) */}
+              <SplineAreaChart
+                title="Динамика скринингов и сохранений за 12 месяцев"
+                subtitle="Сопоставление общего объёма завершённых скринингов и сохранений в защищённый архив (Consent Shield)"
+                xLabels={['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']}
+                series={[
+                  {
+                    name: 'Всего скринингов платформы',
+                    color: '#10B981',
+                    gradientColor: '#059669',
+                    data: [315, 343, 683, 578, 660, 550, 940, 1130, 818, 860, 890, 1025],
+                  },
+                  {
+                    name: 'Сохранено в архив (Consent)',
+                    color: '#38BDF8',
+                    gradientColor: '#0284C7',
+                    data: [220, 245, 510, 435, 505, 410, 740, 890, 630, 680, 710, 830],
+                  },
+                ]}
+                unit="тестов"
+                height={270}
+              />
 
               {/* Two Visual Breakdown Sections: By Discipline & By Test Popularity */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
