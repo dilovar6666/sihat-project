@@ -18,6 +18,8 @@ import {
   Clock,
   Check,
   PhoneCall,
+  Stethoscope,
+  Lock,
 } from 'lucide-react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
@@ -239,7 +241,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
   const [openFaqId, setOpenFaqId] = useState<string | null>('faq-1')
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({})
 
-  // Inline Form state (part of the page, not a popup modal!)
+  // Form state
   const [contactEmail, setContactEmail] = useState('')
   const [ticketSubject, setTicketSubject] = useState('')
   const [ticketMessage, setTicketMessage] = useState('')
@@ -293,6 +295,12 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       openAiAssistant: 'Открыть диалог с ИИ',
       emergencyNotice:
         'Если вы испытываете резкое ухудшение самочувствия, немедленно обратитесь в службу скорой помощи: 103 или 112.',
+      supportPhotoBadge: 'Служба заботы SIHAT',
+      supportTeamTitle: 'Методологическая поддержка',
+      supportQuote:
+        '«Каждое обращение лично рассматривается исследователями и инженерами платформы. Мы помогаем разобраться в методиках и калибровке.»',
+      slaBadge: 'Ответ в течение 24 часов',
+      privacyBadge: '100% конфиденциальность',
     },
     tj: {
       heroPill: 'Маркази дастгирӣ ва дониш',
@@ -338,6 +346,12 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       openAiAssistant: 'Кушодани суҳбат бо ИИ',
       emergencyNotice:
         'Дар ҳолати бад шудани саломатӣ фавран ба ёрии таъҷилӣ занг занед: 103 ё 112.',
+      supportPhotoBadge: 'Хадамоти ғамхории SIHAT',
+      supportTeamTitle: 'Дастгирии методологӣ',
+      supportQuote:
+        '«Ҳар як саволи шумо аз ҷониби муҳаққиқон ва муҳандисони платформа шахсан дида баромада мешавад.»',
+      slaBadge: 'Ҷавоб дар давоми 24 соат',
+      privacyBadge: 'Махфияти 100%',
     },
     en: {
       heroPill: 'Help Center & Knowledge Base',
@@ -383,6 +397,12 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       openAiAssistant: 'Open AI Assistant',
       emergencyNotice:
         'If experiencing acute health symptoms, immediately dial emergency services: 103 or 112.',
+      supportPhotoBadge: 'SIHAT Care & Clinical Team',
+      supportTeamTitle: 'Methodological Support',
+      supportQuote:
+        '"Each inquiry is personally evaluated by our clinical research and platform engineering team."',
+      slaBadge: 'Reply within 24 hours',
+      privacyBadge: '100% Confidential',
     },
   }[lang]
 
@@ -900,130 +920,195 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
         </div>
       </section>
 
-      {/* 4. INLINE FORM: «ЗАДАТЬ ВОПРОС КОМАНДЕ SIHAT» (НЕ МОДАЛКА, А ПОЛНОЦЕННАЯ ЧАСТЬ СТРАНИЦЫ!) */}
-      <section id="ask-question" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
-        <div className="p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-[#0B1F1B] via-[#0E2822] to-[#071310] border border-emerald-500/35 shadow-2xl space-y-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold tracking-wide">
-              <MessageSquarePlus className="w-3.5 h-3.5" />
-              <span>{labels.inlineSectionPill}</span>
+      {/* 4. INLINE SPLIT SECTION: СЛЕВА ФОТОГРАФИЯ И КАРТОЧКА ДОВЕРИЯ, СПРАВА ФОРМА ВОПРОСА */}
+      <section id="ask-question" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
+        <div className="rounded-3xl bg-[#0B1513] border border-emerald-500/35 shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+          {/* СЛЕВА: ФОТОГРАФИЯ + КАРТОЧКА СЛУЖБЫ ЗАБОТЫ (5 cols) */}
+          <div className="lg:col-span-5 relative min-h-[380px] lg:min-h-full flex flex-col justify-between p-6 sm:p-8 overflow-hidden bg-[#070D0B]">
+            {/* Thematic photo background */}
+            <img
+              src="/images/ai/ai-medical-triage.webp"
+              alt="SIHAT Support Specialist"
+              className="absolute inset-0 w-full h-full object-cover brightness-[0.45] contrast-[1.1] scale-105"
+            />
+            {/* Gradient overlays for readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#070D0B] via-[#070D0B]/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#070D0B]/40 to-[#0B1513]" />
+
+            {/* Top Badge */}
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 text-emerald-300 text-xs font-semibold shadow-lg">
+                <Stethoscope className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{labels.supportPhotoBadge}</span>
+              </div>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {labels.inlineFormTitle}
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              {labels.inlineFormSubtitle}
-            </p>
+
+            {/* Bottom Card over photo */}
+            <div className="relative z-10 space-y-4 pt-16">
+              {/* Doctor / Specialist quote card */}
+              <div className="p-4 rounded-2xl bg-[#0B1513]/90 backdrop-blur-md border border-emerald-500/30 shadow-xl space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <img
+                      src="/images/avatars/female-doctor.webp"
+                      alt="Specialist"
+                      className="w-11 h-11 rounded-full object-cover border-2 border-emerald-500/70 shadow-md"
+                    />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0B1513]" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">
+                      {labels.supportTeamTitle}
+                    </h4>
+                    <span className="text-[10px] text-emerald-400 font-mono">
+                      SIHAT Methodologists
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-300 leading-relaxed italic">
+                  {labels.supportQuote}
+                </p>
+              </div>
+
+              {/* Badges footer */}
+              <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-slate-300">
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-slate-800">
+                  <Clock className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span className="truncate">{labels.slaBadge}</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/50 backdrop-blur-sm border border-slate-800">
+                  <Lock className="w-3 h-3 text-emerald-400 shrink-0" />
+                  <span className="truncate">{labels.privacyBadge}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {submitSuccess && (
-            <div className="p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-200 text-xs sm:text-sm space-y-3 animate-in fade-in duration-300">
-              <div className="flex items-center gap-2.5 font-bold text-emerald-300">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>{labels.successMsg}</span>
+          {/* СПРАВА: ФОРМА ОБРАЩЕНИЯ (7 cols) */}
+          <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center space-y-5 bg-gradient-to-br from-[#0B1513] via-[#0E1E1A] to-[#0B1513]">
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold tracking-wide">
+                <MessageSquarePlus className="w-3.5 h-3.5" />
+                <span>{labels.inlineSectionPill}</span>
               </div>
-              <p className="font-mono bg-black/40 px-3 py-2 rounded-xl text-emerald-300 border border-emerald-500/20 text-xs inline-block">
-                {submitSuccess}
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                {labels.inlineFormTitle}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
+                {labels.inlineFormSubtitle}
               </p>
-              <div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSubmitSuccess(null)}
-                  className="text-xs cursor-pointer text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20"
-                >
-                  {labels.sendAnotherBtn}
-                </Button>
+            </div>
+
+            {submitSuccess && (
+              <div className="p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-200 text-xs sm:text-sm space-y-3 animate-in fade-in duration-300">
+                <div className="flex items-center gap-2.5 font-bold text-emerald-300">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <span>{labels.successMsg}</span>
+                </div>
+                <p className="font-mono bg-black/40 px-3 py-2 rounded-xl text-emerald-300 border border-emerald-500/20 text-xs inline-block">
+                  {submitSuccess}
+                </p>
+                <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSubmitSuccess(null)}
+                    className="text-xs cursor-pointer text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20"
+                  >
+                    {labels.sendAnotherBtn}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {submitError && (
-            <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2.5">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{submitError}</span>
-            </div>
-          )}
+            {submitError && (
+              <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{submitError}</span>
+              </div>
+            )}
 
-          {!submitSuccess && (
-            <form onSubmit={handleSubmitQuestion} className="space-y-4 pt-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!submitSuccess && (
+              <form onSubmit={handleSubmitQuestion} className="space-y-4 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      {labels.emailLabel}
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      {labels.categoryLabel}
+                    </label>
+                    <select
+                      value={ticketCategory}
+                      onChange={(e) => setTicketCategory(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer transition-all shadow-inner"
+                    >
+                      <option value="question">Вопрос по методике</option>
+                      <option value="privacy">Приватность и Zero-Retention</option>
+                      <option value="hardware">Оборудование и калибровка</option>
+                      <option value="general">Общий вопрос о платформе</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    {labels.emailLabel}
+                    {labels.subjectLabel}
                   </label>
                   <input
-                    type="email"
+                    type="text"
                     required
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                    value={ticketSubject}
+                    onChange={(e) => setTicketSubject(e.target.value)}
+                    placeholder="Краткая суть вопроса"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    {labels.categoryLabel}
+                    {labels.messageLabel}
                   </label>
-                  <select
-                    value={ticketCategory}
-                    onChange={(e) => setTicketCategory(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer transition-all shadow-inner"
-                  >
-                    <option value="question">Вопрос по методике</option>
-                    <option value="privacy">Приватность и Zero-Retention</option>
-                    <option value="hardware">Оборудование и калибровка</option>
-                    <option value="general">Общий вопрос о платформе</option>
-                  </select>
+                  <textarea
+                    required
+                    rows={4}
+                    value={ticketMessage}
+                    onChange={(e) => setTicketMessage(e.target.value)}
+                    placeholder="Опишите ваш вопрос, методику или возникшую сложность как можно подробнее..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none transition-all shadow-inner"
+                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  {labels.subjectLabel}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={ticketSubject}
-                  onChange={(e) => setTicketSubject(e.target.value)}
-                  placeholder="Краткая суть вопроса"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  {labels.messageLabel}
-                </label>
-                <textarea
-                  required
-                  rows={4}
-                  value={ticketMessage}
-                  onChange={(e) => setTicketMessage(e.target.value)}
-                  placeholder="Опишите ваш вопрос, методику или возникшую сложность как можно подробнее..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none transition-all shadow-inner"
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-[11px] text-slate-400 font-mono hidden sm:inline-block">
-                  SLA: ответ в течение 24 часов
-                </span>
-                <Button
-                  type="submit"
-                  variant="emerald"
-                  size="lg"
-                  disabled={isSubmitting}
-                  className="gap-2.5 px-6 py-3 cursor-pointer font-bold text-xs sm:text-sm shadow-xl ml-auto hover:brightness-110"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{isSubmitting ? labels.sendingBtn : labels.sendBtn}</span>
-                </Button>
-              </div>
-            </form>
-          )}
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[11px] text-slate-400 font-mono hidden sm:inline-block">
+                    SLA: ответ в течение 24 часов
+                  </span>
+                  <Button
+                    type="submit"
+                    variant="emerald"
+                    size="lg"
+                    disabled={isSubmitting}
+                    className="gap-2.5 px-6 py-3 cursor-pointer font-bold text-xs sm:text-sm shadow-xl ml-auto hover:brightness-110"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{isSubmitting ? labels.sendingBtn : labels.sendBtn}</span>
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </section>
     </div>
