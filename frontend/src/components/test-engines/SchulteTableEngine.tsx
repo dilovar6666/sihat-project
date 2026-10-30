@@ -3,6 +3,7 @@ import { Play, RotateCcw, Clock, Award, CheckCircle, Crosshair } from 'lucide-re
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { shuffleArray, type InteractiveEngineProps } from './engineTypes'
+import { playSoundSuccess, playSoundError, playSoundComplete } from '../../lib/soundFx'
 
 export const SchulteTableEngine: React.FC<InteractiveEngineProps> = ({
   lang,
@@ -172,15 +173,18 @@ export const SchulteTableEngine: React.FC<InteractiveEngineProps> = ({
 
     if (num === currentExpected) {
       if (num === 25) {
+        playSoundComplete()
         if (timerRef.current) clearInterval(timerRef.current)
         const finalTime = Number((recordedT / 1000).toFixed(1))
         setElapsedSec(finalTime)
         setIsActive(false)
         setIsFinished(true)
       } else {
+        playSoundSuccess()
         setCurrentExpected((prev) => prev + 1)
       }
     } else {
+      playSoundError()
       setErrors((prev) => prev + 1)
       setWrongCell(num)
       setTimeout(() => setWrongCell(null), 350)

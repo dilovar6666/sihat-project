@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.attempt_schemas import ComparisonOutput, PdfExportInput, SavedResultOutput
-from sihat.auth import get_current_user
+from sihat.auth import get_current_user, get_current_user_optional
 from sihat.db import get_db_session
 from sihat.models import MethodologyPassport, SavedResult, TestAttempt, TestDefinition, User
 from sihat.pdf_report import build_screening_pdf
@@ -312,6 +312,125 @@ async def export_pdf(
         content = _pdf_bytes(lines)
 
     filename = f"sihat-result-{item.id[:8]}.pdf"
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+class DirectPdfExportInput(BaseModel):
+    test_slug: str
+    result: dict[str, Any]
+    answers: dict[str, Any] = Field(default_factory=dict)
+    lang: str = "ru"
+    include_result: bool = True
+    include_methodology: bool = True
+    include_limitations: bool = True
+    include_warnings: bool = True
+    include_answers: bool = False
+
+
+@router.post("/results/export-pdf-direct")
+async def export_pdf_direct(
+    payload: DirectPdfExportInput,
+    db: AsyncSession = Depends(get_db_session),
+    user: User | None = Depends(get_current_user_optional),
+) -> Response:
+    test_def = await db.scalar(
+        select(TestDefinition).where(TestDefinition.slug == payload.test_slug)
+    )
+    passport = None
+    if test_def:
+        passport = await db.scalar(
+            select(MethodologyPassport).where(MethodologyPassport.test_id == test_def.id)
+        )
+
+    user_lang = payload.lang if payload.lang in ("ru", "tj", "tg", "en") else "ru"
+    if user_lang == "tg":
+        user_lang = "tj"
+
+    title = payload.test_slug
+    if test_def and isinstance(test_def.localizations, dict):
+        loc = (
+            test_def.localizations.get(user_lang)
+            or test_def.localizations.get("ru")
+            or {}
+        )
+        title = loc.get("title", payload.test_slug)
+
+    test_type_str = "cognitive"
+    if test_def:
+        test_type_str = getattr(test_def, "test_type", "cognitive")
+        if hasattr(test_type_str, "value"):
+            test_type_str = test_type_str.value
+        else:
+            test_type_str = str(test_type_str)
+
+    class DirectTempResult:
+        test_slug = payload.test_slug
+        test_title = title
+        test_type = test_type_str
+        methodology_name = (
+            passport.methodology_name if passport and passport.methodology_name else title
+        )
+        methodology_version = (
+            passport.methodology_version if passport and passport.methodology_version else "2.0"
+        )
+        definition_version = "2.0"
+        limitations = (
+            passport.evidence_source
+            if passport and passport.evidence_source
+            else "Standard web-browser limitations apply"
+        )
+        warnings = []
+        result = payload.result
+        answers = payload.answers
+        completed_at = datetime.now(UTC)
+        id = str(uuid.uuid4())
+
+    pdf_options = PdfExportInput(
+        include_result=payload.include_result,
+        include_methodology=payload.include_methodology,
+        include_limitations=payload.include_limitations,
+        include_warnings=payload.include_warnings,
+        include_answers=payload.include_answers,
+        lang=user_lang,
+    )
+
+    try:
+        content = await asyncio.to_thread(
+            build_screening_pdf,
+            DirectTempResult(),
+            user,
+            pdf_options,
+            lang=user_lang,
+            test_def=test_def,
+        )
+    except Exception:
+        lines = [
+            "SIHAT result record",
+            f"Date: {datetime.now(UTC).isoformat()}",
+            f"Test: {title}",
+            f"Type: {test_type_str}",
+            "This record is not a diagnosis.",
+        ]
+        if payload.include_result:
+            lines.append(f"Result: {payload.result}")
+        if payload.include_methodology:
+            lines.extend(
+                [
+                    f"Methodology: {DirectTempResult.methodology_name}",
+                    f"Version: {DirectTempResult.methodology_version}",
+                ]
+            )
+        if payload.include_limitations:
+            lines.append(f"Limitations: {DirectTempResult.limitations}")
+        if payload.include_warnings:
+            lines.append(f"Warnings: {', '.join(DirectTempResult.warnings) or 'None recorded'}")
+        content = _pdf_bytes(lines)
+
+    filename = f"sihat-screening-{payload.test_slug}-{datetime.now(UTC).strftime('%Y%m%d')}.pdf"
     return Response(
         content=content,
         media_type="application/pdf",

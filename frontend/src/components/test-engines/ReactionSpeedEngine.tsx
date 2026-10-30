@@ -3,6 +3,7 @@ import { Play, RotateCcw, Zap, Award, CheckCircle } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import type { InteractiveEngineProps } from './engineTypes'
+import { playSoundSuccess, playSoundError, playSoundComplete } from '../../lib/soundFx'
 
 interface ReactionTrial {
   id: string
@@ -152,6 +153,7 @@ export const ReactionSpeedEngine: React.FC<InteractiveEngineProps> = ({
 
     if (state === 'waiting') {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
+      playSoundError()
       setAnticipations((a) => a + 1)
       setState('early')
     } else if (state === 'ready') {
@@ -162,8 +164,10 @@ export const ReactionSpeedEngine: React.FC<InteractiveEngineProps> = ({
       recordedRef.current.push({ id: tr.id, rt_ms: rt })
 
       if (trialIdx + 1 < trials.length) {
+        playSoundSuccess()
         setState('round_result')
       } else {
+        playSoundComplete()
         setState('finished')
       }
     }

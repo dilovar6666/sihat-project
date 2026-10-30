@@ -157,3 +157,42 @@ export async function downloadPdfBlob(
   document.body.removeChild(a)
   window.URL.revokeObjectURL(url)
 }
+
+export async function downloadDirectPdfBlob(
+  payload: {
+    test_slug: string
+    result: unknown
+    answers?: Record<string, unknown>
+    include_result?: boolean
+    include_methodology?: boolean
+    include_limitations?: boolean
+    include_answers?: boolean
+    include_warnings?: boolean
+    lang?: string
+  },
+  customFilename?: string
+) {
+  const blob = await apiRequest<Blob>('/results/export-pdf-direct', {
+    method: 'POST',
+    body: JSON.stringify({
+      test_slug: payload.test_slug,
+      result: payload.result,
+      answers: payload.answers || {},
+      include_result: payload.include_result ?? true,
+      include_methodology: payload.include_methodology ?? true,
+      include_limitations: payload.include_limitations ?? true,
+      include_answers: payload.include_answers ?? false,
+      include_warnings: payload.include_warnings ?? true,
+      lang: payload.lang || 'ru',
+    }),
+  })
+
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = customFilename || `sihat_screening_${payload.test_slug}_${new Date().toISOString().slice(0, 10)}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  window.URL.revokeObjectURL(url)
+}

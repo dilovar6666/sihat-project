@@ -12,8 +12,9 @@ import { Badge } from './ui/Badge'
 import { Card } from './ui/Card'
 import type { Language } from '../i18n'
 import type { TestItem, SavedResult } from '../types'
-import { apiRequest } from '../api'
+import { apiRequest, downloadDirectPdfBlob } from '../api'
 import { getPlatformSettings } from '../lib/settings'
+import { playSoundComplete } from '../lib/soundFx'
 
 import { SchulteTableEngine } from './test-engines/SchulteTableEngine'
 import { TrailMakingEngine } from './test-engines/TrailMakingEngine'
@@ -314,12 +315,12 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
     }
 
     setCompletedResult(resolvedResult)
+    playSoundComplete()
     await loadPreviousCompatibleResults()
 
-    // Autosave check: if user turned off privacyShield ("Сохранение только с явного согласия"),
-    // results are saved automatically upon completion without requiring manual confirmation.
+    // Autosave check: ONLY when user explicitly enabled autoSaveResults in settings
     const platformSettings = getPlatformSettings()
-    if (token && !platformSettings.privacyShield) {
+    if (token && platformSettings.autoSaveResults) {
       setIsSaving(true)
       try {
         let newSavedId: string | undefined
@@ -427,9 +428,17 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
         // Ignore
       }
     }
+    if (token && savedResultId) {
+      try {
+        await apiRequest(`/results/${savedResultId}`, { method: 'DELETE' })
+      } catch {
+        // Ignore
+      }
+    }
     sessionStorage.removeItem(sessionKey)
     setCompletedResult(null)
     setSavedSuccess(false)
+    setSavedResultId(null)
     onNotify(t.discardNotice, 'info')
     onBackToCatalog()
   }
@@ -443,53 +452,28 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
   }
 
   const handleDownloadPdf = async () => {
-    if (!savedResultId) {
-      if (!token) {
-        onOpenAuth()
-        onNotify(t.loginToSaveNotice, 'info')
-        return
+    setIsDownloadingPdf(true)
+    try {
+      if (savedResultId) {
+        await downloadFile(savedResultId)
+      } else {
+        // Direct export on the fly WITHOUT forcing database retention
+        const settings = getPlatformSettings()
+        await downloadDirectPdfBlob({
+          test_slug: slug,
+          result: completedResult,
+          include_result: true,
+          include_methodology: settings.pdfIncludeMethodology,
+          include_limitations: settings.pdfIncludeMethodology,
+          include_warnings: true,
+          include_answers: false,
+          lang,
+        })
       }
-      setIsSaving(true)
-      try {
-        let newSavedId: string | undefined
-        if (activeAttemptId) {
-          try {
-            const saved = await apiRequest<{ saved_result_id?: string }>(
-              `/attempts/${activeAttemptId}/save`,
-              {
-                method: 'POST',
-                body: JSON.stringify({ consent_confirmed: true }),
-              }
-            )
-            newSavedId = saved?.saved_result_id
-          } catch {
-            // Fallback
-          }
-        }
-        if (!newSavedId) {
-          const res = await apiRequest<{ id?: string }>('/results/save-direct', {
-            method: 'POST',
-            body: JSON.stringify({
-              test_slug: slug,
-              result: completedResult,
-              answers: {},
-              lang,
-            }),
-          })
-          newSavedId = res?.id
-        }
-        if (newSavedId) {
-          setSavedResultId(newSavedId)
-          setSavedSuccess(true)
-          await downloadFile(newSavedId)
-        }
-      } catch {
-        onNotify('Не удалось сохранить результат перед экспортом PDF', 'error')
-      } finally {
-        setIsSaving(false)
-      }
-    } else {
-      await downloadFile(savedResultId)
+    } catch {
+      window.print()
+    } finally {
+      setIsDownloadingPdf(false)
     }
   }
 

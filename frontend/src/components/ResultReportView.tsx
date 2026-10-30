@@ -22,6 +22,7 @@ import { Badge } from './ui/Badge'
 import { Card } from './ui/Card'
 import type { Language } from '../i18n'
 import type { SavedResult } from '../types'
+import { getPlatformSettings } from '../lib/settings'
 
 export interface ResultReportViewProps {
   lang: Language
@@ -1495,14 +1496,27 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         )}
       </div>
 
-      {/* 8. Honest Methodological Note */}
-      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
-        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-        <div className="text-xs text-amber-900 dark:text-amber-200/90 leading-relaxed">
-          <strong className="block mb-0.5">{ui.disclaimerTitle}</strong>
-          <span>{ui.disclaimerBody}</span>
+      {/* 8. Honest Methodological Note (respects user platform setting) */}
+      {getPlatformSettings().pdfIncludeMethodology ? (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-900 dark:text-amber-200/90 leading-relaxed">
+            <strong className="block mb-0.5">{ui.disclaimerTitle}</strong>
+            <span>{ui.disclaimerBody}</span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+          <span>
+            {lang === 'tj'
+              ? 'Ҳолати мухтасар: шиносномаи методӣ ва маҳдудиятҳо пинҳон карда шудаанд'
+              : lang === 'en'
+              ? 'Compact mode: methodology passport and limitations hidden per settings'
+              : 'Компактный режим: паспорт методики и ограничения скрыты по вашим настройкам'}
+          </span>
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400">SIHAT v3.0</span>
+        </div>
+      )}
 
       {/* 9. Action Bar */}
       <div className="pt-2 flex flex-wrap items-center justify-between gap-3">

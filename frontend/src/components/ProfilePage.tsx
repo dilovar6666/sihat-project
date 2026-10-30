@@ -27,6 +27,7 @@ import {
   Calendar,
   Crosshair,
   X,
+  Volume2,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
@@ -36,6 +37,7 @@ import { apiRequest } from '../api'
 import type { Language } from '../i18n'
 import type { SavedResult, UserProfile } from '../types'
 import { usePlatformSettings } from '../lib/settings'
+import { playSoundSuccess } from '../lib/soundFx'
 import { ResultsComparisonView } from './ResultsComparisonView'
 import {
   ResultReportView,
@@ -150,29 +152,29 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   // Settings Toggles
   const [platformSettings, updatePlatformSetting] = usePlatformSettings()
 
-  const privacyShield = platformSettings.privacyShield
+  const autoSaveResults = platformSettings.autoSaveResults
   const pdfIncludeMethodology = platformSettings.pdfIncludeMethodology
   const soundEnabled = platformSettings.soundEnabled
 
-  const handleTogglePrivacyShield = () => {
-    const nextVal = !platformSettings.privacyShield
-    updatePlatformSetting('privacyShield', nextVal)
+  const handleToggleAutoSave = () => {
+    const nextVal = !platformSettings.autoSaveResults
+    updatePlatformSetting('autoSaveResults', nextVal)
     if (nextVal) {
       onNotify(
         lang === 'tj'
-          ? 'Сабт танҳо бо розигӣ фаъол шуд: натиҷаҳо бе пахши «Сабт кардан» нигоҳ дошта намешаванд'
+          ? 'Сабти худкор фаъол шуд: натиҷаҳои машқҳо ба таври худкор сабт мешаванд'
           : lang === 'en'
-          ? 'Explicit consent save enabled: results will only save when you click Save'
-          : 'Сохранение только с явного согласия включено: результаты не попадут в базу без вашего нажатия',
+          ? 'Auto-save enabled: test results will automatically save to your personal archive'
+          : 'Автосохранение включено: завершённые тесты будут автоматически записываться в архив',
         'success'
       )
     } else {
       onNotify(
         lang === 'tj'
-          ? 'Сабти худкор фаъол шуд: натиҷаҳои машқҳо пас аз анҷом ба таври худкор сабт мешаванд'
+          ? 'Сабти худкор хомӯш карда шуд: натиҷаҳо танҳо бо пахши тугмаи «Сабт» нигоҳ дошта мешаванд'
           : lang === 'en'
-          ? 'Auto-save enabled: test results will automatically save to your personal archive'
-          : 'Автосохранение включено: завершённые тесты будут автоматически записываться в архив',
+          ? 'Auto-save disabled: results will only save when you explicitly click "Save Result"'
+          : 'Автосохранение выключено: результаты сохраняются только при нажатии кнопки «Сохранить»',
         'info'
       )
     }
@@ -206,21 +208,45 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     const nextVal = !platformSettings.soundEnabled
     updatePlatformSetting('soundEnabled', nextVal)
     if (nextVal) {
+      playSoundSuccess()
       onNotify(
         lang === 'tj'
-          ? 'Садо ва синтези сигналҳо дар машқҳои шунавоӣ фаъол шуд'
+          ? 'Садо ва эффектҳои аудиоӣ дар ҳамаи машқҳо фаъол шуданд'
           : lang === 'en'
-          ? 'Sound synthesis and audio signals enabled in hearing exercises'
-          : 'Звуковое сопровождение и синтез аудиосигналов в тестах на слух включены',
+          ? 'Sound effects and audio cues enabled across exercises'
+          : 'Звуковое сопровождение и аудиоэффекты в тестах включены',
         'success'
       )
     } else {
       onNotify(
         lang === 'tj'
-          ? 'Садо хомӯш карда шуд (ҳолати бесадои машқҳо)'
+          ? 'Садо хомӯш карда шуд (реҷаи комилан бесадо)'
           : lang === 'en'
-          ? 'Sound muted in hearing exercises (silent mode)'
-          : 'Звуковое сопровождение отключено (тихий режим упражнений)',
+          ? 'Sound muted across exercises (silent mode)'
+          : 'Звуковое сопровождение отключено (полная тишина в тестах)',
+        'info'
+      )
+    }
+  }
+
+  const handleTestSound = () => {
+    if (platformSettings.soundEnabled) {
+      playSoundSuccess()
+      onNotify(
+        lang === 'tj'
+          ? 'Садои санҷишӣ бомуваффақият навохта шуд ✓'
+          : lang === 'en'
+          ? 'Test sound played successfully ✓'
+          : 'Звуковой сигнал успешно воспроизведён ✓',
+        'success'
+      )
+    } else {
+      onNotify(
+        lang === 'tj'
+          ? 'Садо дар танзимот хомӯш аст. Барои шунидани садо тугмаро фаъол кунед'
+          : lang === 'en'
+          ? 'Audio is disabled in settings. Enable the toggle to hear sounds'
+          : 'Звук отключён в настройках. Включите тумблер для воспроизведения',
         'info'
       )
     }
@@ -301,12 +327,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       resetEmailMissing: 'Сначала привяжите email во вкладке «Личные данные».',
       settingsTitle: 'Настройки платформы',
       settingsSubtitle: 'Параметры приватности, звуковых сигналов и формирования PDF-отчётов',
-      privacyShieldTitle: 'Сохранение только с явного согласия',
-      privacyShieldDesc: 'Результаты упражнений не записываются в базу без нажатия кнопки «Сохранить»',
+      autoSaveTitle: 'Автоматическое сохранение результатов',
+      autoSaveDesc: 'Автоматически сохранять результаты тестов в личный архив. При выключении — сохранение происходит только вручную по кнопке «Сохранить»',
       pdfMethodTitle: 'Включать паспорт методики в PDF-отчёт',
-      pdfMethodDesc: 'Добавлять научный источник и ограничения оборудования при экспорте PDF',
+      pdfMethodDesc: 'Добавлять научный первоисточник (PubMed/ISO) и ограничения оборудования в PDF',
       soundTitle: 'Звуковое сопровождение в тестах',
-      soundDesc: 'Разрешить синтез аудиосигналов в упражнениях на слух',
+      soundDesc: 'Звуки при ответах, завершении тестов и генерация аудиосигналов в упражнениях',
+      testSoundBtn: 'Проверить звук',
       gdprTitle: 'Удаление истории и данных',
       gdprNotice: 'Вы можете в любой момент очистить весь архив сохранённых результатов.',
       unauthTitle: 'Вход в личный кабинет',
@@ -372,12 +399,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       resetEmailMissing: 'Аввал дар бахши «Маълумоти шахсӣ» email пайваст кунед.',
       settingsTitle: 'Танзимоти платформа',
       settingsSubtitle: 'Параметрҳои махфият, садо ва ҳисоботи PDF',
-      privacyShieldTitle: 'Сабт танҳо бо розигии шумо',
-      privacyShieldDesc: 'Натиҷаҳо бе пахши тугмаи «Сабт кардан» дар пойгоҳ нигоҳ дошта намешаванд',
-      pdfMethodTitle: 'Дохил кардани шиносномаи методӣ ба PDF',
+      autoSaveTitle: 'Сабти худкори натиҷаҳо',
+      autoSaveDesc: 'Натиҷаҳо ба таври худкор дар бойгонӣ сабт мешаванд. Ҳангоми хомӯш будан — танҳо бо пахши тугмаи «Сабт кардан»',
+      pdfMethodTitle: 'Шиносномаи методӣ дар гузориши PDF',
       pdfMethodDesc: 'Илова кардани сарчашмаи илмӣ ва маҳдудиятҳо ҳангоми содироти PDF',
-      soundTitle: 'Садо дар машқҳо',
-      soundDesc: 'Фаъол кардани сигналҳои аудиоӣ дар санҷишҳои шунавоӣ',
+      soundTitle: 'Ҳамроҳии аудиоӣ дар машқҳо',
+      soundDesc: 'Овозҳои посух, анҷоми санҷиш ва тавлиди сигналҳои аудиоӣ дар машқҳо',
+      testSoundBtn: 'Санҷиши садо',
       gdprTitle: 'Поксозии таърих ва маълумот',
       gdprNotice: 'Шумо метавонед дар дилхоҳ вақт тамоми бойгонии натиҷаҳоро пок кунед.',
       unauthTitle: 'Воридшавӣ ба утоқи шахсӣ',
@@ -442,13 +470,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       resetEmailSentSuccess: 'Password reset link sent to your email.',
       resetEmailMissing: 'Please link an email address in "Personal Data" first.',
       settingsTitle: 'Platform Settings',
-      settingsSubtitle: 'Privacy preferences, audio synthesis, and PDF report options',
-      privacyShieldTitle: 'Explicit Consent Storage Only',
-      privacyShieldDesc: 'Exercise results are never stored unless you explicitly click "Save Result"',
+      settingsSubtitle: 'Privacy preferences, audio effects, and PDF report options',
+      autoSaveTitle: 'Automatic Result Saving',
+      autoSaveDesc: 'Automatically record completed test results to your profile archive. When disabled, results are saved only when you click "Save Result"',
       pdfMethodTitle: 'Include Methodology Passport in PDF',
-      pdfMethodDesc: 'Include scientific source and hardware limitations when exporting PDF reports',
-      soundTitle: 'Audio Prompts in Exercises',
-      soundDesc: 'Enable WebAudio tone synthesis for hearing exercises',
+      pdfMethodDesc: 'Include scientific literature references (PubMed/ISO) and hardware constraints in PDF reports',
+      soundTitle: 'Audio Effects & Test Sound',
+      soundDesc: 'Interaction sounds, answer feedback, test completion fanfare, and tone synthesis',
+      testSoundBtn: 'Test Audio',
       gdprTitle: 'Data & Archive Erasure',
       gdprNotice: 'You can permanently delete individual saved results or clear your entire archive at any time.',
       unauthTitle: 'Sign In to Personal Profile',
@@ -1564,31 +1593,33 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </div>
 
               <div className="space-y-4 max-w-2xl">
+                {/* 1. Auto-save Results */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white mb-0.5">
-                      {t.privacyShieldTitle}
+                      {t.autoSaveTitle}
                     </div>
-                    <p className="text-[11px] text-slate-500">{t.privacyShieldDesc}</p>
+                    <p className="text-[11px] text-slate-500">{t.autoSaveDesc}</p>
                   </div>
                   <button
                     type="button"
                     role="switch"
-                    aria-checked={privacyShield}
-                    aria-label={t.privacyShieldTitle}
-                    onClick={handleTogglePrivacyShield}
+                    aria-checked={autoSaveResults}
+                    aria-label={t.autoSaveTitle}
+                    onClick={handleToggleAutoSave}
                     className={`w-10 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                      privacyShield ? 'bg-[#17A884]' : 'bg-slate-300 dark:bg-slate-700'
+                      autoSaveResults ? 'bg-[#17A884]' : 'bg-slate-300 dark:bg-slate-700'
                     }`}
                   >
                     <div
                       className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform ${
-                        privacyShield ? 'translate-x-4' : 'translate-x-0'
+                        autoSaveResults ? 'translate-x-4' : 'translate-x-0'
                       }`}
                     />
                   </button>
                 </div>
 
+                {/* 2. PDF Methodology Passport */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white mb-0.5">
@@ -1614,10 +1645,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </button>
                 </div>
 
+                {/* 3. Audio & Sound FX with Test Button */}
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white mb-0.5">
-                      {t.soundTitle}
+                    <div className="text-xs font-bold text-slate-900 dark:text-white mb-0.5 flex items-center gap-2">
+                      <span>{t.soundTitle}</span>
+                      <button
+                        type="button"
+                        onClick={handleTestSound}
+                        className="px-2 py-0.5 text-[10px] font-bold rounded-md border border-slate-300 dark:border-[#1E302B] hover:border-[#17A884] text-slate-700 dark:text-slate-300 hover:text-[#17A884] transition-colors cursor-pointer flex items-center gap-1"
+                        title={t.testSoundBtn}
+                      >
+                        <Volume2 className="w-3 h-3 text-[#17A884]" />
+                        <span>{t.testSoundBtn}</span>
+                      </button>
                     </div>
                     <p className="text-[11px] text-slate-500">{t.soundDesc}</p>
                   </div>
