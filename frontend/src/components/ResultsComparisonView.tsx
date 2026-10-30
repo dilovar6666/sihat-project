@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Eye,
   Info,
+  Calendar,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import type { Language } from '../i18n'
@@ -1194,6 +1195,19 @@ export const ResultsComparisonView: React.FC<ResultsComparisonViewProps> = ({
       progressVsA: 'к базовой попытке',
       noChange: 'Без изменений',
       reportBtn: 'Подробный отчёт',
+      cardReportBtn: 'Отчёт',
+      attemptABadge: 'Попытка A',
+      attemptBBadge: 'Попытка B',
+      currentTag: 'Текущая',
+      baselineTag: 'Базовая',
+      benchmarkLabel: 'Эталон SIHAT',
+      baselinePill: 'Базовая точка отсчёта',
+      progressPill: 'Зафиксирован прогресс',
+      declinePill: 'Временное снижение',
+      aboveNormPill: 'Попытка B выше нормы',
+      withinNormPill: 'В пределах популяционной нормы',
+      cohortDesc: 'Выборка здоровых взрослых 18–50 лет',
+      pointsSuffix: 'баллов',
       factorSpeed: 'Скорость и темп реакции',
       factorAccuracy: 'Точность и самоконтроль',
       factorAdaptation: 'Эффект адаптации и тренировки',
@@ -1229,6 +1243,19 @@ export const ResultsComparisonView: React.FC<ResultsComparisonViewProps> = ({
       progressVsA: 'нисбат ба кӯшиши асосӣ',
       noChange: 'Бе тағйир',
       reportBtn: 'Ҳисоботи пурра',
+      cardReportBtn: 'Ҳисобот',
+      attemptABadge: 'Кӯшиши A',
+      attemptBBadge: 'Кӯшиши B',
+      currentTag: 'Ҷорӣ',
+      baselineTag: 'Поягӣ',
+      benchmarkLabel: 'Меъёри SIHAT',
+      baselinePill: 'Нуқтаи ибтидоии муқоиса',
+      progressPill: 'Пешрафт сабт шуд',
+      declinePill: 'Пастшавии муваққатӣ',
+      aboveNormPill: 'Кӯшиши B болотар аз меъёр',
+      withinNormPill: 'Дар доираи меъёри умумӣ',
+      cohortDesc: 'Интихоби калонсолони солим 18–50 сола',
+      pointsSuffix: 'хол',
       factorSpeed: 'Суръат ва аксуламал',
       factorAccuracy: 'Дақиқӣ ва худдорӣ',
       factorAdaptation: 'Таъсири мутобиқшавӣ ва тамрин',
@@ -1264,6 +1291,19 @@ export const ResultsComparisonView: React.FC<ResultsComparisonViewProps> = ({
       progressVsA: 'vs baseline attempt',
       noChange: 'No delta',
       reportBtn: 'Full Report',
+      cardReportBtn: 'Report',
+      attemptABadge: 'Attempt A',
+      attemptBBadge: 'Attempt B',
+      currentTag: 'Current',
+      baselineTag: 'Baseline',
+      benchmarkLabel: 'SIHAT Norm',
+      baselinePill: 'Baseline Reference Point',
+      progressPill: 'Progress Recorded',
+      declinePill: 'Transient Decline',
+      aboveNormPill: 'Attempt B above norm',
+      withinNormPill: 'Within population norm',
+      cohortDesc: 'Healthy adults cohort 18–50 yrs',
+      pointsSuffix: 'pts',
       factorSpeed: 'Reaction Latency & Speed',
       factorAccuracy: 'Accuracy & Motor Control',
       factorAdaptation: 'Practice Effect & Adaptation',
@@ -1516,106 +1556,183 @@ export const ResultsComparisonView: React.FC<ResultsComparisonViewProps> = ({
       </div>
 
       {/* 2. THREE-DIMENSION ENTITY SUMMARY CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Attempt A Card */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-blue-500/5 border border-blue-500/25 space-y-3 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="px-2.5 py-1 rounded-md bg-blue-500/15 border border-blue-500/30 text-blue-400 font-mono text-[11px] font-bold">
-              Попытка A
-            </span>
-            {attemptA && (
-              <button
-                onClick={() => onInspectResult(attemptA)}
-                className="text-[11px] font-bold text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>{t.reportBtn}</span>
-              </button>
-            )}
-          </div>
-          <div>
-            <div className="text-2xl font-black font-mono text-slate-900 dark:text-white">
-              {avgScoreA} <span className="text-xs text-slate-400 font-normal">/ 100 балл</span>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5">
+        {/* Attempt A Card (Baseline) */}
+        <div className="group relative rounded-2xl bg-sky-500/[0.04] dark:bg-sky-500/[0.06] border border-sky-500/20 hover:border-sky-500/40 p-5 flex flex-col justify-between transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-sky-500/5">
+          <div className="space-y-4">
+            {/* Header: Badge on left, Action on right */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 font-mono text-xs font-bold whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+                <span>{t.attemptABadge}</span>
+              </div>
+              {attemptA && (
+                <button
+                  type="button"
+                  onClick={() => onInspectResult(attemptA)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/25 text-sky-400 hover:text-sky-300 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer group"
+                  title={t.reportBtn}
+                >
+                  <Eye className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                  <span>{t.cardReportBtn}</span>
+                </button>
+              )}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {attemptA
-                ? new Date(attemptA.completed_at).toLocaleDateString(
-                    lang === 'en' ? 'en-US' : lang === 'tj' ? 'tg-TJ' : 'ru-RU',
-                    { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-                  )
-                : '—'}
+
+            {/* Score Display */}
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl sm:text-4xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
+                  {avgScoreA}
+                </span>
+                <span className="text-xs font-mono text-slate-400">/ 100 {t.pointsSuffix}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1 font-sans">
+                <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                <span className="truncate">
+                  {attemptA
+                    ? new Date(attemptA.completed_at).toLocaleDateString(
+                        lang === 'en' ? 'en-US' : lang === 'tj' ? 'tg-TJ' : 'ru-RU',
+                        { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+                      )
+                    : '—'}
+                </span>
+              </div>
             </div>
           </div>
-          <div className="text-[11px] text-blue-400 font-mono bg-blue-500/10 px-2.5 py-1 rounded-lg inline-block">
-            Базовая точка отсчёта
+
+          {/* Bottom Context Pill */}
+          <div className="mt-4 pt-3 border-t border-sky-500/15">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-300 text-xs font-mono">
+              <Target className="w-3.5 h-3.5 flex-shrink-0 text-sky-400" />
+              <span className="truncate font-medium">{t.baselinePill}</span>
+            </div>
           </div>
         </div>
 
-        {/* Attempt B Card */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/30 space-y-3 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-[11px] font-bold">
-              Попытка B (Текущая)
-            </span>
-            {attemptB && (
-              <button
-                onClick={() => onInspectResult(attemptB)}
-                className="text-[11px] font-bold text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>{t.reportBtn}</span>
-              </button>
-            )}
-          </div>
-          <div>
-            <div className="text-2xl font-black font-mono text-slate-900 dark:text-white flex items-baseline gap-2">
-              <span>{avgScoreB}</span>
-              <span className="text-xs text-slate-400 font-normal">/ 100 балл</span>
-              {attemptA && (
-                <span
-                  className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
-                    isOverallProgress
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-rose-500/20 text-rose-400'
-                  }`}
-                >
-                  {overallProgressPct >= 0 ? `+${overallProgressPct}%` : `${overallProgressPct}%`}
+        {/* Attempt B Card (Current / Target) */}
+        <div className="group relative rounded-2xl bg-emerald-500/[0.05] dark:bg-emerald-500/[0.08] border-2 border-emerald-500/40 hover:border-emerald-500/60 p-5 flex flex-col justify-between transition-all duration-300 shadow-sm hover:shadow-lg hover:shadow-emerald-500/10 ring-1 ring-emerald-500/20">
+          <div className="space-y-4">
+            {/* Header: Badge + 'Current' tag on left, Action on right */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-bold whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>{t.attemptBBadge}</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold uppercase tracking-wider whitespace-nowrap border border-emerald-500/30">
+                  {t.currentTag}
                 </span>
+              </div>
+              {attemptB && (
+                <button
+                  type="button"
+                  onClick={() => onInspectResult(attemptB)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 hover:text-emerald-300 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer group"
+                  title={t.reportBtn}
+                >
+                  <Eye className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                  <span>{t.cardReportBtn}</span>
+                </button>
               )}
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {attemptB
-                ? new Date(attemptB.completed_at).toLocaleDateString(
-                    lang === 'en' ? 'en-US' : lang === 'tj' ? 'tg-TJ' : 'ru-RU',
-                    { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-                  )
-                : '—'}
+
+            {/* Score Display with Delta */}
+            <div>
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-3xl sm:text-4xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
+                  {avgScoreB}
+                </span>
+                <span className="text-xs font-mono text-slate-400">/ 100 {t.pointsSuffix}</span>
+                {attemptA && (
+                  <span
+                    className={`inline-flex items-center gap-1 text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border ${
+                      isOverallProgress
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/35'
+                        : 'bg-rose-500/20 text-rose-400 border-rose-500/35'
+                    }`}
+                  >
+                    {isOverallProgress ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    {overallProgressPct >= 0 ? `+${overallProgressPct}%` : `${overallProgressPct}%`}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1 font-sans">
+                <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                <span className="truncate">
+                  {attemptB
+                    ? new Date(attemptB.completed_at).toLocaleDateString(
+                        lang === 'en' ? 'en-US' : lang === 'tj' ? 'tg-TJ' : 'ru-RU',
+                        { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+                      )
+                    : '—'}
+                </span>
+              </div>
             </div>
           </div>
-          <div className="text-[11px] text-emerald-400 font-mono bg-emerald-500/10 px-2.5 py-1 rounded-lg inline-block">
-            {isOverallProgress ? '▲ Зафиксирован прогресс' : '▼ Временное снижение'}
+
+          {/* Bottom Context Pill */}
+          <div className="mt-4 pt-3 border-t border-emerald-500/15">
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-medium ${
+                isOverallProgress
+                  ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
+                  : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
+              }`}
+            >
+              {isOverallProgress ? (
+                <TrendingUp className="w-3.5 h-3.5 flex-shrink-0 text-emerald-400" />
+              ) : (
+                <TrendingDown className="w-3.5 h-3.5 flex-shrink-0 text-rose-400" />
+              )}
+              <span className="truncate">
+                {isOverallProgress
+                  ? `${t.progressPill} (${avgScoreB - avgScoreA >= 0 ? '+' : ''}${avgScoreB - avgScoreA} ${t.pointsSuffix})`
+                  : `${t.declinePill} (${avgScoreB - avgScoreA} ${t.pointsSuffix})`}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Population Benchmark Card */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-purple-500/5 border border-purple-500/25 space-y-3 relative overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="px-2.5 py-1 rounded-md bg-purple-500/15 border border-purple-500/30 text-purple-400 font-mono text-[11px] font-bold flex items-center gap-1">
-              <Users className="w-3 h-3" />
-              <span>{t.populationBadge}</span>
-            </span>
-            <span className="text-[10px] text-purple-400 font-mono">Эталон SIHAT</span>
-          </div>
-          <div>
-            <div className="text-2xl font-black font-mono text-slate-900 dark:text-white">
-              {avgScorePop} <span className="text-xs text-slate-400 font-normal">/ 100 балл</span>
+        <div className="group relative rounded-2xl bg-purple-500/[0.04] dark:bg-purple-500/[0.06] border border-purple-500/20 hover:border-purple-500/40 p-5 flex flex-col justify-between transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-purple-500/5">
+          <div className="space-y-4">
+            {/* Header: Badge on left, Benchmark tag on right */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-400 font-mono text-xs font-bold whitespace-nowrap">
+                <Users className="w-3.5 h-3.5" />
+                <span>{t.populationBadge}</span>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[11px] whitespace-nowrap">
+                {t.benchmarkLabel}
+              </span>
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Выборка здоровых взрослых 18–50 лет
+
+            {/* Score Display */}
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl sm:text-4xl font-black font-mono text-slate-900 dark:text-white tracking-tight">
+                  {avgScorePop}
+                </span>
+                <span className="text-xs font-mono text-slate-400">/ 100 {t.pointsSuffix}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1 font-sans">
+                <Info className="w-3.5 h-3.5 text-purple-400/70 flex-shrink-0" />
+                <span className="truncate">{t.cohortDesc}</span>
+              </div>
             </div>
           </div>
-          <div className="text-[11px] text-purple-300 font-mono bg-purple-500/10 px-2.5 py-1 rounded-lg inline-block truncate max-w-full">
-            {avgScoreB >= avgScorePop ? 'Попытка B выше среднего уровня' : 'В пределах популяционной нормы'}
+
+          {/* Bottom Context Pill */}
+          <div className="mt-4 pt-3 border-t border-purple-500/15">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-mono font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+              <span className="truncate">
+                {avgScoreB >= avgScorePop
+                  ? `${t.aboveNormPill} (+${avgScoreB - avgScorePop} ${t.pointsSuffix})`
+                  : t.withinNormPill}
+              </span>
+            </div>
           </div>
         </div>
       </div>
