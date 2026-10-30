@@ -18,7 +18,6 @@ import {
   Clock,
   Check,
   PhoneCall,
-  X,
 } from 'lucide-react'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
@@ -240,8 +239,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
   const [openFaqId, setOpenFaqId] = useState<string | null>('faq-1')
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({})
 
-  // Form state
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false)
+  // Inline Form state (part of the page, not a popup modal!)
   const [contactEmail, setContactEmail] = useState('')
   const [ticketSubject, setTicketSubject] = useState('')
   const [ticketMessage, setTicketMessage] = useState('')
@@ -272,12 +270,20 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       readTimeMin: 'мин чтения',
       wasHelpful: 'Был ли этот ответ полезен?',
       thanksFeedback: 'Спасибо за отзыв!',
-      askCtaTitle: 'Не нашли ответ на свой вопрос?',
-      askCtaDesc:
-        'Наша команда методологов и инженеров готова помочь. Мы рассматриваем каждое обращение индивидуально с регламентом ответа до 24 часов.',
-      askCtaBtn: 'Задать персональный вопрос',
+      inlineSectionPill: 'Прямая связь со специалистами',
+      inlineFormTitle: 'Не нашли ответ на свой вопрос?',
+      inlineFormSubtitle:
+        'Задайте ваш вопрос команде SIHAT. Методологи и инженеры рассмотрят обращение и подробно ответят на ваш email в течение 24 часов.',
+      emailLabel: 'Ваш контактный email',
+      categoryLabel: 'Категория обращения',
+      subjectLabel: 'Тема вопроса',
+      messageLabel: 'Текст вопроса или описание ситуации',
+      sendBtn: 'Отправить вопрос команде',
+      sendingBtn: 'Отправка вопроса...',
+      successMsg: 'Ваш вопрос успешно зарегистрирован! Номер обращения:',
+      sendAnotherBtn: 'Задать ещё один вопрос',
+      errorMsg: 'Не удалось отправить вопрос. Пожалуйста, проверьте введённые данные.',
       systemHealthTitle: 'Статус систем платформы',
-      allSystemsOperational: 'Все сервисы работают в штатном режиме',
       engineOnline: 'Движок тестирования v2.0 (Active)',
       dbOnline: 'PostgreSQL + asyncpg (Online)',
       zeroRetentionActive: 'Zero-Retention Shield (Active)',
@@ -285,17 +291,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       aiAssistantCardDesc:
         'Задайте вопрос нейросетевому консультанту SIHAT по интерпретации ваших тестов в режиме реального времени.',
       openAiAssistant: 'Открыть диалог с ИИ',
-      modalTitle: 'Задать вопрос команде SIHAT',
-      modalSubtitle: 'Напишите нам, и мы ответим на ваш email в течение суток.',
-      emailLabel: 'Ваш контактный email',
-      categoryLabel: 'Категория вопроса',
-      subjectLabel: 'Тема обращения',
-      messageLabel: 'Текст вопроса или описание ситуации',
-      sendBtn: 'Отправить вопрос',
-      sendingBtn: 'Отправка...',
-      successMsg: 'Вопрос успешно зарегистрирован! Номер обращения:',
-      errorMsg: 'Не удалось отправить вопрос. Пожалуйста, проверьте введённые данные.',
-      closeBtn: 'Закрыть',
       emergencyNotice:
         'Если вы испытываете резкое ухудшение самочувствия, немедленно обратитесь в службу скорой помощи: 103 или 112.',
     },
@@ -320,21 +315,10 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       readTimeMin: 'дақ. мутолиа',
       wasHelpful: 'Оё ин ҷавоб муфид буд?',
       thanksFeedback: 'Ташаккур барои фикру мулоҳиза!',
-      askCtaTitle: 'Ҷавоби саволи худро наёфтед?',
-      askCtaDesc:
-        'Дастаи мутахассисони мо омодаанд, ки ба ҳар як саволи шумо дар давоми 24 соат посух диҳанд.',
-      askCtaBtn: 'Саволи худро фиристед',
-      systemHealthTitle: 'Ҳолати системаи платформа',
-      allSystemsOperational: 'Ҳамаи хизматрасониҳо фаъоланд',
-      engineOnline: 'Муҳаррики машқҳо v2.0 (Active)',
-      dbOnline: 'Пойгоҳи додаҳо (Online)',
-      zeroRetentionActive: 'Ҳимояи Zero-Retention (Active)',
-      aiAssistantCardTitle: 'Ёрдамчии ҳушманди SIHAT',
-      aiAssistantCardDesc:
-        'Саволҳои худро ба ёрдамчии сунъии мо диҳед ва дарҳол посух гиред.',
-      openAiAssistant: 'Кушодани суҳбат бо ИИ',
-      modalTitle: 'Фиристодани савол ба дастаи SIHAT',
-      modalSubtitle: 'Саволи худро нависед, мо ба почтаи шумо ҷавоб медиҳем.',
+      inlineSectionPill: 'Алоқаи мустақим бо мутахассисон',
+      inlineFormTitle: 'Ҷавоби саволи худро наёфтед?',
+      inlineFormSubtitle:
+        'Саволи худро ба дастаи SIHAT фиристед. Мутахассисони мо дар давоми 24 соат ба почтаи электронии шумо посух медиҳанд.',
       emailLabel: 'Email-и шумо',
       categoryLabel: 'Самти савол',
       subjectLabel: 'Мавзӯи муроҷиат',
@@ -342,8 +326,16 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       sendBtn: 'Фиристодани савол',
       sendingBtn: 'Дар ҳоли фиристодан...',
       successMsg: 'Саволи шумо бомуваффақият сабт шуд! Рақами муроҷиат:',
+      sendAnotherBtn: 'Саволи нав додан',
       errorMsg: 'Фиристодани савол муяссар нашуд. Лутфан санҷед.',
-      closeBtn: 'Пӯшидан',
+      systemHealthTitle: 'Ҳолати системаи платформа',
+      engineOnline: 'Муҳаррики машқҳо v2.0 (Active)',
+      dbOnline: 'Пойгоҳи додаҳо (Online)',
+      zeroRetentionActive: 'Ҳимояи Zero-Retention (Active)',
+      aiAssistantCardTitle: 'Ёрдамчии ҳушманди SIHAT',
+      aiAssistantCardDesc:
+        'Саволҳои худро ба ёрдамчии сунъии мо диҳед ва дарҳол посух гиред.',
+      openAiAssistant: 'Кушодани суҳбат бо ИИ',
       emergencyNotice:
         'Дар ҳолати бад шудани саломатӣ фавран ба ёрии таъҷилӣ занг занед: 103 ё 112.',
     },
@@ -368,12 +360,20 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       readTimeMin: 'min read',
       wasHelpful: 'Was this answer helpful?',
       thanksFeedback: 'Thank you for your feedback!',
-      askCtaTitle: "Couldn't find the answer you need?",
-      askCtaDesc:
-        'Our clinical and engineering teams review all user inquiries directly with an SLA of under 24 hours.',
-      askCtaBtn: 'Ask a Dedicated Question',
+      inlineSectionPill: 'Direct Specialist Access',
+      inlineFormTitle: "Didn't find an answer to your question?",
+      inlineFormSubtitle:
+        'Send your inquiry directly to the SIHAT team. Our clinical methodologists and engineers review and reply to your email within 24 hours.',
+      emailLabel: 'Contact Email',
+      categoryLabel: 'Category',
+      subjectLabel: 'Subject',
+      messageLabel: 'Detailed Question or Situation',
+      sendBtn: 'Submit Inquiry',
+      sendingBtn: 'Submitting...',
+      successMsg: 'Inquiry registered successfully! Reference ID:',
+      sendAnotherBtn: 'Submit Another Question',
+      errorMsg: 'Failed to submit inquiry. Please check your input.',
       systemHealthTitle: 'Platform System Status',
-      allSystemsOperational: 'All Systems Operational',
       engineOnline: 'Test Engine v2.0 (Active)',
       dbOnline: 'PostgreSQL + asyncpg (Online)',
       zeroRetentionActive: 'Zero-Retention Shield (Active)',
@@ -381,17 +381,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
       aiAssistantCardDesc:
         'Get interactive explanations and guidance from our specialized AI assistant.',
       openAiAssistant: 'Open AI Assistant',
-      modalTitle: 'Submit an Inquiry to SIHAT',
-      modalSubtitle: 'Send your question and our team will respond via email within 24 hours.',
-      emailLabel: 'Contact Email',
-      categoryLabel: 'Inquiry Category',
-      subjectLabel: 'Subject',
-      messageLabel: 'Detailed Message',
-      sendBtn: 'Submit Question',
-      sendingBtn: 'Submitting...',
-      successMsg: 'Inquiry registered successfully! Reference ID:',
-      errorMsg: 'Failed to submit inquiry. Please check your input.',
-      closeBtn: 'Close',
       emergencyNotice:
         'If experiencing acute health symptoms, immediately dial emergency services: 103 or 112.',
     },
@@ -555,7 +544,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
     <div id="faq" className="min-h-screen bg-[#070D0B] text-slate-100 pb-24">
       {/* 1. HERO SECTION WITH SPOTLIGHT SEARCH */}
       <section className="relative pt-24 pb-14 px-4 sm:px-6 lg:px-8 overflow-hidden border-b border-emerald-950/40">
-        {/* Subtle Ambient Glows */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[320px] bg-gradient-to-b from-[#17A884]/15 via-emerald-900/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-4xl mx-auto text-center space-y-6">
@@ -668,7 +656,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
           })}
         </div>
 
-        {/* Active Filter Pill Bar */}
         {selectedCategory !== 'all' && (
           <div className="mt-4 flex items-center gap-2 text-xs">
             <span className="text-slate-400">Фильтр:</span>
@@ -703,17 +690,15 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                   По запросу «{searchQuery}» ответов не найдено.
                 </p>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Попробуйте изменить формулировку или отправьте нам персональный вопрос.
+                  Попробуйте изменить запрос или задайте вопрос через форму ниже.
                 </p>
-                <Button
-                  variant="emerald"
-                  size="sm"
-                  onClick={() => setIsFormModalOpen(true)}
-                  className="gap-2 cursor-pointer font-bold mt-2"
+                <a
+                  href="#ask-question"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#17A884] text-white text-xs font-bold shadow-md hover:bg-[#1ab891] transition-colors mt-2"
                 >
                   <MessageSquarePlus className="w-4 h-4" />
-                  <span>{labels.askCtaBtn}</span>
-                </Button>
+                  <span>Перейти к форме вопроса</span>
+                </a>
               </div>
             ) : (
               filteredFaqs.map((item) => {
@@ -762,7 +747,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                           {aText}
                         </p>
 
-                        {/* Interactive Micro-Feedback: Was this helpful? */}
                         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/60 text-xs text-slate-400">
                           <span>{labels.wasHelpful}</span>
                           {feedback ? (
@@ -799,9 +783,8 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
             )}
           </div>
 
-          {/* RIGHT: Support & Knowledge Hub (4 cols) — STICKY & RICH (NO EMPTY VOID!) */}
+          {/* RIGHT: Support & Knowledge Hub (4 cols) — STICKY */}
           <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-24">
-            {/* Widget 1: Рекомендуемые руководства Базы Знаний */}
             <Card className="p-5 rounded-3xl bg-[#0B1513] border-slate-800/90 shadow-xl space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -844,7 +827,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
               </div>
             </Card>
 
-            {/* Widget 2: Статус платформы в реальном времени (System Health) */}
             <Card className="p-5 rounded-3xl bg-[#0B1513] border-slate-800/90 shadow-xl space-y-3.5">
               <div className="flex items-center justify-between border-b border-slate-800/70 pb-2.5">
                 <span className="text-xs font-bold text-white flex items-center gap-2">
@@ -882,7 +864,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
               </div>
             </Card>
 
-            {/* Widget 3: ИИ-Ассистент консультант */}
             <div className="p-5 rounded-3xl bg-gradient-to-br from-[#103D35]/80 via-[#0B1F1B] to-[#070D0B] border border-emerald-500/30 shadow-xl space-y-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-[#17A884] flex items-center justify-center">
@@ -911,7 +892,6 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
               </Button>
             </div>
 
-            {/* Widget 4: Экстренная памятка 103/112 */}
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200/90 text-[11px] flex items-start gap-2.5 leading-relaxed">
               <PhoneCall className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
               <span>{labels.emergencyNotice}</span>
@@ -920,178 +900,132 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
         </div>
       </section>
 
-      {/* 4. BOTTOM INVITING CTA FOR ASKING QUESTIONS (CLEAN & BALANCED) */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-        <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-[#0B1F1B] via-[#0E2822] to-[#091512] border border-emerald-500/30 shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 max-w-xl text-center md:text-left">
-            <h3 className="text-xl sm:text-2xl font-extrabold text-white">
-              {labels.askCtaTitle}
+      {/* 4. INLINE FORM: «ЗАДАТЬ ВОПРОС КОМАНДЕ SIHAT» (НЕ МОДАЛКА, А ПОЛНОЦЕННАЯ ЧАСТЬ СТРАНИЦЫ!) */}
+      <section id="ask-question" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
+        <div className="p-6 sm:p-10 rounded-3xl bg-gradient-to-br from-[#0B1F1B] via-[#0E2822] to-[#071310] border border-emerald-500/35 shadow-2xl space-y-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold tracking-wide">
+              <MessageSquarePlus className="w-3.5 h-3.5" />
+              <span>{labels.inlineSectionPill}</span>
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {labels.inlineFormTitle}
             </h3>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              {labels.askCtaDesc}
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+              {labels.inlineFormSubtitle}
             </p>
           </div>
 
-          <Button
-            variant="emerald"
-            size="lg"
-            onClick={() => setIsFormModalOpen(true)}
-            className="gap-2.5 px-6 py-3.5 shrink-0 shadow-xl hover:scale-[1.02] cursor-pointer font-bold text-sm"
-          >
-            <MessageSquarePlus className="w-4 h-4" />
-            <span>{labels.askCtaBtn}</span>
-          </Button>
-        </div>
-      </section>
-
-      {/* 5. MODAL FORM: «ЗАДАТЬ ВОПРОС КОМАНДЕ SIHAT» */}
-      {isFormModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div
-            className="w-full max-w-lg bg-[#0B1513] border border-emerald-500/30 rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 space-y-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
+          {submitSuccess && (
+            <div className="p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-200 text-xs sm:text-sm space-y-3 animate-in fade-in duration-300">
+              <div className="flex items-center gap-2.5 font-bold text-emerald-300">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>{labels.successMsg}</span>
+              </div>
+              <p className="font-mono bg-black/40 px-3 py-2 rounded-xl text-emerald-300 border border-emerald-500/20 text-xs inline-block">
+                {submitSuccess}
+              </p>
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <MessageSquarePlus className="w-5 h-5 text-emerald-400" />
-                  <span>{labels.modalTitle}</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">{labels.modalSubtitle}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsFormModalOpen(false)
-                  setSubmitSuccess(null)
-                  setSubmitError(null)
-                }}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {submitSuccess && (
-              <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-xs flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>
-                  {labels.successMsg} <strong>{submitSuccess}</strong>
-                </span>
-              </div>
-            )}
-
-            {submitError && (
-              <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2.5">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{submitError}</span>
-              </div>
-            )}
-
-            {!submitSuccess && (
-              <form onSubmit={handleSubmitQuestion} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      {labels.emailLabel}
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={contactEmail}
-                      onChange={(e) => setContactEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-800 bg-[#070D0B] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      {labels.categoryLabel}
-                    </label>
-                    <select
-                      value={ticketCategory}
-                      onChange={(e) => setTicketCategory(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-800 bg-[#070D0B] text-xs text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                    >
-                      <option value="question">Вопрос по методике</option>
-                      <option value="privacy">Приватность и данные</option>
-                      <option value="hardware">Оборудование и калибровка</option>
-                      <option value="general">Общий вопрос</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    {labels.subjectLabel}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ticketSubject}
-                    onChange={(e) => setTicketSubject(e.target.value)}
-                    placeholder="Краткая суть вопроса"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-800 bg-[#070D0B] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    {labels.messageLabel}
-                  </label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={ticketMessage}
-                    onChange={(e) => setTicketMessage(e.target.value)}
-                    placeholder="Опишите вопрос, упражнение или ситуацию как можно подробнее..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-800 bg-[#070D0B] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsFormModalOpen(false)}
-                    className="text-xs cursor-pointer"
-                  >
-                    {labels.closeBtn}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="emerald"
-                    size="sm"
-                    disabled={isSubmitting}
-                    className="gap-2 cursor-pointer font-bold text-xs"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{isSubmitting ? labels.sendingBtn : labels.sendBtn}</span>
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            {submitSuccess && (
-              <div className="flex justify-end pt-2">
                 <Button
-                  variant="emerald"
+                  variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setIsFormModalOpen(false)
-                    setSubmitSuccess(null)
-                  }}
-                  className="cursor-pointer text-xs"
+                  onClick={() => setSubmitSuccess(null)}
+                  className="text-xs cursor-pointer text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20"
                 >
-                  {labels.closeBtn}
+                  {labels.sendAnotherBtn}
                 </Button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {submitError && (
+            <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{submitError}</span>
+            </div>
+          )}
+
+          {!submitSuccess && (
+            <form onSubmit={handleSubmitQuestion} className="space-y-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    {labels.emailLabel}
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    {labels.categoryLabel}
+                  </label>
+                  <select
+                    value={ticketCategory}
+                    onChange={(e) => setTicketCategory(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer transition-all shadow-inner"
+                  >
+                    <option value="question">Вопрос по методике</option>
+                    <option value="privacy">Приватность и Zero-Retention</option>
+                    <option value="hardware">Оборудование и калибровка</option>
+                    <option value="general">Общий вопрос о платформе</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  {labels.subjectLabel}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={ticketSubject}
+                  onChange={(e) => setTicketSubject(e.target.value)}
+                  placeholder="Краткая суть вопроса"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  {labels.messageLabel}
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  value={ticketMessage}
+                  onChange={(e) => setTicketMessage(e.target.value)}
+                  placeholder="Опишите ваш вопрос, методику или возникшую сложность как можно подробнее..."
+                  className="w-full px-4 py-3 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none transition-all shadow-inner"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-[11px] text-slate-400 font-mono hidden sm:inline-block">
+                  SLA: ответ в течение 24 часов
+                </span>
+                <Button
+                  type="submit"
+                  variant="emerald"
+                  size="lg"
+                  disabled={isSubmitting}
+                  className="gap-2.5 px-6 py-3 cursor-pointer font-bold text-xs sm:text-sm shadow-xl ml-auto hover:brightness-110"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{isSubmitting ? labels.sendingBtn : labels.sendBtn}</span>
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
-      )}
+      </section>
     </div>
   )
 }

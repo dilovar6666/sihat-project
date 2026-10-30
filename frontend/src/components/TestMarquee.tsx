@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import {
   Clock,
   UserCheck,
@@ -119,8 +119,28 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
         description: 'Табдили босуръати рамзҳои геометрӣ ба рақамҳо аз рӯи калиди динамикӣ.',
       },
       en: {
-        title: 'Symbol-Digit Substitution',
-        description: 'Rapid translation of geometric symbols into digits using a dynamic key in 60 seconds.',
+        title: 'Symbol Digit Modalities',
+        description: 'Timed geometric symbol to digit matching under a dynamic cipher key.',
+      },
+    },
+  },
+  {
+    slug: 'color-perception',
+    min_age: 10,
+    type: 'validated_screening',
+    category_id: 'vision',
+    localizations: {
+      ru: {
+        title: 'Тест на дальтонизм (Рабкин & Ишихара)',
+        description: 'Скрининг трихроматического цветовосприятия по полихроматическим таблицам.',
+      },
+      tj: {
+        title: 'Санҷиши дальтонизм',
+        description: 'Скрининги идроки рангҳо бо ҷадвалҳои полихроматикии Рабкин ва Ишихара.',
+      },
+      en: {
+        title: 'Color Perception Screening',
+        description: 'Trichromatic color vision evaluation using pseudo-isochromatic plates.',
       },
     },
   },
@@ -131,96 +151,176 @@ const FALLBACK_TEST_ITEMS: Partial<TestItem>[] = [
     category_id: 'vision',
     localizations: {
       ru: {
-        title: 'Различение контраста (Решётки Габора)',
-        description: 'Определение ориентации синусоидальных решёток при снижении контраста от 60% до 2.5%.',
+        title: 'Различение контраста (Габор)',
+        description: 'Определение ориентации синусоидальных полос при прогрессивно убывающем контрасте.',
       },
       tj: {
-        title: 'Фарқкунии контраст',
-        description: 'Муайян кардани самти панҷараҳои синусоидалӣ ҳангоми паст шудани контраст.',
+        title: 'Дарккунии контраст',
+        description: 'Муайян намудани самти хатҳои Габор ҳангоми кам шудани контраст.',
       },
       en: {
-        title: 'Contrast Discrimination (Gabor)',
-        description: 'Identifying grating tilt angles as contrast decreases from 60% down to 2.5%.',
+        title: 'Contrast Sensitivity',
+        description: 'Detection of sinusoidal Gabor grating orientations under fading contrast.',
       },
     },
   },
   {
-    slug: 'visual-pairs',
+    slug: 'visual-acuity-near',
     min_age: 10,
-    type: 'digital_check',
+    type: 'validated_screening',
     category_id: 'vision',
     localizations: {
       ru: {
-        title: 'Визуальные пары',
-        description: 'Поиск парных векторных пиктограмм с запоминанием их расположения на сетке 4×4.',
+        title: 'Острота зрения вблизи (Кольца Ландольта)',
+        description: 'Определение положения разрыва в кольцах Ландольта при калиброванном масштабе.',
       },
       tj: {
-        title: 'Ҷуфтҳои визуалӣ',
-        description: 'Ҷустуҷӯи кортҳои ҷуфт бо ба хотир гирифтани ҷойгиршавии онҳо дар шабакаи 4×4.',
+        title: 'Тезии биниши наздик',
+        description: 'Муайян кардани шикофии ҳалқаҳои Ландольт дар масофаи корӣ.',
       },
       en: {
-        title: 'Visual Pairs Match',
-        description: 'Finding matching vector icon pairs by remembering their spatial positions on a 4×4 grid.',
+        title: 'Near Visual Acuity',
+        description: 'Landolt C gap discrimination at standardized digital viewing distances.',
       },
     },
   },
   {
-    slug: 'pattern-matrix',
+    slug: 'hearing-tone-detection',
     min_age: 12,
-    type: 'digital_check',
-    category_id: 'vision',
-    localizations: {
-      ru: {
-        title: 'Продолжи последовательность',
-        description: 'Анализ закономерностей изменения формы, поворота и количества элементов в визуальном ряду.',
-      },
-      tj: {
-        title: 'Идома додани пайдарпайӣ',
-        description: 'Таҳлили қонуниятҳои тағйирёбии шакл, гардиш ва миқдори унсурҳо.',
-      },
-      en: {
-        title: 'Pattern Sequence Completion',
-        description: 'Analyzing rules of shape, rotation, and element count progression in a visual series.',
-      },
-    },
-  },
-  {
-    slug: 'sound-discrimination',
-    min_age: 10,
-    type: 'digital_check',
+    type: 'validated_screening',
     category_id: 'hearing',
     localizations: {
       ru: {
-        title: 'Сравнение звуков по высоте',
-        description: 'Определение более высокого тона в паре синтезированных аудиосигналов с уменьшением разницы Гц.',
+        title: 'Тональная аудиометрия',
+        description: 'Определение минимального порога слышимости чистых тонов от 250 до 8000 Гц.',
       },
       tj: {
-        title: 'Муқоисаи садоҳо',
-        description: 'Муайян кардани садои баландтар дар ҷуфти сигналҳои аудиоӣ.',
+        title: 'Аудиометрияи оҳангӣ',
+        description: 'Муайян кардани сатҳи пасттарини шунавоӣ барои басомадҳои 250 то 8000 Гц.',
       },
       en: {
-        title: 'Pitch Discrimination',
-        description: 'Identifying the higher-pitched tone in synthesized audio pairs across decreasing Hz steps.',
+        title: 'Pure Tone Audiometry',
+        description: 'Auditory threshold detection across frequencies 250 to 8000 Hz.',
       },
     },
   },
   {
-    slug: 'reaction-speed',
+    slug: 'speech-in-noise',
+    min_age: 12,
+    type: 'validated_screening',
+    category_id: 'hearing',
+    localizations: {
+      ru: {
+        title: 'Разборчивость речи в шуме',
+        description: 'Распознавание речевых числительных на фоне модулированного маскирующего шума.',
+      },
+      tj: {
+        title: 'Фаҳмидани нутқ дар садои баланд',
+        description: 'Шинохтани рақамҳои гуфташуда дар зери садои омехтаи муҳити атроф.',
+      },
+      en: {
+        title: 'Speech-in-Noise Recognition',
+        description: 'Digi-word discrimination against calibrated background auditory noise.',
+      },
+    },
+  },
+  {
+    slug: 'high-frequency-hearing',
+    min_age: 14,
+    type: 'validated_screening',
+    category_id: 'hearing',
+    localizations: {
+      ru: {
+        title: 'Высокочастотный слух',
+        description: 'Проверка верхнего частотного диапазона восприятия звука от 8 до 16 кГц.',
+      },
+      tj: {
+        title: 'Шунавоии басомадҳои баланд',
+        description: 'Санҷиши доираи болоии шунавоӣ аз 8 то 16 кГц.',
+      },
+      en: {
+        title: 'High-Frequency Hearing',
+        description: 'Extended high-frequency screening from 8 kHz to 16 kHz.',
+      },
+    },
+  },
+  {
+    slug: 'simple-reaction-time',
     min_age: 10,
-    type: 'digital_check',
+    type: 'validated_screening',
     category_id: 'reaction-coordination',
     localizations: {
       ru: {
         title: 'Простая зрительно-моторная реакция',
-        description: 'Серия из 8 замеров времени отклика в миллисекундах на появление светового сигнала.',
+        description: 'Измерение минимального времени отклика на внезапное появление визуального стимула.',
       },
       tj: {
-        title: 'Вокуниши оддии визуалӣ-моторӣ',
-        description: 'Силсилаи 8 ченкунии вақти вокуниш бо миллисонияҳо ба пайдоиши сигнал.',
+        title: 'Вокуниши оддии биноӣ-ҳаракатӣ',
+        description: 'Санҷиши суръати аксуламал ба пайдоиши стимул бо миллисонияҳо.',
       },
       en: {
-        title: 'Simple Visuomotor Reaction',
-        description: '8-trial millisecond latency measurement in response to a visual stimulus.',
+        title: 'Simple Reaction Time',
+        description: 'Millisecond-precision response latency measurement to visual stimuli.',
+      },
+    },
+  },
+  {
+    slug: 'choice-reaction-time',
+    min_age: 12,
+    type: 'validated_screening',
+    category_id: 'reaction-coordination',
+    localizations: {
+      ru: {
+        title: 'Реакция выбора (Go / No-Go)',
+        description: 'Тест на тормозный контроль: мгновенное нажатие на зелёный и удержание при красном сигнале.',
+      },
+      tj: {
+        title: 'Вокуниши интихобӣ (Go / No-Go)',
+        description: 'Санҷиши боздории равонӣ: амал ҳангоми ранги сабз ва худдорӣ ҳангоми ранги сурх.',
+      },
+      en: {
+        title: 'Choice Reaction (Go / No-Go)',
+        description: 'Inhibitory impulse control: respond to target signals while suppressing non-targets.',
+      },
+    },
+  },
+  {
+    slug: 'cursor-path',
+    min_age: 10,
+    type: 'validated_screening',
+    category_id: 'reaction-coordination',
+    localizations: {
+      ru: {
+        title: 'Точный маршрут курсора',
+        description: 'Проведение курсора по извилистому коридору без касания границ по закону Аккермана.',
+      },
+      tj: {
+        title: 'Масири дақиқи курсор',
+        description: 'Гузаронидани курсор аз долони каҷу килеб бе расидан ба деворҳо.',
+      },
+      en: {
+        title: 'Steering Through a Corridor',
+        description: 'Motor steering law kinematic tracking through bounded winding curves.',
+      },
+    },
+  },
+  {
+    slug: 'mouse-eye-coordination',
+    min_age: 10,
+    type: 'validated_screening',
+    category_id: 'reaction-coordination',
+    localizations: {
+      ru: {
+        title: 'Слежение за движущейся целью',
+        description: 'Плавное непрерывное удержание курсора на траектории непредсказуемой цели.',
+      },
+      tj: {
+        title: 'Пайгирии ҳадафи ҳаракаткунанда',
+        description: 'Нигоҳ доштани муш дар болои ҳадафи ҳаракаткунанда бе фосила.',
+      },
+      en: {
+        title: 'Pursuit Tracking Rotor',
+        description: 'Continuous smooth pursuit motor tracking of dynamic orbital targets.',
       },
     },
   },
@@ -233,8 +333,6 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
   onStartAttempt,
   onOpenCatalog,
 }) => {
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null)
-
   const readyTests = useMemo(() => {
     const filtered =
       tests && tests.length > 0
@@ -243,11 +341,10 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
     return filtered.length > 0 ? filtered : (FALLBACK_TEST_ITEMS as TestItem[])
   }, [tests])
 
+  // Duplicate items twice to ensure a seamless infinite -50% translateX loop
   const marqueeItems = useMemo(() => {
     return [...readyTests, ...readyTests]
   }, [readyTests])
-
-  const isPaused = hoveredKey !== null
 
   const getLocalizedTitle = (t: Partial<TestItem>) => {
     const loc =
@@ -275,10 +372,14 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
   }
 
   return (
-    <section aria-label="Интерактивная лента скринингов" className="w-full mt-6 sm:mt-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-2 px-1">
+    <section
+      aria-label="Интерактивная лента скринингов"
+      className="w-full mt-8 sm:mt-12"
+    >
+      {/* Header with counter and catalog link */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-4 px-1 max-w-7xl mx-auto">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-700 dark:text-[#2EC4A7] border border-emerald-500/20 mb-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
             <span className="w-2 h-2 rounded-full bg-[#17A884] animate-pulse" />
             <span>
               {lang === 'tj'
@@ -287,10 +388,13 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                 ? 'Interactive Exercise Stream'
                 : 'Каталог упражнений'}
             </span>
-            <span className="text-zinc-400 dark:text-zinc-600">•</span>
-            <span className="font-mono">{readyTests.length} методик</span>
+            <span className="text-zinc-600">•</span>
+            <span className="font-mono text-emerald-300">
+              {readyTests.length} {lang === 'tj' ? 'методика' : lang === 'en' ? 'methods' : 'методик'}
+            </span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
+
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
             <span>
               {lang === 'tj'
                 ? 'Ҳамаи машқҳои дастраси платформа'
@@ -298,9 +402,10 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                 ? 'Available Interactive Exercises'
                 : 'Интерактивные методики платформы'}
             </span>
-            <Sparkles className="w-4 h-4 text-[#17A884] hidden sm:inline-block" />
+            <Sparkles className="w-5 h-5 text-[#17A884] hidden sm:inline-block" />
           </h2>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mt-1 max-w-2xl">
+
+          <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
             {lang === 'tj'
               ? 'Феҳристи интерактивии усулҳои стандартишуда барои санҷиши диққат, хотира, биноӣ, шунавоӣ ва вокуниш.'
               : lang === 'en'
@@ -312,24 +417,24 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
         <button
           type="button"
           onClick={onOpenCatalog}
-          className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-2xl liquid-glass-pill text-xs font-bold text-zinc-700 dark:text-zinc-200 hover:text-[#17A884] dark:hover:text-[#2EC4A7] transition-all cursor-pointer shadow-xs"
+          className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#0B1513] border border-slate-800 text-xs font-bold text-slate-200 hover:text-[#17A884] hover:border-emerald-500/40 hover:bg-[#0E1A17] transition-all cursor-pointer shadow-md group"
         >
           <span>
-            {lang === 'tj' ? 'Ҳама дар феҳрист' : lang === 'en' ? 'Browse Full Catalog' : 'Все упражнения в каталоге'}
+            {lang === 'tj'
+              ? 'Ҳама дар феҳрист'
+              : lang === 'en'
+              ? 'Browse Full Catalog'
+              : 'Все упражнения в каталоге'}
           </span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>
 
-      <div className="relative w-full overflow-hidden marquee-edge-mask py-28 -my-28 select-none">
-        <div
-          className={`flex items-center gap-3.5 w-max will-change-transform ${
-            isPaused ? 'marquee-paused' : 'animate-marquee-scroll'
-          }`}
-        >
+      {/* INFINITE MARQUEE WITH EXPANDABLE CARDS (NO CLIPPING, NO CUT OFF!) */}
+      <div className="relative w-full overflow-hidden marquee-edge-mask py-8 sm:py-10 marquee-container group select-none">
+        <div className="flex items-stretch gap-5 w-max will-change-transform animate-marquee-scroll">
           {marqueeItems.map((test, index) => {
             const key = `${test.slug}-${index}`
-            const isHovered = hoveredKey === key
             const title = getLocalizedTitle(test)
             const desc = getLocalizedDesc(test)
             const coverUrl = getTestCover(test.slug || '')
@@ -340,111 +445,96 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
             return (
               <div
                 key={key}
-                onMouseEnter={() => setHoveredKey(key)}
-                onMouseLeave={() => setHoveredKey(null)}
-                className={`relative flex-shrink-0 ${isHovered ? 'z-50' : 'z-10'}`}
+                className="w-[280px] sm:w-[305px] h-[375px] shrink-0 bg-[#0B1513] border border-slate-800/90 rounded-3xl p-4 flex flex-col justify-between transition-all duration-300 ease-out hover:scale-[1.04] sm:hover:scale-[1.06] hover:-translate-y-2 hover:border-[#17A884] hover:shadow-2xl hover:shadow-emerald-500/25 group-hover:opacity-75 hover:!opacity-100 cursor-pointer group/card relative z-10 hover:z-30"
+                onClick={() => onStartAttempt(test as TestItem)}
               >
-                <div
-                  className={`w-[205px] sm:w-[220px] h-[78px] px-3.5 py-2.5 rounded-2xl border border-zinc-200/90 dark:border-[#1E302B] bg-white/95 dark:bg-[#0E1715] shadow-xs flex flex-col justify-center cursor-pointer transition-all duration-200 ${
-                    isHovered
-                      ? 'border-[#17A884] scale-95 opacity-30'
-                      : 'hover:border-[#17A884]/70 scale-100 opacity-100'
-                  }`}
-                >
-                  <h3 className="text-xs sm:text-[13px] font-bold text-zinc-900 dark:text-zinc-100 line-clamp-1 leading-snug">
+                {/* 1. Cover Image with Badges */}
+                <div className="relative h-[160px] w-full rounded-2xl overflow-hidden mb-3 bg-[#080E0D] shadow-inner shrink-0">
+                  <img
+                    src={coverUrl}
+                    alt={altText}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500 ease-out"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#080E0D]/90 via-[#080E0D]/30 to-transparent" />
+
+                  {/* Top Pill */}
+                  <div className="absolute top-2.5 left-2.5">
+                    <span className="text-[10px] font-bold py-1 px-2.5 rounded-full backdrop-blur-md shadow-md bg-[#0E2C26]/90 text-[#2EC4A7] border border-[#17A884]/40">
+                      {isValidated
+                        ? lang === 'tj'
+                          ? 'Методикаи исботшуда'
+                          : lang === 'en'
+                          ? 'Validated Method'
+                          : 'Доказательная методика'
+                        : lang === 'tj'
+                        ? 'Машқи рақамӣ'
+                        : lang === 'en'
+                        ? 'Digital Exercise'
+                        : 'Цифровое упражнение'}
+                    </span>
+                  </div>
+
+                  {/* Bottom Image Stats */}
+                  <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-white/95 font-medium">
+                    <div className="flex items-center gap-2 font-mono">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-[#2EC4A7]" />
+                        <span>{lang === 'tj' ? '2–3 дақ' : lang === 'en' ? '2–3 min' : '2–3 мин'}</span>
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <UserCheck className="w-3 h-3 text-[#2EC4A7]" />
+                        <span>{test.min_age || 12}+</span>
+                      </span>
+                    </div>
+
+                    {credit && (
+                      <span className="truncate max-w-[110px] text-white/60 font-mono text-[9px]">
+                        © {credit.author}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Text Content */}
+                <div className="flex-1 flex flex-col justify-start px-0.5 mb-3">
+                  <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 leading-snug line-clamp-1 group-hover/card:text-emerald-300 transition-colors">
                     {title}
                   </h3>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 mt-1 leading-tight">
+                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
                     {desc}
                   </p>
                 </div>
 
-                <div
-                  className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[310px] sm:w-[335px] p-3.5 sm:p-4 rounded-3xl bg-white dark:bg-[#0E1715] border-2 border-[#17A884] dark:border-[#17A884] z-50 origin-center select-auto flex flex-col justify-between ${
-                    isHovered
-                      ? 'opacity-100 scale-100 pointer-events-auto visible'
-                      : 'opacity-0 scale-75 pointer-events-none invisible'
-                  }`}
-                  style={{
-                    boxShadow: isHovered
-                      ? '0 25px 60px -10px rgba(0, 0, 0, 0.75), 0 0 32px 2px rgba(23, 168, 132, 0.35)'
-                      : 'none',
-                    transition: isHovered
-                      ? 'transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease-out, box-shadow 320ms ease-out'
-                      : 'transform 220ms cubic-bezier(0.4, 0, 0.2, 1), opacity 180ms ease-in, box-shadow 180ms ease-in',
-                    willChange: 'transform, opacity',
-                  }}
-                >
-                  <div className="relative h-[142px] sm:h-[150px] w-full rounded-2xl overflow-hidden mb-2.5 bg-[#080E0D] shadow-inner flex-shrink-0">
-                    <img src={coverUrl} alt={altText} loading="lazy" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#080E0D]/90 via-[#080E0D]/25 to-transparent" />
+                {/* 3. Action Buttons (Always 100% visible, fully rendered, never clipped) */}
+                <div className="pt-2.5 border-t border-slate-800/80 flex items-center gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelectTest(test as TestItem)
+                    }}
+                    className="flex-1 text-xs h-9 rounded-xl font-bold cursor-pointer border-slate-800 bg-[#070D0B] hover:border-[#17A884] text-slate-300 hover:text-white"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-[#17A884]" />
+                    <span>{lang === 'tj' ? 'Шиноснома' : lang === 'en' ? 'Passport' : 'Паспорт'}</span>
+                  </Button>
 
-                    <div className="absolute top-2 left-2">
-                      <span className="text-[10px] font-bold py-0.5 px-2 rounded-full backdrop-blur-md shadow-md bg-[#0E2C26]/90 text-[#2EC4A7] border border-[#17A884]/40">
-                        {isValidated
-                          ? lang === 'tj'
-                            ? 'Методикаи исботшуда'
-                            : lang === 'en'
-                            ? 'Validated Method'
-                            : 'Доказательная методика'
-                          : lang === 'tj'
-                          ? 'Машқи рақамӣ'
-                          : lang === 'en'
-                          ? 'Digital Exercise'
-                          : 'Цифровое упражнение'}
-                      </span>
-                    </div>
-
-                    <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[10px] text-white/90">
-                      <div className="flex items-center gap-1.5 font-mono">
-                        <Clock className="w-3 h-3 text-[#2EC4A7]" />
-                        <span>{lang === 'tj' ? '2–3 дақ' : lang === 'en' ? '2–3 min' : '2–3 мин'}</span>
-                        <span>•</span>
-                        <UserCheck className="w-3 h-3 text-[#2EC4A7]" />
-                        <span>{test.min_age || 12}+</span>
-                      </div>
-
-                      {credit && (
-                        <span className="truncate max-w-[120px] text-white/60 font-mono text-[9px]">
-                          © {credit.author}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="px-0.5 mb-2.5">
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-1 leading-snug line-clamp-1">
-                      {title}
-                    </h3>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-snug line-clamp-2">{desc}</p>
-                  </div>
-
-                  <div className="pt-2 border-t border-zinc-100 dark:border-[#1E302B] flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onSelectTest(test as TestItem)
-                      }}
-                      className="flex-1 text-xs h-8 rounded-xl font-bold cursor-pointer border-zinc-200 dark:border-[#223832] dark:bg-[#15221F] hover:border-[#17A884] text-zinc-800 dark:text-zinc-200"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-[#17A884]" />
-                      <span>{lang === 'tj' ? 'Шиноснома' : lang === 'en' ? 'Passport' : 'Паспорт'}</span>
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onStartAttempt(test as TestItem)
-                      }}
-                      className="flex-1 bg-gradient-to-r from-[#103D35] to-[#17A884] hover:from-[#13493f] hover:to-[#1ab891] text-white text-xs h-8 rounded-xl font-bold cursor-pointer shadow-md"
-                    >
-                      <span>{lang === 'tj' ? 'Оғоз' : lang === 'en' ? 'Start' : 'Начать'}</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onStartAttempt(test as TestItem)
+                    }}
+                    className="flex-1 bg-gradient-to-r from-[#103D35] to-[#17A884] hover:from-[#13493f] hover:to-[#1ab891] text-white text-xs h-9 rounded-xl font-bold cursor-pointer shadow-md gap-1"
+                  >
+                    <span>{lang === 'tj' ? 'Оғоз' : lang === 'en' ? 'Start' : 'Начать'}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               </div>
             )

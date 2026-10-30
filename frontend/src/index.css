@@ -860,6 +860,7 @@ html.theme-transitioning *::after {
   will-change: transform;
 }
 
+.marquee-container:hover .animate-marquee-scroll,
 .marquee-paused {
   animation-play-state: paused !important;
 }
