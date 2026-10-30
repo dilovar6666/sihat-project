@@ -72,7 +72,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onNotify,
   onNavigate,
 }) => {
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard')
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('tab=')) {
+      const match = window.location.hash.match(/tab=([a-z-]+)/)
+      if (match && match[1]) return match[1] as AdminTab
+    }
+    return 'dashboard'
+  })
   const [aiIncidents, setAiIncidents] = useState<AiSecurityIncident[]>([])
   const [selectedIncidentForInspection, setSelectedIncidentForInspection] = useState<AiSecurityIncident | null>(null)
   const [aiIncidentActionLoading, setAiIncidentActionLoading] = useState(false)
