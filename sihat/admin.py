@@ -36,6 +36,7 @@ from sihat.content_schemas import (
     SupportTicketUpdateInput,
 )
 from sihat.db import get_db_session
+from sihat.ws import ws_manager
 from sihat.gemini import GeminiUnavailableError, generate_assistant_response_async
 from sihat.models import (
     AiSecurityIncident,
@@ -779,6 +780,35 @@ async def admin_reply_support_ticket(
 
     await db.commit()
     await db.refresh(msg)
+    await db.refresh(ticket)
+
+    msg_dict = {
+        "id": msg.id,
+        "ticket_id": msg.ticket_id,
+        "sender_type": msg.sender_type,
+        "sender_id": msg.sender_id,
+        "sender_name": msg.sender_name,
+        "message": msg.message,
+        "created_at": msg.created_at.isoformat(),
+        "read_by_user": msg.read_by_user,
+        "read_by_admin": msg.read_by_admin,
+    }
+    ticket_dict = {
+        "id": ticket.id,
+        "status": ticket.status,
+        "is_blocked": ticket.is_blocked,
+        "admin_notes": ticket.admin_notes,
+        "last_message": msg.message,
+        "last_message_at": msg.created_at.isoformat(),
+        "unread_user_count": 1,
+        "unread_admin_count": 0,
+    }
+    await ws_manager.broadcast_new_message(
+        ticket_id=ticket.id,
+        message=msg_dict,
+        ticket=ticket_dict,
+        recipient_user_id=ticket.user_id,
+    )
     return _admin_message_output(msg)
 
 

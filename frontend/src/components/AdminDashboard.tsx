@@ -2,6 +2,7 @@ import { SplineAreaChart } from './ui/SplineAreaChart'
 import React, { useEffect, useState, useMemo } from 'react'
 import {
   Users,
+  Sparkles,
   ShieldAlert,
   Eye,
   UserX,
@@ -1708,9 +1709,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <span className="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">
                                   {t.contact_email}
                                 </span>
-                                <Badge variant={t.status === 'resolved' ? 'emerald' : t.status === 'in_progress' ? 'cyan' : 'outline'}>
-                                  {t.status}
-                                </Badge>
+                                <div className="flex items-center gap-1">
+                                  {t.admin_notes?.includes('ЭСКАЛАЦИЯ') && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                      Эскалация ИИ
+                                    </span>
+                                  )}
+                                  <Badge variant={t.status === 'resolved' ? 'emerald' : t.status === 'in_progress' ? 'cyan' : 'outline'}>
+                                    {t.status}
+                                  </Badge>
+                                </div>
                               </div>
                             </button>
                           )
@@ -1786,6 +1794,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                         {activeAdminTicketDetail.messages?.map((msg) => {
                           const isAdmin = msg.sender_type === 'admin'
+                          const isAi = msg.sender_type === 'ai'
 
                           return (
                             <div
@@ -1796,12 +1805,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed space-y-1 shadow-xs ${
                                   isAdmin
                                     ? 'rounded-tr-sm bg-[#17A884]/20 border border-[#17A884]/40 text-slate-900 dark:text-slate-100'
+                                    : isAi
+                                    ? 'rounded-tl-sm bg-gradient-to-br from-cyan-950/30 via-slate-900 to-[#131C1A] border border-cyan-500/40 text-slate-900 dark:text-slate-100'
                                     : 'rounded-tl-sm bg-slate-100 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-slate-900 dark:text-slate-100'
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-3 text-[10px] font-bold pb-1 border-b border-black/5 dark:border-white/5">
-                                  <span className={isAdmin ? 'text-emerald-500 font-extrabold uppercase' : 'text-slate-500 uppercase'}>
-                                    {isAdmin ? 'Вы (Поддержка SIHAT)' : `Клиент (${msg.sender_name || activeAdminTicketDetail.contact_email})`}
+                                  <span className={isAdmin ? 'text-emerald-500 font-extrabold uppercase' : isAi ? 'text-cyan-400 font-extrabold uppercase inline-flex items-center gap-1.5' : 'text-slate-500 uppercase'}>
+                                    {isAdmin ? (
+                                      'Вы (Поддержка SIHAT)'
+                                    ) : isAi ? (
+                                      <>
+                                        <Sparkles className="w-3 h-3 text-cyan-400 animate-pulse" />
+                                        <span>ИИ-ассистент SIHAT (Автоответ)</span>
+                                      </>
+                                    ) : (
+                                      `Клиент (${msg.sender_name || activeAdminTicketDetail.contact_email})`
+                                    )}
                                   </span>
                                   <span className="text-slate-400 font-mono">
                                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

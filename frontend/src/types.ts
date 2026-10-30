@@ -111,7 +111,7 @@ export type KnowledgeArticle = {
 export type SupportMessage = {
   id: string
   ticket_id: string
-  sender_type: 'user' | 'admin'
+  sender_type: 'user' | 'admin' | 'ai'
   sender_id?: string | null
   sender_name?: string | null
   message: string

@@ -12,6 +12,7 @@ import {
   Headphones,
   RefreshCw,
   Search,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
@@ -252,6 +253,83 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
   useEffect(() => {
     scrollToBottom()
   }, [activeTicket?.messages])
+
+
+  // Real-time WebSocket connection for instant chat updates without page reload
+  useEffect(() => {
+    if (!selectedTicketId) return
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const token = sessionStorage.getItem('sihat_access_token') || ''
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/ws/support/${selectedTicketId}${token ? `?token=${encodeURIComponent(token)}` : ''}`
+
+    let ws: WebSocket | null = null
+    let pingTimer: any = null
+    let isMounted = true
+
+    const connectWs = () => {
+      try {
+        ws = new WebSocket(wsUrl)
+        ws.onopen = () => {
+          pingTimer = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping' }))
+            }
+          }, 25000)
+        }
+
+        ws.onmessage = (event) => {
+          if (!isMounted) return
+          try {
+            const data = JSON.parse(event.data)
+            if (data.event === 'new_message' && data.ticket_id === selectedTicketId) {
+              const newMsg = data.message
+              setActiveTicket((prev) => {
+                if (!prev) return null
+                if (prev.messages?.some((m) => m.id === newMsg.id)) return prev
+                return {
+                  ...prev,
+                  messages: [...(prev.messages || []), newMsg],
+                  status: data.ticket?.status || prev.status,
+                  admin_notes: data.ticket?.admin_notes ?? prev.admin_notes,
+                }
+              })
+              setTickets((prev) =>
+                prev.map((t) =>
+                  t.id === selectedTicketId
+                    ? {
+                        ...t,
+                        last_message: newMsg.message,
+                        last_message_at: newMsg.created_at,
+                        status: data.ticket?.status || t.status,
+                        admin_notes: data.ticket?.admin_notes ?? t.admin_notes,
+                        unread_user_count: 0,
+                      }
+                    : t
+                )
+              )
+            } else if (data.event === 'ticket_updated' && data.ticket_id === selectedTicketId) {
+              setActiveTicket((prev) => (prev ? { ...prev, ...data.ticket } : null))
+            }
+          } catch {}
+        }
+
+        ws.onerror = () => {}
+        ws.onclose = () => {
+          if (pingTimer) clearInterval(pingTimer)
+          if (isMounted) setTimeout(connectWs, 3000)
+        }
+      } catch {}
+    }
+
+    connectWs()
+
+    return () => {
+      isMounted = false
+      if (pingTimer) clearInterval(pingTimer)
+      if (ws) ws.close()
+    }
+  }, [selectedTicketId])
 
   // Periodic light poll for new messages in active chat
   useEffect(() => {
@@ -667,21 +745,30 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
 
                     {activeTicket.messages?.map((msg) => {
                       const isAdmin = msg.sender_type === 'admin'
+                      const isAi = msg.sender_type === 'ai'
 
                       return (
                         <div
                           key={msg.id}
-                          className={`flex flex-col ${isAdmin ? 'items-start' : 'items-end'}`}
+                          className={`flex flex-col ${isAdmin || isAi ? 'items-start' : 'items-end'}`}
                         >
                           <div
                             className={`max-w-[88%] sm:max-w-[75%] rounded-2xl p-4 text-xs leading-relaxed shadow-md space-y-1.5 ${
-                              isAdmin
+                              isAi
+                                ? 'rounded-tl-sm bg-gradient-to-br from-teal-950/40 via-[#103D35]/30 to-[#0E1715] border border-teal-500/40 text-slate-100 shadow-teal-900/15'
+                                : isAdmin
                                 ? 'rounded-tl-sm bg-[#131C1A] border border-[#1E302B] text-slate-200'
                                 : 'rounded-tr-sm bg-[#17A884]/20 border border-[#17A884]/40 text-slate-100'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-3 text-[10px] font-bold pb-1 border-b border-white/5">
-                              {isAdmin ? (
+                              {isAi ? (
+                                <span className="inline-flex items-center gap-1.5 text-cyan-300 font-extrabold uppercase tracking-wide">
+                                  <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                                  <span>{msg.sender_name || 'ИИ-ассистент SIHAT'}</span>
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">Автоответ</span>
+                                </span>
+                              ) : isAdmin ? (
                                 <span className="inline-flex items-center gap-1.5 text-emerald-400 font-extrabold uppercase tracking-wide">
                                   <Headphones className="w-3 h-3 text-[#17A884]" />
                                   {msg.sender_name || t.teamBadge}

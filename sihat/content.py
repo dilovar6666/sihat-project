@@ -20,6 +20,8 @@ from sihat.content_schemas import (
     SupportUnreadCountOutput,
 )
 from sihat.db import get_db_session
+from sihat.ws import ws_manager
+from sihat.support_ai import process_user_support_message_ai
 from sihat.models import FaqItem, KnowledgeArticle, SupportMessage, SupportTicket, User
 
 router = APIRouter(tags=["content"])
@@ -214,7 +216,46 @@ async def create_support_ticket(
     await db.commit()
     await db.refresh(ticket)
     await db.refresh(initial_msg)
-    return _ticket_detail_output(ticket, [initial_msg], unread_user_count=0, unread_admin_count=1)
+
+    # 1. Real-time WebSocket broadcast of user initial message
+    initial_msg_dict = {
+        "id": initial_msg.id,
+        "ticket_id": initial_msg.ticket_id,
+        "sender_type": initial_msg.sender_type,
+        "sender_id": initial_msg.sender_id,
+        "sender_name": initial_msg.sender_name,
+        "message": initial_msg.message,
+        "created_at": initial_msg.created_at.isoformat(),
+        "read_by_user": initial_msg.read_by_user,
+        "read_by_admin": initial_msg.read_by_admin,
+    }
+    ticket_dict = {
+        "id": ticket.id,
+        "user_id": ticket.user_id,
+        "contact_email": ticket.contact_email,
+        "subject": ticket.subject,
+        "status": ticket.status,
+        "is_blocked": ticket.is_blocked,
+        "admin_notes": ticket.admin_notes,
+        "last_message": initial_msg.message,
+        "last_message_at": initial_msg.created_at.isoformat(),
+        "unread_user_count": 0,
+        "unread_admin_count": 1,
+    }
+    await ws_manager.broadcast_new_message(
+        ticket_id=ticket.id,
+        message=initial_msg_dict,
+        ticket=ticket_dict,
+        recipient_user_id=ticket.user_id,
+    )
+
+    # 2. Trigger AI Support First-Responder
+    ai_msg = await process_user_support_message_ai(db, ticket, initial_msg.message, user)
+    all_msgs = [initial_msg]
+    if ai_msg:
+        all_msgs.append(ai_msg)
+
+    return _ticket_detail_output(ticket, all_msgs, unread_user_count=0, unread_admin_count=1)
 
 
 @router.get("/support/my-tickets", response_model=list[SupportTicketOutput])
@@ -346,6 +387,40 @@ async def send_support_ticket_message(
 
     await db.commit()
     await db.refresh(msg)
+    await db.refresh(ticket)
+
+    msg_dict = {
+        "id": msg.id,
+        "ticket_id": msg.ticket_id,
+        "sender_type": msg.sender_type,
+        "sender_id": msg.sender_id,
+        "sender_name": msg.sender_name,
+        "message": msg.message,
+        "created_at": msg.created_at.isoformat(),
+        "read_by_user": msg.read_by_user,
+        "read_by_admin": msg.read_by_admin,
+    }
+    ticket_dict = {
+        "id": ticket.id,
+        "status": ticket.status,
+        "is_blocked": ticket.is_blocked,
+        "admin_notes": ticket.admin_notes,
+        "last_message": msg.message,
+        "last_message_at": msg.created_at.isoformat(),
+        "unread_user_count": 0 if sender_type == "user" else 1,
+        "unread_admin_count": 1 if sender_type == "user" else 0,
+    }
+    await ws_manager.broadcast_new_message(
+        ticket_id=ticket.id,
+        message=msg_dict,
+        ticket=ticket_dict,
+        recipient_user_id=ticket.user_id,
+    )
+
+    # If sender is user, trigger AI First-Responder
+    if sender_type == "user":
+        await process_user_support_message_ai(db, ticket, msg.message, user)
+
     return _message_output(msg)
 
 

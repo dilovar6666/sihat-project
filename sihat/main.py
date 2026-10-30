@@ -1,4 +1,4 @@
-﻿from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sihat.admin import router as admin_router
@@ -15,6 +15,7 @@ from sihat.content import router as content_router
 from sihat.models import User
 from sihat.results import router as results_router
 from sihat.symptom_triage import router as symptom_triage_router
+from sihat.ws import router as ws_router
 
 settings = get_settings()
 
@@ -40,6 +41,7 @@ app.include_router(content_router)
 app.include_router(symptom_triage_router)
 app.include_router(catalog_admin_router)
 app.include_router(admin_router)
+app.include_router(ws_router)
 
 
 @app.get("/health", tags=["system"])
