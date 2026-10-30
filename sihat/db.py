@@ -60,6 +60,7 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+async_session_factory = AsyncSessionLocal
 
 # Alias for backwards compatibility where engine was imported
 engine = async_engine

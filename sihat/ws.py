@@ -11,7 +11,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from sqlalchemy import select
 
 from sihat.config import get_settings
-from sihat.db import async_session_factory
+from sihat.db import AsyncSessionLocal
 from sihat.models import SupportMessage, SupportTicket, User
 from sihat.security import decode_access_token
 
@@ -172,7 +172,7 @@ async def _resolve_user_from_token(token: str | None) -> tuple[str | None, bool]
     try:
         settings = get_settings()
         user_id = decode_access_token(token, settings)
-        async with async_session_factory() as session:
+        async with AsyncSessionLocal() as session:
             user = await session.get(User, user_id)
             if user:
                 return user.id, (user.role == "admin")
