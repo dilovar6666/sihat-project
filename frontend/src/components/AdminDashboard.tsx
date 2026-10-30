@@ -27,13 +27,16 @@ import {
   CheckCircle2,
   Cpu,
   HardDrive,
+  Headphones,
+  Send,
+  MessageSquare,
 } from 'lucide-react'
 import { Badge } from './ui/Badge'
 import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { apiRequest } from '../api'
 import type { Language } from '../i18n'
-import type { UserProfile } from '../types'
+import type { UserProfile, SupportTicket, SupportMessage } from '../types'
 import { APPROVED_15_SLUGS } from './test-engines/engineTypes'
 
 interface AdminDashboardProps {
@@ -84,7 +87,91 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'admin' | 'user'>('all')
   const [userStatusFilter, setUserStatusFilter] = useState<'all' | 'active' | 'blocked'>('all')
   const [usersPage, setUsersPage] = useState(1)
-  const [ticketFilter, setTicketFilter] = useState<'all' | 'open' | 'resolved'>('all')
+  const [selectedAdminTicketId, setSelectedAdminTicketId] = useState<string | null>(null)
+  const [activeAdminTicketDetail, setActiveAdminTicketDetail] = useState<SupportTicket | null>(null)
+  const [adminReplyText, setAdminReplyText] = useState('')
+  const [adminSendingReply, setAdminSendingReply] = useState(false)
+  const [adminTicketSearch, setAdminTicketSearch] = useState('')
+  const [adminTicketStatusFilter, setAdminTicketStatusFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved' | 'closed'>('all')
+
+  const selectAndLoadAdminTicket = async (ticketId: string) => {
+    setSelectedAdminTicketId(ticketId)
+    try {
+      const detail = await apiRequest<SupportTicket>(`/admin/support/tickets/${ticketId}`)
+      setActiveAdminTicketDetail(detail)
+      setAdminTickets((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, unread_admin_count: 0 } : t))
+      )
+    } catch (err: unknown) {
+      onNotify(err instanceof Error ? err.message : 'Ошибка загрузки обращения', 'error')
+    }
+  }
+
+  const handleAdminSendReply = async () => {
+    if (!selectedAdminTicketId || !adminReplyText.trim() || adminSendingReply) return
+    const text = adminReplyText.trim()
+    setAdminSendingReply(true)
+    try {
+      const newMsg = await apiRequest<SupportMessage>(`/admin/support/tickets/${selectedAdminTicketId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ message: text }),
+      })
+      setAdminReplyText('')
+      setActiveAdminTicketDetail((prev) => {
+        if (!prev) return null
+        return {
+          ...prev,
+          status: 'in_progress',
+          messages: [...(prev.messages || []), newMsg],
+          last_message: text,
+          last_message_at: newMsg.created_at,
+        }
+      })
+      setAdminTickets((prev) =>
+        prev.map((t) =>
+          t.id === selectedAdminTicketId
+            ? { ...t, status: 'in_progress', last_message: text, last_message_at: newMsg.created_at }
+            : t
+        )
+      )
+      onNotify('Ответ успешно отправлен клиенту', 'success')
+    } catch (err: unknown) {
+      onNotify(err instanceof Error ? err.message : 'Ошибка отправки ответа', 'error')
+    } finally {
+      setAdminSendingReply(false)
+    }
+  }
+
+  const handleAdminChangeStatus = async (newStatus: 'open' | 'in_progress' | 'resolved' | 'closed') => {
+    if (!selectedAdminTicketId) return
+    try {
+      await apiRequest(`/admin/support/tickets/${selectedAdminTicketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      })
+      setActiveAdminTicketDetail((prev) => (prev ? { ...prev, status: newStatus } : null))
+      setAdminTickets((prev) =>
+        prev.map((t) => (t.id === selectedAdminTicketId ? { ...t, status: newStatus } : t))
+      )
+      onNotify(`Статус изменён на ${newStatus}`, 'success')
+    } catch (err: unknown) {
+      onNotify(err instanceof Error ? err.message : 'Ошибка обновления статуса', 'error')
+    }
+  }
+
+  const handleAdminDeleteTicket = async (ticketId: string) => {
+    try {
+      await apiRequest(`/admin/support/tickets/${ticketId}`, { method: 'DELETE' })
+      setAdminTickets((prev) => prev.filter((t) => t.id !== ticketId))
+      if (selectedAdminTicketId === ticketId) {
+        setSelectedAdminTicketId(null)
+        setActiveAdminTicketDetail(null)
+      }
+      onNotify('Обращение удалено', 'success')
+    } catch (err: unknown) {
+      onNotify(err instanceof Error ? err.message : 'Ошибка удаления обращения', 'error')
+    }
+  }
 
   // System Settings State
   const [maintenanceMode, setMaintenanceMode] = useState(false)
@@ -330,20 +417,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }
 
-  const handleResolveTicket = async (ticketId: string) => {
-    try {
-      await apiRequest(`/admin/support/tickets/${ticketId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'resolved' }),
-      })
-      setAdminTickets((prev) =>
-        prev.map((t) => (t.id === ticketId ? { ...t, status: 'resolved' } : t))
-      )
-      onNotify('Тикет помечен как решённый', 'success')
-    } catch (err: unknown) {
-      onNotify(err instanceof Error ? err.message : 'Ошибка обновления тикета', 'error')
-    }
-  }
+
 
   const handleToggleArticleStatus = async (articleId: string, currentStatus: boolean) => {
     try {
@@ -1404,62 +1478,308 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* 10. SUPPORT TICKETS */}
           {activeTab === 'support' && (
             <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200/80 dark:border-[#1E302B] space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-[#1E302B]">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                  Обращения в поддержку ({adminTickets.length})
-                </h3>
-                <select
-                  value={ticketFilter}
-                  onChange={(e) => setTicketFilter(e.target.value as any)}
-                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-[#1E302B] bg-slate-50 dark:bg-[#131C1A] text-xs font-bold"
-                >
-                  <option value="all">Все обращения</option>
-                  <option value="open">Открытые (open)</option>
-                  <option value="resolved">Решённые (resolved)</option>
-                </select>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-[#1E302B]">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#17A884]/15 border border-[#17A884]/30 text-[#17A884] text-[11px] font-bold uppercase tracking-wider mb-1">
+                    <Headphones className="w-3 h-3" />
+                    <span>Центр поддержки пользователей</span>
+                  </div>
+                  <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                    Обращения в поддержку ({adminTickets.length})
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Прямой чат с клиентами платформы. Ответ отправляется в личный кабинет пользователя с мгновенным уведомлением.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadAllAdminData()}
+                    className="text-xs"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    Обновить
+                  </Button>
+                </div>
               </div>
 
-              {adminTickets.filter((t) => ticketFilter === 'all' || t.status === ticketFilter).length === 0 ? (
-                <div className="text-center py-10 text-xs text-slate-500">
-                  Обращений по выбранному фильтру нет.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {adminTickets
-                    .filter((t) => ticketFilter === 'all' || t.status === ticketFilter)
-                    .map((ticket) => (
-                      <div
-                        key={ticket.id}
-                        className="p-4 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] flex items-center justify-between gap-4"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-slate-900 dark:text-white">
-                              {ticket.subject}
-                            </span>
-                            <Badge variant={ticket.status === 'open' ? 'outline' : 'emerald'}>
-                              {ticket.status}
-                            </Badge>
-                            <span className="text-[11px] font-mono text-slate-400">
-                              {ticket.contact_email}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-500">{ticket.message}</p>
-                        </div>
-                        {ticket.status === 'open' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResolveTicket(ticket.id)}
-                            className="text-xs text-emerald-600"
-                          >
-                            Решено ✓
-                          </Button>
-                        )}
+              {/* 2-Column Split: Tickets list on left, Chat room on right */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 rounded-2xl border border-slate-200 dark:border-[#1E302B] overflow-hidden min-h-[580px] bg-slate-50/50 dark:bg-[#0B1513]/60">
+                {/* Left panel: List & filters */}
+                <div className="lg:col-span-5 border-r border-slate-200 dark:border-[#1E302B] flex flex-col bg-white dark:bg-[#0E1715]/70">
+                  {/* Filters */}
+                  <div className="p-3 border-b border-slate-200 dark:border-[#1E302B] space-y-2">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={adminTicketSearch}
+                        onChange={(e) => setAdminTicketSearch(e.target.value)}
+                        placeholder="Поиск по теме, email..."
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
+                      {(['all', 'open', 'in_progress', 'resolved', 'closed'] as const).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setAdminTicketStatusFilter(st)}
+                          className={`px-2.5 py-1 rounded-lg font-bold shrink-0 transition-all ${
+                            adminTicketStatusFilter === st
+                              ? 'bg-[#17A884] text-black shadow-xs'
+                              : 'bg-slate-100 dark:bg-[#131C1A] text-slate-600 dark:text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {st === 'all'
+                            ? 'Все'
+                            : st === 'open'
+                            ? 'Новые'
+                            : st === 'in_progress'
+                            ? 'В работе'
+                            : st === 'resolved'
+                            ? 'Решено'
+                            : 'Закрыто'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tickets Scroll List */}
+                  <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#1E302B]/60 p-2 space-y-1">
+                    {adminTickets
+                      .filter((t) => {
+                        const matchesFilter = adminTicketStatusFilter === 'all' || t.status === adminTicketStatusFilter
+                        const matchesSearch =
+                          !adminTicketSearch.trim() ||
+                          t.subject?.toLowerCase().includes(adminTicketSearch.toLowerCase()) ||
+                          t.contact_email?.toLowerCase().includes(adminTicketSearch.toLowerCase()) ||
+                          t.last_message?.toLowerCase().includes(adminTicketSearch.toLowerCase())
+                        return matchesFilter && matchesSearch
+                      })
+                      .length === 0 ? (
+                      <div className="py-12 text-center text-xs text-slate-400">
+                        Обращений в этой категории не найдено.
                       </div>
-                    ))}
+                    ) : (
+                      adminTickets
+                        .filter((t) => {
+                          const matchesFilter = adminTicketStatusFilter === 'all' || t.status === adminTicketStatusFilter
+                          const matchesSearch =
+                            !adminTicketSearch.trim() ||
+                            t.subject?.toLowerCase().includes(adminTicketSearch.toLowerCase()) ||
+                            t.contact_email?.toLowerCase().includes(adminTicketSearch.toLowerCase()) ||
+                            t.last_message?.toLowerCase().includes(adminTicketSearch.toLowerCase())
+                          return matchesFilter && matchesSearch
+                        })
+                        .map((t) => {
+                          const isSelected = t.id === selectedAdminTicketId
+                          const hasUnread = (t.unread_admin_count || 0) > 0
+
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => selectAndLoadAdminTicket(t.id)}
+                              className={`w-full text-left p-3 rounded-xl transition-all flex flex-col gap-1.5 ${
+                                isSelected
+                                  ? 'bg-[#17A884]/15 border border-[#17A884]/30 dark:text-white shadow-xs'
+                                  : 'hover:bg-slate-100 dark:hover:bg-[#131C1A] border border-transparent text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {hasUnread && (
+                                    <span className="w-2 h-2 rounded-full bg-[#17A884] shrink-0 animate-pulse" />
+                                  )}
+                                  <span className="text-xs font-bold truncate">
+                                    {t.subject}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                                  {new Date(t.last_message_at || t.updated_at || t.created_at).toLocaleDateString([], {
+                                    month: 'short',
+                                    day: 'numeric',
+                                  })}
+                                </span>
+                              </div>
+
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                                {t.last_message || t.message}
+                              </p>
+
+                              <div className="flex items-center justify-between pt-0.5">
+                                <span className="text-[10px] font-mono text-slate-400 truncate max-w-[140px]">
+                                  {t.contact_email}
+                                </span>
+                                <Badge variant={t.status === 'resolved' ? 'emerald' : t.status === 'in_progress' ? 'cyan' : 'outline'}>
+                                  {t.status}
+                                </Badge>
+                              </div>
+                            </button>
+                          )
+                        })
+                    )}
+                  </div>
                 </div>
-              )}
+
+                {/* Right panel: Chat Thread with user */}
+                <div className="lg:col-span-7 flex flex-col bg-white dark:bg-[#080E0D]/80">
+                  {selectedAdminTicketId && activeAdminTicketDetail ? (
+                    <>
+                      {/* Header */}
+                      <div className="p-4 border-b border-slate-200 dark:border-[#1E302B] bg-slate-50 dark:bg-[#0E1715]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                              {activeAdminTicketDetail.subject}
+                            </h4>
+                            <Badge variant={activeAdminTicketDetail.status === 'resolved' ? 'emerald' : 'outline'}>
+                              {activeAdminTicketDetail.status}
+                            </Badge>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                            <span className="font-mono">{activeAdminTicketDetail.contact_email}</span>
+                            <span>•</span>
+                            <span>{new Date(activeAdminTicketDetail.created_at).toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <select
+                            value={activeAdminTicketDetail.status}
+                            onChange={(e) => handleAdminChangeStatus(e.target.value as any)}
+                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-[#1E302B] bg-white dark:bg-[#131C1A] text-xs font-bold"
+                          >
+                            <option value="open">Ожидает ответа (open)</option>
+                            <option value="in_progress">В работе (in_progress)</option>
+                            <option value="resolved">Решено (resolved)</option>
+                            <option value="closed">Закрыто (closed)</option>
+                          </select>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAdminDeleteTicket(activeAdminTicketDetail.id)}
+                            className="text-xs text-rose-500 hover:bg-rose-500/10"
+                            title="Удалить обращение"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Messages Thread */}
+                      <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-3 min-h-[340px] max-h-[460px]">
+                        {/* Fallback initial message if messages list is empty */}
+                        {(!activeAdminTicketDetail.messages || activeAdminTicketDetail.messages.length === 0) && (
+                          <div className="flex flex-col items-start">
+                            <div className="max-w-[85%] rounded-2xl rounded-tl-sm p-3.5 bg-slate-100 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-xs space-y-1">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                Клиент ({activeAdminTicketDetail.contact_email})
+                              </span>
+                              <p className="whitespace-pre-wrap leading-relaxed text-slate-800 dark:text-slate-100">
+                                {activeAdminTicketDetail.message}
+                              </p>
+                              <div className="text-[10px] text-slate-400 font-mono text-right">
+                                {new Date(activeAdminTicketDetail.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {activeAdminTicketDetail.messages?.map((msg) => {
+                          const isAdmin = msg.sender_type === 'admin'
+
+                          return (
+                            <div
+                              key={msg.id}
+                              className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}
+                            >
+                              <div
+                                className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed space-y-1 shadow-xs ${
+                                  isAdmin
+                                    ? 'rounded-tr-sm bg-[#17A884]/20 border border-[#17A884]/40 text-slate-900 dark:text-slate-100'
+                                    : 'rounded-tl-sm bg-slate-100 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-slate-900 dark:text-slate-100'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-3 text-[10px] font-bold pb-1 border-b border-black/5 dark:border-white/5">
+                                  <span className={isAdmin ? 'text-emerald-500 font-extrabold uppercase' : 'text-slate-500 uppercase'}>
+                                    {isAdmin ? 'Вы (Поддержка SIHAT)' : `Клиент (${msg.sender_name || activeAdminTicketDetail.contact_email})`}
+                                  </span>
+                                  <span className="text-slate-400 font-mono">
+                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                                <p className="whitespace-pre-wrap">{msg.message}</p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Quick response chips + reply textarea */}
+                      <div className="p-4 border-t border-slate-200 dark:border-[#1E302B] bg-slate-50/80 dark:bg-[#0E1715]/90 space-y-2">
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Шаблоны:</span>
+                          {[
+                            'Здравствуйте! Мы проверили ваше обращение...',
+                            'Вопрос передан разработчикам, спасибо за обратную связь!',
+                            'Ошибка исправлена, попробуйте сейчас.',
+                            'Методика полностью соответствует стандарту.',
+                          ].map((template) => (
+                            <button
+                              key={template}
+                              type="button"
+                              onClick={() => setAdminReplyText((prev) => (prev ? prev + ' ' + template : template))}
+                              className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-slate-600 dark:text-slate-300 hover:border-[#17A884] text-[10px] shrink-0 transition-colors"
+                            >
+                              {template.slice(0, 28)}...
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-end gap-2">
+                          <textarea
+                            rows={2}
+                            value={adminReplyText}
+                            onChange={(e) => setAdminReplyText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault()
+                                handleAdminSendReply()
+                              }
+                            }}
+                            placeholder="Напишите ответ пользователю (Enter — отправить)..."
+                            className="flex-1 p-3 rounded-2xl bg-white dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#17A884] resize-none"
+                          />
+                          <Button
+                            type="button"
+                            variant="emerald"
+                            onClick={handleAdminSendReply}
+                            disabled={!adminReplyText.trim() || adminSendingReply}
+                            className="h-11 px-5 rounded-xl shrink-0"
+                          >
+                            <Send className={`w-4 h-4 mr-1.5 ${adminSendingReply ? 'animate-spin' : ''}`} />
+                            Отправить
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3 text-slate-400">
+                      <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] flex items-center justify-center">
+                        <MessageSquare className="w-6 h-6" />
+                      </div>
+                      <p className="text-xs text-slate-400 max-w-xs">
+                        Выберите обращение в левом списке, чтобы открыть переписку и ответить пользователю.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

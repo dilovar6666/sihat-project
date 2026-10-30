@@ -27,6 +27,9 @@ from sihat.content_schemas import (
     KnowledgeArticleInput,
     KnowledgeArticleOutput,
     KnowledgeArticleUpdateInput,
+    SupportMessageCreateInput,
+    SupportMessageOutput,
+    SupportTicketDetailOutput,
     SupportTicketOutput,
     SupportTicketUpdateInput,
 )
@@ -38,6 +41,7 @@ from sihat.models import (
     KnowledgeArticle,
     MethodologyPassport,
     SavedResult,
+    SupportMessage,
     SupportTicket,
     TestAttempt,
     TestDefinition,
@@ -86,7 +90,27 @@ def _admin_article_output(item: KnowledgeArticle) -> KnowledgeArticleOutput:
     )
 
 
-def _admin_ticket_output(item: SupportTicket) -> SupportTicketOutput:
+def _admin_message_output(item: SupportMessage) -> SupportMessageOutput:
+    return SupportMessageOutput(
+        id=item.id,
+        ticket_id=item.ticket_id,
+        sender_type=item.sender_type,
+        sender_id=item.sender_id,
+        sender_name=item.sender_name,
+        message=item.message,
+        created_at=item.created_at.isoformat(),
+        read_by_user=item.read_by_user,
+        read_by_admin=item.read_by_admin,
+    )
+
+
+def _admin_ticket_output(
+    item: SupportTicket,
+    last_message: str | None = None,
+    last_message_at: str | None = None,
+    unread_user_count: int = 0,
+    unread_admin_count: int = 0,
+) -> SupportTicketOutput:
     return SupportTicketOutput(
         id=item.id,
         user_id=item.user_id,
@@ -94,8 +118,42 @@ def _admin_ticket_output(item: SupportTicket) -> SupportTicketOutput:
         subject=item.subject,
         message=item.message,
         status=item.status,
+        is_blocked=item.is_blocked,
         admin_notes=item.admin_notes,
         created_at=item.created_at.isoformat(),
+        updated_at=item.updated_at.isoformat() if item.updated_at else item.created_at.isoformat(),
+        last_message=last_message or item.message,
+        last_message_at=last_message_at or item.created_at.isoformat(),
+        unread_user_count=unread_user_count,
+        unread_admin_count=unread_admin_count,
+    )
+
+
+def _admin_ticket_detail_output(
+    item: SupportTicket,
+    messages: list[SupportMessage],
+    unread_user_count: int = 0,
+    unread_admin_count: int = 0,
+) -> SupportTicketDetailOutput:
+    msgs = [_admin_message_output(m) for m in messages]
+    last_msg = msgs[-1].message if msgs else item.message
+    last_msg_at = msgs[-1].created_at if msgs else item.created_at.isoformat()
+    return SupportTicketDetailOutput(
+        id=item.id,
+        user_id=item.user_id,
+        contact_email=item.contact_email,
+        subject=item.subject,
+        message=item.message,
+        status=item.status,
+        is_blocked=item.is_blocked,
+        admin_notes=item.admin_notes,
+        created_at=item.created_at.isoformat(),
+        updated_at=item.updated_at.isoformat() if item.updated_at else item.created_at.isoformat(),
+        last_message=last_msg,
+        last_message_at=last_msg_at,
+        unread_user_count=unread_user_count,
+        unread_admin_count=unread_admin_count,
+        messages=msgs,
     )
 
 
@@ -620,11 +678,96 @@ async def list_support_tickets(
     db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[SupportTicketOutput]:
-    stmt = select(SupportTicket).order_by(SupportTicket.created_at.desc())
+    stmt = select(SupportTicket).order_by(SupportTicket.updated_at.desc())
     if status_filter:
         stmt = stmt.where(SupportTicket.status == status_filter)
     tickets = (await db.scalars(stmt)).all()
-    return [_admin_ticket_output(t) for t in tickets]
+
+    output = []
+    for t in tickets:
+        messages = (
+            await db.scalars(
+                select(SupportMessage)
+                .where(SupportMessage.ticket_id == t.id)
+                .order_by(SupportMessage.created_at.asc())
+            )
+        ).all()
+        last_msg = messages[-1].message if messages else t.message
+        last_msg_at = messages[-1].created_at.isoformat() if messages else t.created_at.isoformat()
+        unread_user = sum(1 for m in messages if m.sender_type == "admin" and not m.read_by_user)
+        unread_admin = sum(1 for m in messages if m.sender_type == "user" and not m.read_by_admin)
+        output.append(
+            _admin_ticket_output(
+                t,
+                last_message=last_msg,
+                last_message_at=last_msg_at,
+                unread_user_count=unread_user,
+                unread_admin_count=unread_admin,
+            )
+        )
+    return output
+
+
+@router.get("/support/tickets/{ticket_id}", response_model=SupportTicketDetailOutput)
+async def get_admin_support_ticket_detail(
+    ticket_id: str,
+    db: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_admin),
+) -> SupportTicketDetailOutput:
+    ticket = await db.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Support ticket not found")
+
+    messages = (
+        await db.scalars(
+            select(SupportMessage)
+            .where(SupportMessage.ticket_id == ticket_id)
+            .order_by(SupportMessage.created_at.asc())
+        )
+    ).all()
+
+    # Mark user messages as read by admin
+    changed = False
+    for msg in messages:
+        if msg.sender_type == "user" and not msg.read_by_admin:
+            msg.read_by_admin = True
+            changed = True
+    if changed:
+        await db.commit()
+
+    unread_user = sum(1 for m in messages if m.sender_type == "admin" and not m.read_by_user)
+    return _admin_ticket_detail_output(ticket, list(messages), unread_user_count=unread_user, unread_admin_count=0)
+
+
+@router.post("/support/tickets/{ticket_id}/messages", response_model=SupportMessageOutput)
+async def admin_reply_support_ticket(
+    ticket_id: str,
+    payload: SupportMessageCreateInput,
+    db: AsyncSession = Depends(get_db_session),
+    admin: User = Depends(require_admin),
+) -> SupportMessageOutput:
+    ticket = await db.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Support ticket not found")
+
+    msg = SupportMessage(
+        ticket_id=ticket.id,
+        sender_type="admin",
+        sender_id=admin.id,
+        sender_name="Поддержка SIHAT",
+        message=payload.message.strip(),
+        read_by_user=False,
+        read_by_admin=True,
+    )
+    db.add(msg)
+
+    # Automatically set ticket status to in_progress if currently open
+    if ticket.status == "open":
+        ticket.status = "in_progress"
+
+    await db.commit()
+    await db.refresh(msg)
+    return _admin_message_output(msg)
 
 
 @router.patch("/support/tickets/{ticket_id}", response_model=SupportTicketOutput)
@@ -642,10 +785,27 @@ async def update_support_ticket(
         ticket.status = payload.status
     if payload.admin_notes is not None:
         ticket.admin_notes = payload.admin_notes
+    if payload.is_blocked is not None:
+        ticket.is_blocked = payload.is_blocked
 
     await db.commit()
     await db.refresh(ticket)
     return _admin_ticket_output(ticket)
+
+
+@router.delete("/support/tickets/{ticket_id}")
+async def admin_delete_support_ticket(
+    ticket_id: str,
+    db: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_admin),
+) -> dict[str, str]:
+    ticket = await db.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Support ticket not found")
+
+    await db.delete(ticket)
+    await db.commit()
+    return {"status": "deleted", "id": ticket_id}
 
 
 # ---------------------------------------------------------------------------

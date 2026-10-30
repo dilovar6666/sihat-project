@@ -108,6 +108,18 @@ export type KnowledgeArticle = {
   localizations: Record<string, { title: string; summary?: string; content?: string }>
 }
 
+export type SupportMessage = {
+  id: string
+  ticket_id: string
+  sender_type: 'user' | 'admin'
+  sender_id?: string | null
+  sender_name?: string | null
+  message: string
+  created_at: string
+  read_by_user: boolean
+  read_by_admin: boolean
+}
+
 export type SupportTicket = {
   id: string
   user_id: string | null
@@ -115,8 +127,15 @@ export type SupportTicket = {
   subject: string
   message: string
   status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  is_blocked?: boolean
   admin_notes: string | null
   created_at: string
+  updated_at?: string | null
+  last_message?: string | null
+  last_message_at?: string | null
+  unread_user_count?: number
+  unread_admin_count?: number
+  messages?: SupportMessage[]
 }
 
 export type AdminDashboard = {

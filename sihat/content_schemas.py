@@ -79,6 +79,31 @@ class SupportTicketUpdateInput(BaseModel):
 
     status: Literal["open", "in_progress", "resolved", "closed"] | None = None
     admin_notes: str | None = Field(default=None, max_length=4000)
+    is_blocked: bool | None = None
+
+
+class SupportTicketBlockInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    is_blocked: bool
+
+
+class SupportMessageCreateInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class SupportMessageOutput(BaseModel):
+    id: str
+    ticket_id: str
+    sender_type: str  # "user" | "admin"
+    sender_id: str | None = None
+    sender_name: str | None = None
+    message: str
+    created_at: str
+    read_by_user: bool = False
+    read_by_admin: bool = False
 
 
 class SupportTicketOutput(BaseModel):
@@ -88,5 +113,19 @@ class SupportTicketOutput(BaseModel):
     subject: str
     message: str
     status: str
-    admin_notes: str | None
+    is_blocked: bool = False
+    admin_notes: str | None = None
     created_at: str
+    updated_at: str | None = None
+    last_message: str | None = None
+    last_message_at: str | None = None
+    unread_user_count: int = 0
+    unread_admin_count: int = 0
+
+
+class SupportTicketDetailOutput(SupportTicketOutput):
+    messages: list[SupportMessageOutput] = []
+
+
+class SupportUnreadCountOutput(BaseModel):
+    unread_count: int

@@ -21,6 +21,8 @@ export interface NotificationItem {
   type: 'success' | 'info' | 'warning' | 'error'
   timestamp: string
   read: boolean
+  title?: string
+  link?: string
 }
 
 interface NotificationsDrawerProps {
@@ -32,6 +34,7 @@ interface NotificationsDrawerProps {
   onMarkOneRead: (id: string) => void
   onDeleteOne: (id: string) => void
   lang?: Language
+  onNavigate?: (page: string) => void
 }
 
 export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
@@ -43,6 +46,7 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
   onMarkOneRead,
   onDeleteOne,
   lang = 'ru',
+  onNavigate,
 }) => {
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
 
@@ -247,7 +251,13 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                 return (
                   <div
                     key={n.id}
-                    onClick={() => onMarkOneRead(n.id)}
+                    onClick={() => {
+                      onMarkOneRead(n.id)
+                      if (n.link && onNavigate) {
+                        onNavigate(n.link)
+                        onClose()
+                      }
+                    }}
                     className={`relative p-3 rounded-2xl border transition-all cursor-pointer group flex items-start gap-3 ${
                       n.read
                         ? 'bg-white/80 dark:bg-[#131C1A]/70 border-slate-200/60 dark:border-[#1E302B] text-slate-600 dark:text-slate-400'
@@ -289,11 +299,18 @@ export const NotificationsDrawer: React.FC<NotificationsDrawerProps> = ({
                       <p className="text-xs font-semibold leading-relaxed break-words">
                         {n.message}
                       </p>
-                      <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-                        <Clock className="w-3 h-3" />
-                        <span>{n.timestamp || t.now}</span>
-                        {!n.read && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#17A884] animate-pulse" />
+                      <div className="flex items-center justify-between gap-2 mt-1.5 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3 h-3" />
+                          <span>{n.timestamp || t.now}</span>
+                          {!n.read && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#17A884] animate-pulse" />
+                          )}
+                        </div>
+                        {n.link && (
+                          <span className="text-[10px] text-[#17A884] font-bold group-hover:underline">
+                            Перейти в чат →
+                          </span>
                         )}
                       </div>
                     </div>

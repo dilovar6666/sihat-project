@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react'
 import {
   User,
   ShieldAlert,
+  Headphones,
   FileText,
   Download,
   Trash2,
@@ -33,7 +34,8 @@ import { Button } from './ui/Button'
 import { Modal } from './ui/Modal'
 import { Badge } from './ui/Badge'
 import { PRESET_AVATARS } from './UserAvatar'
-import { apiRequest } from '../api'
+import { apiRequest, fetchSupportUnreadCount } from '../api'
+import { SupportChatsView } from './SupportChatsView'
 import type { Language } from '../i18n'
 import type { SavedResult, UserProfile } from '../types'
 import { usePlatformSettings } from '../lib/settings'
@@ -81,6 +83,7 @@ type ProfileTab =
   | 'personal'
   | 'security'
   | 'settings'
+  | 'support'
 
 const SLUG_CATEGORY_GROUP: Record<string, 'memory' | 'vision' | 'hearing' | 'reaction'> = {
   'attention-concentration': 'memory',
@@ -114,7 +117,29 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   onNotify,
   onLogout,
 }) => {
-  const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
+  const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash
+      if (hash.includes('tab=support') || hash.includes('support')) return 'support'
+      if (hash.includes('tab=comparisons')) return 'comparisons'
+      if (hash.includes('tab=results')) return 'results'
+      if (hash.includes('tab=history')) return 'history'
+      if (hash.includes('tab=settings')) return 'settings'
+    }
+    return 'overview'
+  })
+  const [selectedSupportTicketId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const match = window.location.hash.match(/ticket=([a-zA-Z0-9-]+)/)
+      return match ? match[1] : null
+    }
+    return null
+  })
+  const [unreadSupportCount, setUnreadSupportCount] = useState<number>(0)
+
+  useEffect(() => {
+    fetchSupportUnreadCount().then(setUnreadSupportCount).catch(() => {})
+  }, [activeTab])
   const [results, setResults] = useState<SavedResult[]>(propResults || [])
   const [vaultDisplayMode, setVaultDisplayMode] = useState<'cards' | 'table'>('cards')
   const [searchFilter, setSearchFilter] = useState('')
@@ -283,6 +308,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       tabPersonal: 'Личные данные',
       tabSecurity: 'Безопасность',
       tabSettings: 'Настройки',
+      tabSupport: 'Поддержка и чаты',
       tabLogout: 'Выход',
       totalScreenings: 'Сохранено результатов',
       uniqueTests: 'Пройдено методик',
@@ -355,6 +381,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       tabPersonal: 'Маълумоти шахсӣ',
       tabSecurity: 'Амният',
       tabSettings: 'Танзимот',
+      tabSupport: 'Дастгирӣ ва чатҳо',
       tabLogout: 'Баромад',
       totalScreenings: 'Натиҷаҳои сабтшуда',
       uniqueTests: 'Методикаҳои гузашта',
@@ -427,6 +454,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       tabPersonal: 'Personal Data',
       tabSecurity: 'Security',
       tabSettings: 'Settings',
+      tabSupport: 'Support & Chats',
       tabLogout: 'Sign Out',
       totalScreenings: 'Saved Results',
       uniqueTests: 'Exercises Completed',
@@ -661,6 +689,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     { id: 'personal', label: t.tabPersonal, icon: <User className="w-4 h-4" /> },
     { id: 'security', label: t.tabSecurity, icon: <Lock className="w-4 h-4" /> },
     { id: 'settings', label: t.tabSettings, icon: <Sliders className="w-4 h-4" /> },
+    { id: 'support', label: t.tabSupport, icon: <Headphones className="w-4 h-4" /> },
   ]
 
   const totalCount = results.length
@@ -733,6 +762,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.id === 'support' && unreadSupportCount > 0 && (
+                <span className="ml-auto px-1.5 py-0.5 rounded-full bg-[#17A884] text-black text-[10px] font-extrabold animate-pulse">
+                  {unreadSupportCount}
+                </span>
+              )}
             </button>
           )
         })}
@@ -927,6 +961,33 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </button>
                 </div>
               )}
+
+              {/* Support & Chat Quick Card */}
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-[#17A884]/15 via-[#103D35]/20 to-transparent border border-[#17A884]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-[#17A884]/20 border border-[#17A884]/40 text-[#17A884] flex items-center justify-center shrink-0">
+                    <Headphones className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {lang === 'tj' ? 'Хадамоти дастгирӣ ва чатҳо' : lang === 'en' ? 'Support Desk & Direct Chats' : 'Служба поддержки и чаты'}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {lang === 'tj' ? 'Муроҷиатҳои худро пайгирӣ кунед ва бо мутахассисон дар гуфтугӯ бошед.' : lang === 'en' ? 'Direct secure dialog with platform engineers. Follow up on your inquiries.' : 'Прямой диалог со специалистами. Ответы на ваши обращения и консультация.'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="emerald"
+                  size="sm"
+                  onClick={() => setActiveTab('support')}
+                  className="shrink-0 text-xs shadow-md shadow-[#17A884]/20"
+                >
+                  {unreadSupportCount > 0
+                    ? `Новые ответы (${unreadSupportCount}) →`
+                    : (lang === 'tj' ? 'Кушодани чатҳо →' : lang === 'en' ? 'Open Support Chats →' : 'Открыть чаты с поддержкой →')}
+                </Button>
+              </div>
 
               {/* 3 Real KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
@@ -1582,6 +1643,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 )}
               </div>
             </div>
+          )}
+
+          {/* TAB 8: SUPPORT & CHATS */}
+          {activeTab === 'support' && (
+            <SupportChatsView
+              user={user}
+              lang={lang}
+              initialTicketId={selectedSupportTicketId}
+              onNavigate={onNavigate}
+              onNotify={onNotify}
+            />
           )}
 
           {/* TAB 7: SETTINGS */}

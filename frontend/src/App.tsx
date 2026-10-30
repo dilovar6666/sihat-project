@@ -35,6 +35,7 @@ import {
   restoreSessionTokens,
   setApiToken,
   setRefreshToken,
+  fetchMySupportTickets,
 } from './api'
 import type {
   Attempt,
@@ -122,6 +123,9 @@ export default function App() {
     if (raw === 'methodologies') {
       return { page: 'methodologies', testSlug: null, token: null }
     }
+    if (raw === 'support' || raw === 'support-chats' || raw.startsWith('support-chats')) {
+      return { page: 'profile', testSlug: null, token: null }
+    }
     if (
       [
         'home',
@@ -171,7 +175,15 @@ export default function App() {
   }, [])
 
   const handleNavigate = (pageId: string) => {
-    if (pageId.startsWith('test/')) {
+    if (pageId.startsWith('profile')) {
+      setCurrentPage('profile')
+      setCurrentTestSlug(null)
+      window.location.hash = `#/${pageId}`
+    } else if (pageId === 'support' || pageId === 'support-chats' || pageId.startsWith('support-chats')) {
+      setCurrentPage('profile')
+      setCurrentTestSlug(null)
+      window.location.hash = '#/profile?tab=support'
+    } else if (pageId.startsWith('test/')) {
       const slug = pageId.replace('test/', '').trim()
       setCurrentPage('test')
       setCurrentTestSlug(slug)
@@ -510,6 +522,44 @@ export default function App() {
       setTheme(nextTheme)
     }
   }
+
+  // Check for new support replies and notify user
+  useEffect(() => {
+    if (!token || !user) return
+
+    const checkSupportReplies = async () => {
+      try {
+        const myTickets = await fetchMySupportTickets()
+        myTickets.forEach((ticket) => {
+          if ((ticket.unread_user_count || 0) > 0) {
+            const notifId = `support-reply-${ticket.id}-${ticket.last_message_at || ticket.updated_at}`
+            setNotifications((prev) => {
+              if (prev.some((n) => n.id === notifId)) return prev
+              const preview = (ticket.last_message || '').slice(0, 90)
+              const newNotif: NotificationItem = {
+                id: notifId,
+                title: 'Поддержка SIHAT',
+                message: `Поддержка: новый ответ на ваше обращение «${ticket.subject}»: «${preview}»`,
+                type: 'info',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                read: false,
+                link: `profile?tab=support&ticket=${ticket.id}`,
+              }
+              const updated = [newNotif, ...prev]
+              try {
+                localStorage.setItem('sihat_notifications', JSON.stringify(updated))
+              } catch {}
+              return updated
+            })
+          }
+        })
+      } catch {}
+    }
+
+    checkSupportReplies()
+    const interval = setInterval(checkSupportReplies, 15000)
+    return () => clearInterval(interval)
+  }, [token, user])
 
   // Restore authenticated session
   useEffect(() => {
@@ -965,6 +1015,7 @@ export default function App() {
         onMarkOneRead={handleMarkOneNotificationRead}
         onDeleteOne={handleDeleteOneNotification}
         lang={lang}
+        onNavigate={handleNavigate}
       />
 
       {/* Auto-Dismissing Toast Notifications Stack */}

@@ -1,3 +1,4 @@
+import type { SupportTicket, SupportMessage } from './types'
 const defaultBaseUrl =
   typeof window !== 'undefined' &&
   window.location.hostname !== 'localhost' &&
@@ -195,4 +196,53 @@ export async function downloadDirectPdfBlob(
   a.click()
   document.body.removeChild(a)
   window.URL.revokeObjectURL(url)
+}
+
+
+// ---------------------------------------------------------------------------
+// Support Chat API
+// ---------------------------------------------------------------------------
+
+export async function fetchMySupportTickets(): Promise<SupportTicket[]> {
+  return apiRequest<SupportTicket[]>('/support/my-tickets')
+}
+
+export async function fetchSupportTicketDetail(ticketId: string): Promise<SupportTicket> {
+  return apiRequest<SupportTicket>(`/support/tickets/${ticketId}`)
+}
+
+export async function sendSupportTicketMessage(ticketId: string, message: string): Promise<SupportMessage> {
+  return apiRequest<SupportMessage>(`/support/tickets/${ticketId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  })
+}
+
+export async function toggleBlockSupportTicket(ticketId: string, isBlocked: boolean): Promise<SupportTicket> {
+  return apiRequest<SupportTicket>(`/support/tickets/${ticketId}/block`, {
+    method: 'PATCH',
+    body: JSON.stringify({ is_blocked: isBlocked }),
+  })
+}
+
+export async function deleteSupportTicket(ticketId: string): Promise<{ status: string; id: string }> {
+  return apiRequest<{ status: string; id: string }>(`/support/tickets/${ticketId}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function fetchSupportUnreadCount(): Promise<number> {
+  try {
+    const res = await apiRequest<{ unread_count: number }>('/support/unread-count')
+    return res.unread_count || 0
+  } catch {
+    return 0
+  }
+}
+
+export async function createSupportTicket(payload: { contact_email: string; subject: string; message: string }): Promise<SupportTicket> {
+  return apiRequest<SupportTicket>('/support/tickets', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
