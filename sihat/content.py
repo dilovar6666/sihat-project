@@ -4,7 +4,7 @@ from collections import defaultdict, deque
 from time import monotonic
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sihat.auth import get_current_user_optional
@@ -423,11 +423,11 @@ async def get_support_unread_count(
 
     count = (
         await db.scalar(
-            select(select(SupportMessage).where(
+            select(func.count(SupportMessage.id)).where(
                 SupportMessage.ticket_id.in_(user_ticket_ids),
                 SupportMessage.sender_type == "admin",
                 SupportMessage.read_by_user.is_(False),
-            ).subquery().count())
+            )
         )
     ) or 0
 
