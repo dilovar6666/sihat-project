@@ -813,6 +813,7 @@ export default function App() {
             lang={lang}
             faq={faq}
             articles={articles}
+            onNavigateAssistant={() => handleNavigate('assistant')}
           />
         )}
 
