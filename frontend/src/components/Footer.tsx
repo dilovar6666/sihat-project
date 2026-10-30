@@ -53,10 +53,19 @@ export const Footer: React.FC<FooterProps> = ({ lang = 'ru', onNavigate }) => {
               <Sparkles className="w-3.5 h-3.5" />
               <span>{lang === 'tj' ? 'Ёвари AI' : lang === 'en' ? 'AI Assistant' : 'ИИ-ассистент'}</span>
             </button>
-            <button onClick={() => onNavigate('faq')} className="hover:text-emerald-500 transition-colors">
+            <button onClick={() => onNavigate('faq')} className="hover:text-emerald-500 transition-colors cursor-pointer">
               {navLabels.faq}
             </button>
-            <button onClick={() => onNavigate('contact')} className="hover:text-emerald-500 transition-colors">
+            <button onClick={() => onNavigate('privacy')} className="hover:text-emerald-500 transition-colors cursor-pointer">
+              {lang === 'tj' ? 'Махфият' : lang === 'en' ? 'Privacy' : 'Конфиденциальность'}
+            </button>
+            <button onClick={() => onNavigate('terms')} className="hover:text-emerald-500 transition-colors cursor-pointer">
+              {lang === 'tj' ? 'Шартнома' : lang === 'en' ? 'Terms' : 'Соглашение'}
+            </button>
+            <button onClick={() => onNavigate('feedback')} className="hover:text-emerald-500 transition-colors cursor-pointer">
+              {lang === 'tj' ? 'Муроҷиат ва шикоятҳо' : lang === 'en' ? 'Feedback & Complaints' : 'Жалобы и отзывы'}
+            </button>
+            <button onClick={() => onNavigate('contact')} className="hover:text-emerald-500 transition-colors cursor-pointer">
               {navLabels.contact}
             </button>
           </div>

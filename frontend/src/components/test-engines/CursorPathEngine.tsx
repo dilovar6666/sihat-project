@@ -413,19 +413,31 @@ export const CursorPathEngine: React.FC<InteractiveEngineProps> = ({
       dists.push(d)
       if (d <= task.half_width) insideCount += 1
     }
-    const inCorridorPct = Number(((insideCount / Math.max(1, run.length)) * 100).toFixed(1))
+    const inCorridorPct = run.length > 0 ? Number(((insideCount / run.length) * 100).toFixed(1)) : 100
     const meanDevPct =
       dists.length > 0
         ? Number(((dists.reduce((a, b) => a + b, 0) / dists.length) * 100).toFixed(1))
         : 0
 
+    // Robust duration calculation: if state variable elapsedTime was 0 or uncommitted, compute directly from samples
+    const computedSec =
+      run.length >= 2
+        ? Number(((run[run.length - 1].t - run[0].t) / 1000).toFixed(1))
+        : elapsedTime > 0
+        ? elapsedTime
+        : 2.0
+
     onComplete({
-      summary: `${t.completedTitle}: ${elapsedTime} ${t.sec} • В коридоре: ${inCorridorPct}%`,
+      summary: `${t.completedTitle}: ${computedSec} ${t.sec} • В коридоре: ${inCorridorPct}%`,
       metrics: {
         version: 2,
         engine: 'cursor_path',
+        completion_time_sec: computedSec,
+        in_corridor_pct: inCorridorPct,
+        boundary_exits: boundaryExits,
+        mean_deviation_pct: meanDevPct,
         metrics: {
-          completion_time_sec: elapsedTime,
+          completion_time_sec: computedSec,
           in_corridor_pct: inCorridorPct,
           boundary_exits: boundaryExits,
           mean_deviation_pct: meanDevPct,

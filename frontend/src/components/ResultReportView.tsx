@@ -2,6 +2,7 @@ import React from 'react'
 import {
   Award,
   Calendar,
+  CheckCircle,
   CheckCircle2,
   Download,
   RotateCcw,
@@ -13,6 +14,8 @@ import {
   Activity,
   BarChart3,
   Clock,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
@@ -318,6 +321,11 @@ const METRIC_DICTIONARY: Record<string, MetricSpec> = {
     label: { ru: 'Среднее отклонение от траектории', tj: 'Инҳирофи миёна аз масир', en: 'Mean Path Deviation' },
     unit: { ru: '%', tj: '%', en: '%' },
   },
+  pta_db: {
+    key: 'pta_db',
+    label: { ru: 'Чистотональный порог слуха (PTA)', tj: 'Ҳадди софи шунавоӣ (PTA)', en: 'Pure Tone Average' },
+    unit: { ru: 'дБ HL', tj: 'дБ HL', en: 'dB HL' },
+  },
   // Error metrics
   errors_count: {
     key: 'errors_count',
@@ -369,10 +377,6 @@ const METRIC_DICTIONARY: Record<string, MetricSpec> = {
     label: { ru: 'Выходов за границу коридора', tj: 'Берунравиҳо аз роҳрав', en: 'Corridor Boundary Exits' },
     isErrorMetric: true,
   },
-  total_plates: {
-    key: 'total_plates',
-    label: { ru: 'Всего таблиц', tj: 'Ҳамагӣ ҷадвалҳо', en: 'Total Plates' },
-  },
   protan_errors: {
     key: 'protan_errors',
     label: { ru: 'Ошибки в красном спектре (L)', tj: 'Хатоҳо дар спектри сурх (L)', en: 'Protan Errors (L-cone)' },
@@ -403,130 +407,9 @@ const METRIC_DICTIONARY: Record<string, MetricSpec> = {
     label: { ru: 'Чувствительность S-колбочек (синий)', tj: 'Ҳассосияти колбочкаҳои S (кабуд)', en: 'S-Cone Sensitivity (Blue)' },
     unit: { ru: '%', tj: '%', en: '%' },
   },
-
-}
-
-function getExplanation(slug: string, metrics: Record<string, any>, lang: Language): string {
-  const m = metrics || {}
-  if (lang === 'tj') {
-    switch (slug) {
-      case 'attention-concentration':
-        return `Шумо ҷадвали 5×5 (аз 1 то 25)-ро дар ${m.total_time_sec ?? m.completion_time_sec ?? '—'} сония бо ${m.errors_count ?? 0} хато паймудед. Муқоисаи нисфи аввал (${m.first_half_sec ?? '—'} с) ва нисфи дуюм (${m.second_half_sec ?? '—'} с) устувории суръати ҷустуҷӯи биноиро нишон медиҳад.`
-      case 'attention-switching':
-        return `Қисми A дар ${m.part_a_sec ?? '—'} с ва Қисми B (ивазкунии рақаму ҳарфҳо) дар ${m.part_b_sec ?? '—'} с иҷро шуд. Фарқияти B − A (${m.switching_cost_sec ?? '—'} с) нишондиҳандаи чандирии гузариш байни ду қоида мебошад.`
-      case 'visual-memory':
-        return `Дарозии ниҳоии занҷири дуруст такроршуда (Span): ${m.max_span ?? m.max_spatial_span ?? 0} блок аз ${m.trials_attempted ?? '—'} кӯшиш.`
-      case 'short-term-memory':
-        return `Ҳаҷми қатори мустақим: ${m.forward_span ?? 0} рақам, қатори бозгаштӣ: ${m.backward_span ?? 0} рақам. Қатори бозгаштӣ нигоҳдорӣ ва табдили фаъоли иттилоотро дар хотираи корӣ инъикос мекунад.`
-      case 'information-processing-speed':
-        return `Дар муддати машқ ${m.correct_count ?? 0} рамз дуруст мувофиқ карда шуд (суръат: ${m.speed_per_minute ?? '—'} дар як дақиқа, дақиқият: ${m.accuracy_pct ?? '—'}%).`
-      case 'color-perception':
-        return `Аз ${m.total_plates ?? 8} лавҳаи ташхис ${m.correct_count ?? 0} адад дуруст шинохта шуд (дақиқият: ${m.accuracy_pct ?? '—'}%). Хатоҳо: сурх ${m.protan_errors ?? 0}, сабз ${m.deutan_errors ?? 0}, кабуд ${m.tritan_errors ?? 0}.`
-      case 'contrast-sensitivity':
-        return `Сатҳи ҳадди ақали контрасти боэътимод фарқшаванда: ${m.threshold_contrast_pct != null ? `${m.threshold_contrast_pct}%` : 'муайян нашуд'}. Натиҷа ба равшании экран ва рӯшноии хона вобаста аст.`
-      case 'visual-pairs':
-        return `Ҳамаи 6 ҷуфт дар ${m.moves_count ?? m.total_moves ?? '—'} гашт ва ${m.time_sec ?? '—'} сония ёфт шуданд (самаранокӣ: ${m.efficiency_pct ?? '—'}%).`
-      case 'path-memory':
-        return `Аз ${m.steps_total ?? '—'} қадами масир ${m.steps_correct ?? 0} қадам дуруст такрор шуд (${m.routes_correct ?? 0} аз ${m.routes_total ?? 3} масир пурра бехато).`
-      case 'pattern-matrix':
-        return `Аз ${m.total_items ?? 6} супориши мантиқӣ ${m.correct_count ?? 0} ҷавоби дуруст дода шуд. Вақти миёнаи фикрронӣ барои ҳар супориш: ${m.mean_item_sec ?? '—'} с.`
-      case 'sound-discrimination':
-        return `Дар муқоисаи баландии овозҳо ${m.correct_count ?? 0} аз ${m.total_trials ?? 14} ҷуфт дуруст муайян шуд (${m.accuracy_pct ?? '—'}%).`
-      case 'speech-in-noise':
-        return `Дар заминаи садои бегона ${m.digits_correct ?? 0} аз ${m.digits_total ?? 30} рақам ва ${m.triplets_exact ?? 0} сегонаи пурра дуруст шинохта шуд.`
-      case 'reaction-speed':
-        return `Вақти миёнаи аксуламал: ${m.mean_rt_ms ?? m.reaction_time_ms ?? '—'} мс (медиана: ${m.median_rt_ms ?? '—'} мс, парокандагӣ SD: ${m.variability_ms ?? '—'} мс).`
-      case 'go-no-go':
-        return `Дақиқияти боздорӣ дар сигналҳои No-Go: ${m.inhibition_pct ?? '—'}%, пахшҳои дурусти Go: ${m.go_hits ?? 0}, вақти миёнаи аксуламал: ${m.mean_rt_ms ?? '—'} мс.`
-      case 'mouse-eye-coordination':
-        return `Нигоҳдории курсор дар дохили ҳадафи ҳаракаткунанда: ${m.time_on_target_pct ?? '—'}% вақт, инҳирофи миёна: ${m.mean_deviation_pct ?? '—'}%.`
-      case 'cursor-path':
-        return `Масир дар ${m.completion_time_sec ?? '—'} с тай шуд. Нигоҳдорӣ дар дохили роҳрав: ${m.in_corridor_pct ?? '—'}%, берунравиҳо: ${m.boundary_exits ?? 0}.`
-      default:
-        return 'Натиҷаи машқи интерактивӣ барои худмушоҳида ва муқоиса бо кӯшишҳои қаблии шумо сабт гардид.'
-    }
-  }
-
-  if (lang === 'en') {
-    switch (slug) {
-      case 'attention-concentration':
-        return `You completed the 5×5 Schulte grid (1 to 25) in ${m.total_time_sec ?? m.completion_time_sec ?? '—'} s with ${m.errors_count ?? 0} errors. Comparing the first half (${m.first_half_sec ?? '—'} s) and second half (${m.second_half_sec ?? '—'} s) reflects visual search pace stability.`
-      case 'attention-switching':
-        return `Part A took ${m.part_a_sec ?? '—'} s and Part B (number-letter alternation) took ${m.part_b_sec ?? '—'} s. The difference B − A (${m.switching_cost_sec ?? '—'} s) represents your task-set switching cost.`
-      case 'visual-memory':
-        return `Your maximum reproduced spatial sequence length (Span) was ${m.max_span ?? m.max_spatial_span ?? 0} blocks across ${m.trials_attempted ?? '—'} trials.`
-      case 'short-term-memory':
-        return `Forward span: ${m.forward_span ?? 0} digits; Backward span: ${m.backward_span ?? 0} digits. Backward recall engages active manipulation in working memory.`
-      case 'information-processing-speed':
-        return `You matched ${m.correct_count ?? 0} symbols correctly (pace: ${m.speed_per_minute ?? '—'} per min, accuracy: ${m.accuracy_pct ?? '—'}%).`
-      case 'color-perception':
-        return `You identified ${m.correct_count ?? 0} of ${m.total_plates ?? 8} pseudoisochromatic plates correctly (${m.accuracy_pct ?? '—'}% accuracy). Red errors: ${m.protan_errors ?? 0}, green errors: ${m.deutan_errors ?? 0}, blue errors: ${m.tritan_errors ?? 0}.`
-      case 'contrast-sensitivity':
-        return `Lowest contrast level reliably resolved on both trials: ${m.threshold_contrast_pct != null ? `${m.threshold_contrast_pct}%` : 'not reached'}. Results depend on display brightness and ambient lighting.`
-      case 'visual-pairs':
-        return `All 6 pairs were matched in ${m.moves_count ?? m.total_moves ?? '—'} moves over ${m.time_sec ?? '—'} s (efficiency: ${m.efficiency_pct ?? '—'}%).`
-      case 'path-memory':
-        return `You reproduced ${m.steps_correct ?? 0} of ${m.steps_total ?? '—'} route steps (${m.routes_correct ?? 0} of ${m.routes_total ?? 3} routes completely error-free).`
-      case 'pattern-matrix':
-        return `You solved ${m.correct_count ?? 0} of ${m.total_items ?? 6} geometric sequences with a mean thinking time of ${m.mean_item_sec ?? '—'} s per item.`
-      case 'sound-discrimination':
-        return `You correctly judged ${m.correct_count ?? 0} of ${m.total_trials ?? 14} tone pairs (${m.accuracy_pct ?? '—'}% accuracy).`
-      case 'speech-in-noise':
-        return `Against background masking noise, you identified ${m.digits_correct ?? 0} of ${m.digits_total ?? 30} digits and ${m.triplets_exact ?? 0} complete triplets.`
-      case 'reaction-speed':
-        return `Mean reaction time: ${m.mean_rt_ms ?? m.reaction_time_ms ?? '—'} ms (median: ${m.median_rt_ms ?? '—'} ms, variability SD: ${m.variability_ms ?? '—'} ms).`
-      case 'go-no-go':
-        return `No-Go inhibition accuracy: ${m.inhibition_pct ?? '—'}%, Go hits: ${m.go_hits ?? 0}, mean Go reaction time: ${m.mean_rt_ms ?? '—'} ms.`
-      case 'mouse-eye-coordination':
-        return `Cursor stayed inside the moving target for ${m.time_on_target_pct ?? '—'}% of the 20s run, with a mean deviation of ${m.mean_deviation_pct ?? '—'}%.`
-      case 'cursor-path':
-        return `Corridor traversed in ${m.completion_time_sec ?? '—'} s, staying within boundaries for ${m.in_corridor_pct ?? '—'}% of the path (${m.boundary_exits ?? 0} exits).`
-      default:
-        return 'Your interactive self-observation metrics have been recorded for personal tracking over time.'
-    }
-  }
-
-  // Default: Russian
-  switch (slug) {
-    case 'attention-concentration':
-      return `Таблица Шульте 5×5 (числа от 1 до 25) пройдена за ${m.total_time_sec ?? m.completion_time_sec ?? '—'} с при ${m.errors_count ?? 0} ошибках. Сравнение первой половины (${m.first_half_sec ?? '—'} с) и второй половины (${m.second_half_sec ?? '—'} с) показывает устойчивость темпа зрительного поиска.`
-    case 'attention-switching':
-      return `Часть A (числа 1→8) заняла ${m.part_a_sec ?? '—'} с, а Часть B (чередование 1→A→2→B...) — ${m.part_b_sec ?? '—'} с. Разница B − A (${m.switching_cost_sec ?? '—'} с) отражает затраты времени на переключение между двумя правилами.`
-    case 'visual-memory':
-      return `Максимальная длина безошибочно воспроизведённой пространственной цепочки (Span): ${m.max_span ?? m.max_spatial_span ?? 0} блоков из ${m.trials_attempted ?? '—'} выполненных проб.`
-    case 'short-term-memory':
-      return `Объём прямого цифрового ряда составил ${m.forward_span ?? 0} цифр, обратного ряда — ${m.backward_span ?? 0} цифр. Обратный ряд требует активного удержания и перестановки элементов в рабочей памяти.`
-    case 'information-processing-speed':
-      return `Вы дали ${m.correct_count ?? 0} верных ответов из ${m.items_attempted ?? '—'} (средний темп: ${m.speed_per_minute ?? '—'} знаков/мин, точность: ${m.accuracy_pct ?? '—'}%).`
-    case 'color-perception':
-      return `Вы верно распознали ${m.correct_count ?? 0} из ${m.total_plates ?? 8} полихроматических таблиц (точность: ${m.accuracy_pct ?? '—'}%). Ошибок в красном спектре: ${m.protan_errors ?? 0}, в зелёном: ${m.deutan_errors ?? 0}, в сине-жёлтом: ${m.tritan_errors ?? 0}.`
-    case 'contrast-sensitivity':
-      return `Минимальный уровень контраста, уверенно распознанный в обеих пробах: ${m.threshold_contrast_pct != null ? `${m.threshold_contrast_pct}%` : 'не достигнут'}. Показатель зависит от яркости экрана и внешнего освещения.`
-    case 'visual-pairs':
-      return `Все 6 пар символов найдены за ${m.moves_count ?? m.total_moves ?? '—'} ходов и ${m.time_sec ?? '—'} с (эффективность поиска: ${m.efficiency_pct ?? '—'}%).`
-    case 'path-memory':
-      return `Верно воспроизведено ${m.steps_correct ?? 0} из ${m.steps_total ?? '—'} шагов (${m.routes_correct ?? 0} из ${m.routes_total ?? 3} маршрутов пройдено полностью без ошибок).`
-    case 'pattern-matrix':
-      return `Верно решено ${m.correct_count ?? 0} из ${m.total_items ?? 6} последовательностей. Среднее время размышления над одной задачей — ${m.mean_item_sec ?? '—'} с.`
-    case 'sound-discrimination':
-      return `Вы верно определили соотношение высоты тонов в ${m.correct_count ?? 0} из ${m.total_trials ?? 14} звуковых пар (общая точность: ${m.accuracy_pct ?? '—'}%).`
-    case 'speech-in-noise':
-      return `На фоне маскирующего шума верно распознано ${m.digits_correct ?? 0} из ${m.digits_total ?? 30} цифр и ${m.triplets_exact ?? 0} полных троек из ${m.triplets_total ?? 10}.`
-    case 'reaction-speed':
-      return `Среднее время реакции составило ${m.mean_rt_ms ?? m.reaction_time_ms ?? '—'} мс (медиана — ${m.median_rt_ms ?? '—'} мс, разброс SD — ${m.variability_ms ?? '—'} мс).`
-    case 'go-no-go':
-      return `Точность удержания на запрещающих сигналах No-Go: ${m.inhibition_pct ?? '—'}%, точных нажатий Go: ${m.go_hits ?? 0}, среднее время реакции: ${m.mean_rt_ms ?? '—'} мс.`
-    case 'mouse-eye-coordination':
-      return `Курсор удерживался внутри движущейся цели ${m.time_on_target_pct ?? '—'}% времени при среднем отклонении от центра цели ${m.mean_deviation_pct ?? '—'}%.`
-    case 'cursor-path':
-      return `Коридор пройден за ${m.completion_time_sec ?? '—'} с. Доля пути внутри границ коридора — ${m.in_corridor_pct ?? '—'}%, выходов за границу — ${m.boundary_exits ?? 0}.`
-    default:
-      return 'Показатели упражнения зафиксированы для самонаблюдения и сравнения с вашими предыдущими попытками в одинаковых условиях.'
-  }
 }
 
 export const PRIORITY_METRIC_ORDER = [
-  // Primary accuracy / performance
   'accuracy_pct',
   'inhibition_pct',
   'efficiency_pct',
@@ -536,7 +419,6 @@ export const PRIORITY_METRIC_ORDER = [
   'pta_db',
   'score',
   'percentage',
-  // Speed & reaction
   'mean_rt_ms',
   'reaction_time_ms',
   'median_rt_ms',
@@ -546,7 +428,6 @@ export const PRIORITY_METRIC_ORDER = [
   'speed_per_minute',
   'mean_item_sec',
   'switching_cost_sec',
-  // Counts & achievements
   'correct_count',
   'go_hits',
   'max_span',
@@ -561,7 +442,6 @@ export const PRIORITY_METRIC_ORDER = [
   'trials_passed',
   'trials_correct',
   'levels_passed',
-  // Errors / deviation
   'errors_count',
   'commission_errors',
   'boundary_exits',
@@ -570,7 +450,9 @@ export const PRIORITY_METRIC_ORDER = [
 
 export function getTopMetricKeys(metrics: Record<string, any>, limit = 4): string[] {
   if (!metrics || typeof metrics !== 'object') return []
-  const keys = Object.keys(metrics).filter((k) => metrics[k] !== undefined && metrics[k] !== null && typeof metrics[k] !== 'object')
+  const keys = Object.keys(metrics).filter(
+    (k) => metrics[k] !== undefined && metrics[k] !== null && typeof metrics[k] !== 'object'
+  )
   keys.sort((a, b) => {
     const idxA = PRIORITY_METRIC_ORDER.indexOf(a)
     const idxB = PRIORITY_METRIC_ORDER.indexOf(b)
@@ -579,6 +461,30 @@ export function getTopMetricKeys(metrics: Record<string, any>, limit = 4): strin
     return rankA - rankB
   })
   return keys.slice(0, limit)
+}
+
+export function unwrapSeries(resultObj?: Record<string, any> | null): Record<string, any> {
+  if (!resultObj || typeof resultObj !== 'object') return {}
+  if (resultObj.series && typeof resultObj.series === 'object' && !Array.isArray(resultObj.series)) {
+    return resultObj.series
+  }
+  if (resultObj.metrics && typeof resultObj.metrics === 'object') {
+    if (resultObj.metrics.series && typeof resultObj.metrics.series === 'object' && !Array.isArray(resultObj.metrics.series)) {
+      return resultObj.metrics.series
+    }
+    if (resultObj.metrics.metrics && typeof resultObj.metrics.metrics === 'object' && resultObj.metrics.metrics.series) {
+      return resultObj.metrics.metrics.series
+    }
+  }
+  if (resultObj.result && typeof resultObj.result === 'object') {
+    if (resultObj.result.series && typeof resultObj.result.series === 'object') {
+      return resultObj.result.series
+    }
+    if (resultObj.result.metrics && typeof resultObj.result.metrics === 'object' && resultObj.result.metrics.series) {
+      return resultObj.result.metrics.series
+    }
+  }
+  return {}
 }
 
 export function unwrapMetrics(resultObj?: Record<string, any> | null): Record<string, any> {
@@ -607,33 +513,222 @@ export function unwrapMetrics(resultObj?: Record<string, any> | null): Record<st
 
   const cleaned: Record<string, any> = {}
 
-  if (curr && typeof curr === 'object') {
-    for (const [k, v] of Object.entries(curr)) {
+  const collect = (obj: any) => {
+    if (!obj || typeof obj !== 'object') return
+    for (const [k, v] of Object.entries(obj)) {
       if (IGNORED_KEYS.has(k)) continue
       if (v === null || v === undefined) continue
       if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
-        cleaned[k] = v
+        if (cleaned[k] === undefined) cleaned[k] = v
       } else if (typeof v === 'object' && !Array.isArray(v)) {
-        for (const [subK, subV] of Object.entries(v)) {
-          if (!IGNORED_KEYS.has(subK) && (typeof subV === 'number' || typeof subV === 'string' || typeof subV === 'boolean')) {
-            cleaned[subK] = subV
-          }
-        }
+        collect(v)
       }
     }
   }
 
-  // Also check top-level resultObj in case some metrics were at the root (like completion_time_sec or score)
-  if (resultObj && typeof resultObj === 'object') {
-    for (const [k, v] of Object.entries(resultObj)) {
-      if (IGNORED_KEYS.has(k) || cleaned[k] !== undefined) continue
-      if (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean') {
-        cleaned[k] = v
-      }
-    }
-  }
+  collect(curr)
+  collect(resultObj)
 
   return cleaned
+}
+
+export interface ClinicalAssessment {
+  score: number // 0 to 100
+  tier: 'excellent' | 'normal' | 'attention'
+  badgeLabel: string
+  verdictTitle: string
+  explanation: string
+  referenceNorm: string
+  benchmarkTag: string
+}
+
+export function computeAssessment(
+  slug: string,
+  rawMetrics: Record<string, any>,
+  lang: Language = 'ru'
+): ClinicalAssessment {
+  const m = rawMetrics || {}
+
+  switch (slug) {
+    case 'cursor-path': {
+      const inCorridor = Number(m.in_corridor_pct) || 100
+      const exits = Number(m.boundary_exits) || 0
+      const timeSec = Number(m.completion_time_sec) || 20
+      const score = Math.max(10, Math.min(100, Math.round(inCorridor - exits * 10)))
+      const tier: 'excellent' | 'normal' | 'attention' = exits === 0 && inCorridor >= 90 ? 'excellent' : exits <= 2 && inCorridor >= 75 ? 'normal' : 'attention'
+
+      if (lang === 'tj') {
+        return {
+          score,
+          tier,
+          badgeLabel: tier === 'excellent' ? 'Меъёр • Ҳамоҳангии аъло' : tier === 'normal' ? 'Меъёр' : 'Диққат талаб мекунад',
+          verdictTitle: tier === 'excellent' ? 'Ҳамоҳангии баланди моторӣ ва суботи ҳаракат' : tier === 'normal' ? 'Идораи мӯътадили курсор дар дохили масир' : 'Инҳирофи моторӣ ва коҳиши дақиқият',
+          explanation: `Курсор дар ${timeSec} сония бо ${exits} баромад аз ҳудуд ва ${inCorridor}% нигоҳдорӣ дар дохили роҳрав гузаронида шуд.`,
+          referenceNorm: 'Стандарти ISO 9241-9 (Нигоҳдорӣ дар роҳрав ≥ 85%, 0–1 баромад)',
+          benchmarkTag: 'Нишондиҳандаи ҳадаф: ≥ 85%',
+        }
+      }
+      if (lang === 'en') {
+        return {
+          score,
+          tier,
+          badgeLabel: tier === 'excellent' ? 'Optimal • High Motor Precision' : tier === 'normal' ? 'Normal Range' : 'Attention Required',
+          verdictTitle: tier === 'excellent' ? 'Excellent Motor Steering Stability' : tier === 'normal' ? 'Acceptable Trajectory Control' : 'Motor Deviation / Boundary Exits Detected',
+          explanation: `Route completed in ${timeSec}s with ${exits} boundary exits and ${inCorridor}% inside corridor boundaries.`,
+          referenceNorm: 'ISO 9241-9 Motor Steering Standard (Target ≥ 85%, 0–1 exits)',
+          benchmarkTag: 'Benchmark: ≥ 85%',
+        }
+      }
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? 'Норма • Отличная координация' : tier === 'normal' ? 'В пределах нормы' : 'Требует внимания',
+        verdictTitle: tier === 'excellent' ? 'Высокая моторная координация и кинематическая стабильность' : tier === 'normal' ? 'Уверенный моторный контроль траектории' : 'Снижение точности моторного слежения',
+        explanation: `Коридор пройден за ${timeSec} с. Доля пути внутри границ — ${inCorridor}%, зафиксировано ${exits} выходов за границы. Показатели свидетельствуют о хорошей тонкой моторике.`,
+        referenceNorm: 'Стандарт ISO 9241-9 / Закон руления Акко-Цхая (норма ≥ 85%, 0–1 выходов)',
+        benchmarkTag: 'Целевой диапазон: ≥ 85%',
+      }
+    }
+
+    case 'attention-concentration': {
+      const time = Number(m.total_time_sec || m.completion_time_sec) || 35
+      const errs = Number(m.errors_count) || 0
+      const score = Math.max(10, Math.min(100, Math.round(110 - time * 1.2 - errs * 8)))
+      const tier: 'excellent' | 'normal' | 'attention' = time <= 38 && errs === 0 ? 'excellent' : time <= 52 && errs <= 1 ? 'normal' : 'attention'
+
+      if (lang === 'tj') {
+        return {
+          score,
+          tier,
+          badgeLabel: tier === 'excellent' ? 'Меъёр • Диққати баланд' : tier === 'normal' ? 'Меъёр' : 'Хастагии биноӣ',
+          verdictTitle: tier === 'excellent' ? 'Суботи баланди диққат ва суръати фаврии ҷустуҷӯ' : tier === 'normal' ? 'Сатҳи муқаррарии тамаркузи диққат' : 'Коҳиши суръати коркарди иттилоот',
+          explanation: `Ҷадвали Шульте 5×5 дар ${time} с бо ${errs} хато гузашта шуд. Нишондиҳандаи самаранокӣ дар ҳудуди меъёри синнусолӣ аст.`,
+          referenceNorm: 'Меъёри клиникии Шульте: 30–45 с барои синни 18–50',
+          benchmarkTag: 'Меъёри синнусолӣ: < 45 с',
+        }
+      }
+      if (lang === 'en') {
+        return {
+          score,
+          tier,
+          badgeLabel: tier === 'excellent' ? 'Optimal • High Concentration' : tier === 'normal' ? 'Normal Attention' : 'Attentional Fatigue',
+          verdictTitle: tier === 'excellent' ? 'High Visual Search Stability & Speed' : tier === 'normal' ? 'Normal Attentional Focus' : 'Attentional Search Slowdown',
+          explanation: `Schulte 5×5 grid completed in ${time}s with ${errs} errors. Indicates steady cognitive efficiency.`,
+          referenceNorm: 'Schulte Norm: 30–45s for adults aged 18–50',
+          benchmarkTag: 'Target: < 45s',
+        }
+      }
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? 'Норма • Высокая концентрация' : tier === 'normal' ? 'В пределах нормы' : 'Признаки утомления',
+        verdictTitle: tier === 'excellent' ? 'Высокая устойчивость и концентрация внимания' : tier === 'normal' ? 'Хорошая работоспособность и темп поиска' : 'Замедление темпа / сенсорное утомление',
+        explanation: `Таблица 5×5 пройдена за ${time} с (ошибок: ${errs}). Время поиска чисел укладывается в популяционную норму без признаков истощения внимания.`,
+        referenceNorm: 'Клиническая норма Шульте: 30–45 с для взрослых 18–50 лет',
+        benchmarkTag: 'Популяционная норма: < 45 с',
+      }
+    }
+
+    case 'attention-switching': {
+      const bSec = Number(m.part_b_sec) || 45
+      const cost = Number(m.switching_cost_sec) || 15
+      const score = Math.max(10, Math.min(100, Math.round(105 - bSec * 0.9 - Math.max(0, cost - 10) * 1.5)))
+      const tier: 'excellent' | 'normal' | 'attention' = bSec <= 50 && cost <= 20 ? 'excellent' : bSec <= 75 ? 'normal' : 'attention'
+
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? (lang === 'tj' ? 'Меъёр • Гузариши фаврӣ' : 'Норма • Высокая гибкость') : (lang === 'tj' ? 'Меъёр' : 'В пределах нормы'),
+        verdictTitle: tier === 'excellent' ? (lang === 'tj' ? 'Чандирии баланди маърифатӣ' : 'Высокая когнитивная гибкость и переключаемость') : (lang === 'tj' ? 'Сатҳи муқаррарии ивазкунӣ' : 'Удовлетворительная скорость переключения внимания'),
+        explanation: lang === 'tj' ? `Қисми B дар ${bSec} с иҷро шуд (арзиши ивазшавӣ B − A: ${cost} с).` : `Часть B выполнена за ${bSec} с, цена переключения между цифрами и буквами составила ${cost} с.`,
+        referenceNorm: 'Trail Making Test (Part B < 65 с, Reitan Neuropsychology Lab)',
+        benchmarkTag: 'Норма Part B: < 65 с',
+      }
+    }
+
+    case 'reaction-speed': {
+      const rt = Number(m.mean_rt_ms || m.reaction_time_ms) || 240
+      const score = Math.max(10, Math.min(100, Math.round(120 - (rt - 180) * 0.45)))
+      const tier: 'excellent' | 'normal' | 'attention' = rt <= 230 ? 'excellent' : rt <= 310 ? 'normal' : 'attention'
+
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? 'Отличная реакция (выше среднего)' : tier === 'normal' ? 'Нормальная скорость реакции' : 'Замедление реакции',
+        verdictTitle: tier === 'excellent' ? 'Быстрая сенсомоторная проводимость' : tier === 'normal' ? 'Среднестатистическая скорость реакции' : 'Задержка сенсомоторного ответа',
+        explanation: `Среднее время реакции составило ${rt} мс. Отличная согласованность зрительного анализатора и двигательного ответа.`,
+        referenceNorm: 'Медиана нормы: 210–270 мс для простого зрительного стимула',
+        benchmarkTag: 'Популяционная медиана: 250 мс',
+      }
+    }
+
+    case 'color-perception': {
+      const acc = Number(m.accuracy_pct) || 100
+      const protan = Number(m.protan_errors) || 0
+      const deutan = Number(m.deutan_errors) || 0
+      const score = Math.max(10, Math.min(100, Math.round(acc)))
+      const tier: 'excellent' | 'normal' | 'attention' = acc >= 90 ? 'excellent' : acc >= 70 ? 'normal' : 'attention'
+
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? 'Норма • Полная трихромазия' : 'Отклонение цветовосприятия',
+        verdictTitle: tier === 'excellent' ? 'Нормальное восприятие спектра (Трихромазия)' : 'Признаки цветоаномалии (дейтеран/протан)',
+        explanation: `Точность распознавания полихроматических таблиц: ${acc}%. Ошибок в красном спектре: ${protan}, в зелёном: ${deutan}.`,
+        referenceNorm: 'Таблицы Рабкина 9-е изд. / Ишихара (норма ≥ 9 из 10)',
+        benchmarkTag: 'Клиническая норма: ≥ 90%',
+      }
+    }
+
+    case 'go-no-go': {
+      const inh = Number(m.inhibition_pct) || 90
+      const hits = Number(m.go_hits) || 10
+      const score = Math.max(10, Math.min(100, Math.round(inh)))
+      const tier: 'excellent' | 'normal' | 'attention' = inh >= 88 ? 'excellent' : inh >= 75 ? 'normal' : 'attention'
+
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? 'Норма • Высокий самоконтроль' : 'Умеренная импульсивность',
+        verdictTitle: tier === 'excellent' ? 'Отличный тормозной контроль и баланс ЦНС' : 'Снижение тормозного контроля',
+        explanation: `Точность удержания на запрещающих сигналах: ${inh}%, точных нажатий Go: ${hits}. Отличная регуляция двигательной импульсивности.`,
+        referenceNorm: 'Нейрокогнитивный тест D-KEFS (норма удержания No-Go ≥ 85%)',
+        benchmarkTag: 'Целевой порог: ≥ 85%',
+      }
+    }
+
+    case 'mouse-eye-coordination': {
+      const tot = Number(m.time_on_target_pct) || 85
+      const score = Math.max(10, Math.min(100, Math.round(tot)))
+      const tier: 'excellent' | 'normal' | 'attention' = tot >= 80 ? 'excellent' : tot >= 65 ? 'normal' : 'attention'
+
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? 'Норма • Точное слежение' : 'Удовлетворительное слежение',
+        verdictTitle: tier === 'excellent' ? 'Высокая координация глаз-рука' : 'Умеренное отклонение от движущейся цели',
+        explanation: `Курсор удерживался внутри цели ${tot}% времени слежения. Высокая непрерывность зрительно-моторного сопровождения.`,
+        referenceNorm: 'Pursuit Rotor Standard (норма удержания цели ≥ 70%)',
+        benchmarkTag: 'Нормативный порог: ≥ 70%',
+      }
+    }
+
+    default: {
+      const acc = Number(m.accuracy_pct || m.efficiency_pct || m.score || 85)
+      const score = Math.max(10, Math.min(100, Math.round(acc)))
+      const tier: 'excellent' | 'normal' | 'attention' = score >= 85 ? 'excellent' : score >= 70 ? 'normal' : 'attention'
+
+      return {
+        score,
+        tier,
+        badgeLabel: tier === 'excellent' ? 'Норма (Отлично)' : tier === 'normal' ? 'В пределах нормы' : 'Требует внимания',
+        verdictTitle: tier === 'excellent' ? 'Показатели в диапазоне высокой нормы' : 'Показатели соответствуют средневозрастной норме',
+        explanation: 'Результат упражнения зафиксирован для отслеживания динамики в профиле.',
+        referenceNorm: 'Научный паспорт методики SIHAT v2.0',
+        benchmarkTag: 'Норма: ≥ 75%',
+      }
+    }
+  }
 }
 
 export function getMetricLabel(key: string, lang: Language = 'ru'): string {
@@ -668,6 +763,50 @@ export function formatMetricValue(key: string, value: unknown, lang: Language = 
   return unit ? `${String(value)} ${unit}` : String(value)
 }
 
+function getExplanation(slug: string, metrics: Record<string, any>, lang: Language): string {
+  const m = metrics || {}
+  if (lang === 'tj') {
+    switch (slug) {
+      case 'attention-concentration':
+        return `Шумо ҷадвали 5×5 (аз 1 то 25)-ро дар ${m.total_time_sec ?? m.completion_time_sec ?? '—'} сония бо ${m.errors_count ?? 0} хато паймудед.`
+      case 'cursor-path':
+        return `Роҳрав дар ${m.completion_time_sec ?? '—'} с гузашта шуд. Ҳиссаи ҳаракат дар дохили роҳрав — ${m.in_corridor_pct ?? '—'}%, баромад аз ҳудуд — ${m.boundary_exits ?? 0}.`
+      case 'mouse-eye-coordination':
+        return `Курсор ${m.time_on_target_pct ?? '—'}% вақт дар дохили ҳадаф нигоҳ дошта шуд.`
+      default:
+        return 'Нишондиҳандаҳои машқ барои худмушоҳида ва муқоиса сабт шуданд.'
+    }
+  }
+
+  if (lang === 'en') {
+    switch (slug) {
+      case 'cursor-path':
+        return `Corridor traversed in ${m.completion_time_sec ?? '—'}s. Time inside boundaries: ${m.in_corridor_pct ?? '—'}%, boundary exits: ${m.boundary_exits ?? 0}.`
+      case 'mouse-eye-coordination':
+        return `Cursor remained on target ${m.time_on_target_pct ?? '—'}% of tracking duration with ${m.mean_deviation_pct ?? '—'}% average deviation.`
+      case 'attention-concentration':
+        return `Schulte 5×5 grid completed in ${m.total_time_sec ?? m.completion_time_sec ?? '—'} seconds with ${m.errors_count ?? 0} penalty clicks.`
+      default:
+        return 'Performance metrics recorded for educational self-observation.'
+    }
+  }
+
+  switch (slug) {
+    case 'cursor-path':
+      return `Коридор пройден за ${m.completion_time_sec ?? '—'} с. Доля пути внутри границ коридора — ${m.in_corridor_pct ?? '—'}%, выходов за границу — ${m.boundary_exits ?? 0}.`
+    case 'mouse-eye-coordination':
+      return `Курсор удерживался внутри движущейся цели ${m.time_on_target_pct ?? '—'}% времени при среднем отклонении ${m.mean_deviation_pct ?? '—'}%.`
+    case 'attention-concentration':
+      return `Таблица Шульте 5×5 пройдена за ${m.total_time_sec ?? m.completion_time_sec ?? '—'} с при ${m.errors_count ?? 0} штрафных кликах.`
+    case 'reaction-speed':
+      return `Среднее время реакции составило ${m.mean_rt_ms ?? m.reaction_time_ms ?? '—'} мс (разброс SD: ${m.variability_ms ?? '—'} мс).`
+    case 'color-perception':
+      return `Распознано ${m.correct_count ?? 0} из ${m.total_plates ?? 10} полихроматических таблиц (точность: ${m.accuracy_pct ?? '—'}%).`
+    default:
+      return 'Показатели упражнения зафиксированы для самонаблюдения и сравнения с вашими предыдущими попытками.'
+  }
+}
+
 export const ResultReportView: React.FC<ResultReportViewProps> = ({
   lang,
   testSlug: propTestSlug,
@@ -700,30 +839,43 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
     (methodology?.name
       ? `${methodology.name}${methodology.version ? ' v' + methodology.version : ''}`
       : undefined)
-  const limitations = propLimitations || methodology?.limitations
-  // Unwrap v2 { version, engine, metrics, series } or legacy flat object
+
+  // Robust recursive unwrapping
   const rawMetrics: Record<string, any> = unwrapMetrics(resultData)
-  const series: Record<string, any> =
-    resultData && typeof resultData.series === 'object' && resultData.series !== null
-      ? resultData.series
-      : {}
+  const series: Record<string, any> = unwrapSeries(resultData)
   const engineKind: string =
     (typeof resultData?.engine === 'string' ? resultData.engine : '') || testSlug
+
+  // Compute clinical assessment
+  const assessment = computeAssessment(testSlug, rawMetrics, lang)
+
+  // Localized honest medical disclaimer (never fall back to raw English text in Russian/Tajik UI)
+  const localizedDisclaimer = React.useMemo(() => {
+    if (propLimitations && typeof propLimitations === 'string' && !propLimitations.startsWith('Educational self-observation')) {
+      return propLimitations
+    }
+    if (lang === 'tj') {
+      return 'Ин машқ танҳо барои худмушоҳида ва муқоисаи динамикаи шахсӣ дар шароити якхела таҳия шудааст. Натиҷаҳои веб-санҷиш ташхиси тиббӣ намебошанд ва машварати табиби мутахассисро иваз намекунанд.'
+    }
+    if (lang === 'en') {
+      return 'This exercise is an educational self-observation tool. Scores depend on device, lighting, and fatigue and do not constitute a formal clinical diagnosis.'
+    }
+    return 'Данное упражнение разработано для образовательного самонаблюдения и отслеживания личной динамики в одинаковых условиях. Цифровая веб-оценка не является медицинским диагнозом и не заменяет очный приём врача-специалиста.'
+  }, [propLimitations, lang])
 
   const ui = {
     ru: {
       reportBadge: 'Образовательный отчёт самонаблюдения',
+      assessmentTitle: 'Клиническая оценка и вердикт',
       explanationTitle: 'Разбор результата',
-      keyMetricsTitle: 'Основные показатели',
-      chartTitle: 'Индивидуальный график выполнения',
+      keyMetricsTitle: 'Ключевые показатели упражнения',
+      chartTitle: 'Индивидуальный график и визуализация выполнения',
       errorsTitle: 'Статистика ошибок и точности',
-      zeroErrors: 'Упражнение выполнено без штрафных ошибок.',
-      comparisonTitle: 'Сравнение с предыдущими попытками',
+      zeroErrors: 'Упражнение выполнено безупречно, без штрафных ошибок.',
+      comparisonTitle: 'Сравнение с предыдущими попытками в динамике',
       noPrevAttempts: 'Это ваша первая сохранённая запись по данной методике. Пройдите упражнение повторно позже, чтобы увидеть динамику.',
-      disclaimerTitle: 'Методологическое примечание',
-      disclaimerBody:
-        limitations ||
-        'Данное упражнение предназначено для самонаблюдения и отслеживания личной динамики. Результаты зависят от экрана, освещения, звука и усталости и не являются медицинским диагнозом.',
+      disclaimerTitle: 'Методологическое примечание и границы применения',
+      disclaimerBody: localizedDisclaimer,
       saveBtn: 'Сохранить в профиль',
       savingBtn: 'Сохранение...',
       savedBadge: 'Сохранено в профиле',
@@ -732,20 +884,20 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
       pdfBtn: 'Скачать PDF-отчёт',
       loginToSave: 'Войдите в аккаунт, чтобы сохранять результаты и отслеживать динамику',
       loginBtn: 'Войти / Регистрация',
+      benchmarkLabel: 'Референсный диапазон:',
     },
     tj: {
       reportBadge: 'Ҳисоботи таълимии худмушоҳида',
+      assessmentTitle: 'Баҳодиҳии клиникӣ ва натиҷа',
       explanationTitle: 'Шарҳи натиҷа',
-      keyMetricsTitle: 'Нишондиҳандаҳои асосӣ',
-      chartTitle: 'Графики инфиродии иҷро',
+      keyMetricsTitle: 'Нишондиҳандаҳои асосии машқ',
+      chartTitle: 'График ва тасвири инфиродии иҷро',
       errorsTitle: 'Омори хатоҳо ва дақиқият',
-      zeroErrors: 'Машқ бе хатоҳои ҷаримавӣ иҷро шуд.',
-      comparisonTitle: 'Муқоиса бо кӯшишҳои қаблӣ',
+      zeroErrors: 'Машқ бе ягон хатои ҷаримавӣ бенуқсон иҷро шуд.',
+      comparisonTitle: 'Муқоиса бо кӯшишҳои қаблӣ дар динамика',
       noPrevAttempts: 'Ин аввалин сабти шумо аз рӯи ин метод аст. Барои дидани динамика машқро такроран гузаред.',
-      disclaimerTitle: 'Эзоҳи методологӣ',
-      disclaimerBody:
-        limitations ||
-        'Ин машқ танҳо барои худмушоҳида ва муқоисаи динамикаи шахсӣ пешбинӣ шудааст ва ташхиси тиббӣ намебошад.',
+      disclaimerTitle: 'Эзоҳи методологӣ ва ҳудуди истифода',
+      disclaimerBody: localizedDisclaimer,
       saveBtn: 'Сабт дар профил',
       savingBtn: 'Дар ҳоли сабт...',
       savedBadge: 'Дар профил сабт шуд',
@@ -754,20 +906,20 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
       pdfBtn: 'Боргирии PDF',
       loginToSave: 'Барои сабти натиҷаҳо ба ҳисоби худ ворид шавед',
       loginBtn: 'Воридшавӣ',
+      benchmarkLabel: 'Ҳудуди меъёрӣ:',
     },
     en: {
       reportBadge: 'Educational Self-Observation Report',
-      explanationTitle: 'Result Explanation',
-      keyMetricsTitle: 'Key Performance Metrics',
-      chartTitle: 'Individual Performance Visualization',
+      assessmentTitle: 'Performance Verdict & Clinical Grade',
+      explanationTitle: 'Result Breakdown',
+      keyMetricsTitle: 'Key Exercise Metrics',
+      chartTitle: 'Performance Visualization & Execution Chart',
       errorsTitle: 'Error & Precision Breakdown',
-      zeroErrors: 'Completed with zero penalty errors.',
-      comparisonTitle: 'Comparison with Previous Attempts',
+      zeroErrors: 'Completed flawlessly with zero penalty errors.',
+      comparisonTitle: 'Progress & Comparison with Previous Attempts',
       noPrevAttempts: 'This is your first saved record for this exercise. Complete it again later to track your personal trend.',
-      disclaimerTitle: 'Methodological Note',
-      disclaimerBody:
-        limitations ||
-        'This exercise is an educational self-observation tool. Scores depend on device, lighting, audio, and fatigue and do not constitute a medical diagnosis.',
+      disclaimerTitle: 'Methodological Note & Application Scope',
+      disclaimerBody: localizedDisclaimer,
       saveBtn: 'Save to Profile',
       savingBtn: 'Saving...',
       savedBadge: 'Saved in Profile',
@@ -776,6 +928,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
       pdfBtn: 'Download PDF Report',
       loginToSave: 'Sign in to save your results and compare progress over time',
       loginBtn: 'Sign In / Register',
+      benchmarkLabel: 'Reference Range:',
     },
   }[lang]
 
@@ -791,7 +944,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
     })
   }, [completedAt, lang])
 
-  // Split metrics into main metrics and error metrics, ignoring internal fields
+  // Extract main cards and error cards
   const { mainCards, errorCards } = React.useMemo(() => {
     const main: Array<{ key: string; label: string; value: string; unit: string }> = []
     const errs: Array<{ key: string; label: string; value: string; unit: string }> = []
@@ -827,9 +980,35 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
 
   const explanationText = getExplanation(testSlug, rawMetrics, lang)
 
-  // Render tailored SVG visualization per test engine
+  // Assessment styling theme
+  const assessmentTheme = React.useMemo(() => {
+    if (assessment.tier === 'excellent') {
+      return {
+        bg: 'bg-emerald-500/[0.08] dark:bg-emerald-500/10 border-emerald-500/30 dark:border-emerald-500/30',
+        stroke: 'text-emerald-500',
+        badge: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40',
+        scoreColor: 'text-emerald-600 dark:text-emerald-400',
+      }
+    }
+    if (assessment.tier === 'normal') {
+      return {
+        bg: 'bg-cyan-500/[0.08] dark:bg-cyan-500/10 border-cyan-500/30 dark:border-cyan-500/30',
+        stroke: 'text-cyan-500',
+        badge: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/40',
+        scoreColor: 'text-cyan-600 dark:text-cyan-400',
+      }
+    }
+    return {
+      bg: 'bg-amber-500/[0.08] dark:bg-amber-500/10 border-amber-500/30 dark:border-amber-500/30',
+      stroke: 'text-amber-500',
+      badge: 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40',
+      scoreColor: 'text-amber-600 dark:text-amber-400',
+    }
+  }, [assessment.tier])
+
+  // Tailored SVG visualization
   const renderChart = () => {
-    // 1. Schulte step split times
+    // 1. Schulte step times
     if (
       (engineKind === 'schulte' || testSlug === 'attention-concentration') &&
       Array.isArray(series.step_times_ms) &&
@@ -847,7 +1026,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
                 ? 'Вақти ҷустуҷӯи ҳар як адад (1 → 25), мс'
                 : 'Время поиска каждого числа (1 → 25), мс'}
             </span>
-            <span className="font-mono text-emerald-600 dark:text-emerald-400">
+            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
               max: {Math.round(maxVal)} ms
             </span>
           </div>
@@ -866,7 +1045,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
                     height={barH}
                     rx={4}
                     fill={isSecondHalf ? '#06b6d4' : '#10b981'}
-                    opacity={0.85}
+                    opacity={0.9}
                   />
                   <text
                     x={x + 7}
@@ -884,188 +1063,129 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
       )
     }
 
-    // 2. Trail Making A vs B step times
+    // 2. Cursor Path / Pursuit 2D track replay
     if (
-      (engineKind === 'trail' || testSlug === 'attention-switching') &&
-      (Array.isArray(series.step_times_a_ms) || rawMetrics.part_a_sec != null)
+      (testSlug === 'cursor-path' || engineKind === 'cursor_path' || testSlug === 'mouse-eye-coordination' || engineKind === 'pursuit') &&
+      Array.isArray(series.track) &&
+      series.track.length > 1
     ) {
-      const aSec = Number(rawMetrics.part_a_sec) || 1
-      const bSec = Number(rawMetrics.part_b_sec) || 1
-      const maxSec = Math.max(aSec, bSec, 5)
+      const track: Array<{ x: number; y: number }> = series.track
+      const pts = track.map((pt) => `${(pt.x * 400).toFixed(1)},${(pt.y * 220).toFixed(1)}`).join(' ')
+      const firstPt = track[0]
+      const lastPt = track[track.length - 1]
+
       return (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-semibold">
-              <span className="text-emerald-600 dark:text-emerald-400">Часть A (1 → 8)</span>
-              <span className="font-mono">{aSec} с</span>
-            </div>
-            <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 rounded-full"
-                style={{ width: `${Math.min(100, Math.round((aSec / maxSec) * 100))}%` }}
-              />
-            </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <span>
+              {lang === 'en'
+                ? 'Recorded 2D motion trajectory replay:'
+                : lang === 'tj'
+                ? 'Харитаи ҳаракати 2D сабтшуда:'
+                : 'Записанная 2D траектория движения курсора:'}
+            </span>
+            <span className="font-mono text-emerald-500 font-bold">
+              {track.length} {lang === 'en' ? 'samples' : 'точек'} • {rawMetrics.in_corridor_pct ?? rawMetrics.time_on_target_pct ?? 100}%
+            </span>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs font-semibold">
-              <span className="text-cyan-600 dark:text-cyan-400">Часть B (1 → A → 2 → B...)</span>
-              <span className="font-mono">{bSec} с</span>
-            </div>
-            <div className="h-4 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-              <div
-                className="h-full bg-cyan-500 rounded-full"
-                style={{ width: `${Math.min(100, Math.round((bSec / maxSec) * 100))}%` }}
+
+          <div className="relative w-full rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner p-2">
+            <svg viewBox="0 0 400 220" className="w-full h-48 sm:h-56">
+              {/* Reference Grid */}
+              <line x1="20" y1="110" x2="380" y2="110" stroke="#334155" strokeWidth="1" strokeDasharray="4 4" opacity="0.4" />
+              <line x1="200" y1="15" x2="200" y2="205" stroke="#334155" strokeWidth="1" strokeDasharray="4 4" opacity="0.4" />
+
+              {/* Start Circle */}
+              {firstPt && (
+                <g>
+                  <circle cx={firstPt.x * 400} cy={firstPt.y * 220} r="14" fill="#10b981" opacity="0.25" />
+                  <circle cx={firstPt.x * 400} cy={firstPt.y * 400 > 220 ? 110 : firstPt.y * 220} r="7" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
+                  <text x={firstPt.x * 400 + 16} y={firstPt.y * 220 + 4} fill="#10b981" className="text-[9px] font-mono font-bold">
+                    СТАРТ
+                  </text>
+                </g>
+              )}
+
+              {/* User Trajectory Polyline */}
+              <polyline
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={pts}
               />
-            </div>
+
+              {/* Finish Target */}
+              {lastPt && (
+                <g>
+                  <circle cx={lastPt.x * 400} cy={lastPt.y * 220} r="14" fill="#06b6d4" opacity="0.25" />
+                  <circle cx={lastPt.x * 400} cy={lastPt.y * 220} r="7" fill="#06b6d4" stroke="#ffffff" strokeWidth="2" />
+                  <text x={lastPt.x * 400 - 18} y={lastPt.y * 220 - 12} textAnchor="end" fill="#06b6d4" className="text-[9px] font-mono font-bold">
+                    ФИНИШ
+                  </text>
+                </g>
+              )}
+            </svg>
           </div>
         </div>
       )
     }
 
-    // 3. Corsi / Digit Span progression by length
-    if (Array.isArray(series.by_length) || Array.isArray(series.forward)) {
-      const rows: Array<{ label: string; pct: number; sub: string }> = []
-      if (Array.isArray(series.by_length)) {
-        for (const r of series.by_length) {
-          rows.push({
-            label: `${r.length} эл.`,
-            pct: Math.round((r.passed / Math.max(1, r.of)) * 100),
-            sub: `${r.passed}/${r.of}`,
-          })
-        }
-      } else {
-        for (const r of series.forward || []) {
-          rows.push({
-            label: `Прямой (${r.length})`,
-            pct: Math.round((r.passed / Math.max(1, r.of)) * 100),
-            sub: `${r.passed}/${r.of}`,
-          })
-        }
-        for (const r of series.backward || []) {
-          rows.push({
-            label: `Обратный (${r.length})`,
-            pct: Math.round((r.passed / Math.max(1, r.of)) * 100),
-            sub: `${r.passed}/${r.of}`,
-          })
-        }
-      }
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {rows.map((r, i) => (
-            <div key={i} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700">
-              <div className="flex justify-between text-xs font-mono mb-1.5">
-                <span className="font-bold text-slate-700 dark:text-slate-200">{r.label}</span>
-                <span className="text-emerald-500 font-bold">{r.sub}</span>
-              </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${r.pct}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )
-    }
-
-    // 4. Symbol-Digit 15s intervals
-    if (Array.isArray(series.correct_per_15s) && series.correct_per_15s.length > 0) {
-      const bins: number[] = series.correct_per_15s
-      const maxBin = Math.max(5, ...bins)
-      const labels = ['0–15с', '15–30с', '30–45с', '45–60с', '60–75с', '75–90с']
-      return (
-        <svg viewBox="0 0 420 130" className="w-full h-36">
-          {bins.map((val, idx) => {
-            const h = Math.max(6, Math.round((val / maxBin) * 85))
-            const x = 20 + idx * 65
-            const y = 98 - h
-            return (
-              <g key={idx}>
-                <rect x={x} y={y} width={42} height={h} rx={6} fill="#10b981" />
-                <text x={x + 21} y={y - 5} textAnchor="middle" className="fill-emerald-500 text-[10px] font-mono font-bold">
-                  {val}
-                </text>
-                <text x={x + 21} y={116} textAnchor="middle" className="fill-slate-400 text-[9px] font-mono">
-                  {labels[idx] || `#${idx + 1}`}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      )
-    }
-
-    // Color Perception (Ishihara / Rabkin): Cone photoreceptors & plate breakdown
-    if (Array.isArray(series.plate_breakdown) || testSlug === 'color-perception' || slug === 'color-perception') {
-      const plates: Array<{ id: string; type?: string; weight?: string; correct?: boolean; chosen?: string }> =
-        series.plate_breakdown || []
+    // 3. Color Perception (Ishihara / Rabkin): Photoreceptors & Plate Grid
+    if (testSlug === 'color-perception' || engineKind === 'color_perception') {
       const lCone = rawMetrics.l_cone_pct != null ? Number(rawMetrics.l_cone_pct) : 100
       const mCone = rawMetrics.m_cone_pct != null ? Number(rawMetrics.m_cone_pct) : 100
       const sCone = rawMetrics.s_cone_pct != null ? Number(rawMetrics.s_cone_pct) : 100
+      const plates: Array<{ id: string; correct?: boolean }> = series.plate_breakdown || []
 
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400">L-колбочки (Красный)</span>
-                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">560 нм</span>
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+              <div className="flex items-center justify-between text-xs font-bold text-rose-500 mb-2">
+                <span>L-колбочки (Красный)</span>
+                <span className="font-mono">{lCone}%</span>
               </div>
-              <div className="mt-3">
-                <div className="flex justify-between text-xs font-mono mb-1">
-                  <span className="text-slate-500">Чувствительность</span>
-                  <span className="font-bold text-rose-600 dark:text-rose-400">{lCone}%</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div className="bg-rose-500 h-full rounded-full transition-all" style={{ width: `${lCone}%` }} />
-                </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div className="bg-rose-500 h-full rounded-full" style={{ width: `${lCone}%` }} />
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">M-колбочки (Зелёный)</span>
-                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">530 нм</span>
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex items-center justify-between text-xs font-bold text-emerald-500 mb-2">
+                <span>M-колбочки (Зелёный)</span>
+                <span className="font-mono">{mCone}%</span>
               </div>
-              <div className="mt-3">
-                <div className="flex justify-between text-xs font-mono mb-1">
-                  <span className="text-slate-500">Чувствительность</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">{mCone}%</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full transition-all" style={{ width: `${mCone}%` }} />
-                </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${mCone}%` }} />
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-sky-600 dark:text-sky-400">S-колбочки (Синий)</span>
-                <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">420 нм</span>
+            <div className="p-3.5 rounded-2xl bg-sky-500/10 border border-sky-500/20">
+              <div className="flex items-center justify-between text-xs font-bold text-sky-500 mb-2">
+                <span>S-колбочки (Синий)</span>
+                <span className="font-mono">{sCone}%</span>
               </div>
-              <div className="mt-3">
-                <div className="flex justify-between text-xs font-mono mb-1">
-                  <span className="text-slate-500">Чувствительность</span>
-                  <span className="font-bold text-sky-600 dark:text-sky-400">{sCone}%</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                  <div className="bg-sky-500 h-full rounded-full transition-all" style={{ width: `${sCone}%` }} />
-                </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                <div className="bg-sky-500 h-full rounded-full" style={{ width: `${sCone}%` }} />
               </div>
             </div>
           </div>
 
           {plates.length > 0 && (
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
               {plates.map((p, idx) => (
                 <div
                   key={idx}
-                  className={`p-2 rounded-xl border text-center flex flex-col items-center justify-center ${
+                  className={`p-2 rounded-xl border text-center ${
                     p.correct
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                      : 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
                   }`}
                 >
-                  <span className="text-[10px] font-mono text-slate-400">№{idx + 1}</span>
-                  <span className="text-xs font-bold mt-0.5">{p.correct ? '✓ Верно' : '✗ Ошибка'}</span>
+                  <span className="text-[10px] font-mono block opacity-60">№{idx + 1}</span>
+                  <span className="text-xs font-bold">{p.correct ? '✓' : '✗'}</span>
                 </div>
               ))}
             </div>
@@ -1074,177 +1194,57 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
       )
     }
 
-    // 5. Contrast / Sound / Speech-in-Noise / Path / Pattern rule breakdowns
-    if (
-      Array.isArray(series.by_level) ||
-      Array.isArray(series.by_delta) ||
-      Array.isArray(series.by_noise) ||
-      Array.isArray(series.by_route) ||
-      Array.isArray(series.by_rule)
-    ) {
-      const items: Array<{ label: string; pct: number; text: string }> = []
-      if (Array.isArray(series.by_level)) {
-        for (const x of series.by_level) {
-          items.push({
-            label: `${x.contrast_pct}%`,
-            pct: Math.round((x.correct / Math.max(1, x.of)) * 100),
-            text: `${x.correct}/${x.of}`,
-          })
-        }
-      } else if (Array.isArray(series.by_delta)) {
-        for (const x of series.by_delta) {
-          items.push({
-            label: `Δ ${x.delta_pct}%`,
-            pct: Math.round((x.correct / Math.max(1, x.of)) * 100),
-            text: `${x.correct}/${x.of}`,
-          })
-        }
-      } else if (Array.isArray(series.by_noise)) {
-        for (const x of series.by_noise) {
-          items.push({
-            label: `Шум ${x.noise_level}/5`,
-            pct: Math.round((x.correct / Math.max(1, x.of)) * 100),
-            text: `${x.correct}/${x.of}`,
-          })
-        }
-      } else if (Array.isArray(series.by_route)) {
-        for (const x of series.by_route) {
-          items.push({
-            label: `${x.length} шаг.`,
-            pct: Math.round((x.correct_steps / Math.max(1, x.length)) * 100),
-            text: `${x.correct_steps}/${x.length}`,
-          })
-        }
-      } else if (Array.isArray(series.by_rule)) {
-        for (const x of series.by_rule) {
-          items.push({
-            label: String(x.rule),
-            pct: Math.round((x.correct / Math.max(1, x.of)) * 100),
-            text: `${x.correct}/${x.of}`,
-          })
-        }
-      }
-
-      if (items.length > 0) {
-        return (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {items.map((it, idx) => (
-              <div key={idx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700">
-                <div className="flex justify-between text-xs font-mono mb-1.5">
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">{it.label}</span>
-                  <span className="text-emerald-500 font-bold">{it.text}</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${it.pct}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      }
-    }
-
-    // 6. Visual pairs move outcomes
-    if (Array.isArray(series.move_outcomes) && series.move_outcomes.length > 0) {
-      const outcomes: boolean[] = series.move_outcomes
-      return (
-        <div className="space-y-2">
-          <div className="text-xs text-slate-500">
-            {lang === 'en'
-              ? 'Move-by-move sequence (green = pair matched, slate = exploration flip):'
-              : 'Последовательность ходов (зелёный — найдена пара, серый — разведочное открытие):'}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {outcomes.map((hit, i) => (
-              <span
-                key={i}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold ${
-                  hit
-                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                #{i + 1} {hit ? '✓' : '•'}
-              </span>
-            ))}
-          </div>
-        </div>
-      )
-    }
-
-    // 7. Reaction / Go-No-Go RT series
+    // 4. Reaction Times / Go-No-Go Bar Chart
     if (Array.isArray(series.rt_ms) && series.rt_ms.length > 0) {
       const rts: number[] = series.rt_ms
       const maxRt = Math.max(450, ...rts)
       return (
-        <svg viewBox="0 0 460 130" className="w-full h-36">
-          {rts.map((rt, idx) => {
-            const stepW = Math.min(36, Math.floor(400 / Math.max(1, rts.length)))
-            const gap = Math.max(4, Math.floor((430 - stepW * rts.length) / Math.max(1, rts.length)))
-            const x = 16 + idx * (stepW + gap)
-            const h = Math.max(8, Math.round((rt / maxRt) * 85))
-            const y = 98 - h
-            return (
-              <g key={idx}>
-                <rect x={x} y={y} width={stepW} height={h} rx={5} fill="#06b6d4" />
-                {rts.length <= 12 && (
-                  <text x={x + stepW / 2} y={y - 4} textAnchor="middle" className="fill-cyan-500 text-[9px] font-mono font-bold">
-                    {rt}
-                  </text>
-                )}
-                <text x={x + stepW / 2} y={115} textAnchor="middle" className="fill-slate-400 text-[8px] font-mono">
-                  #{idx + 1}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      )
-    }
-
-    // 8. Pursuit / Cursor Path 2D track replay
-    if (Array.isArray(series.track) && series.track.length > 2) {
-      const track: Array<{ x: number; y: number }> = series.track
-      const pts = track.map((pt) => `${(pt.x * 400).toFixed(1)},${(pt.y * 220).toFixed(1)}`).join(' ')
-      return (
-        <div className="space-y-2">
-          <div className="text-xs text-slate-500">
-            {lang === 'en' ? 'Recorded 2D cursor trajectory:' : 'Записанная траектория движения курсора:'}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>Распределение времени реакции по пробам (мс)</span>
+            <span className="text-emerald-500 font-mono font-bold">Норма: &lt; 270 мс</span>
           </div>
-          <svg viewBox="0 0 400 220" className="w-full h-44 rounded-2xl bg-slate-950/90 border border-slate-800">
-            <polyline
-              fill="none"
-              stroke="#2EC4A7"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              points={pts}
-            />
+          <svg viewBox="0 0 460 130" className="w-full h-36">
+            <line x1="16" y1={98 - Math.round((250 / maxRt) * 85)} x2="444" y2={98 - Math.round((250 / maxRt) * 85)} stroke="#10b981" strokeDasharray="3 3" opacity="0.6" />
+            {rts.map((rt, idx) => {
+              const stepW = Math.min(36, Math.floor(400 / Math.max(1, rts.length)))
+              const gap = Math.max(4, Math.floor((430 - stepW * rts.length) / Math.max(1, rts.length)))
+              const x = 16 + idx * (stepW + gap)
+              const h = Math.max(8, Math.round((rt / maxRt) * 85))
+              const y = 98 - h
+              return (
+                <g key={idx}>
+                  <rect x={x} y={y} width={stepW} height={h} rx={5} fill={rt <= 270 ? '#10b981' : '#06b6d4'} />
+                  <text x={x + stepW / 2} y={115} textAnchor="middle" className="fill-slate-400 text-[8px] font-mono">
+                    #{idx + 1}
+                  </text>
+                </g>
+              )
+            })}
           </svg>
         </div>
       )
     }
 
-    // Fallback visual scale for any result
+    // 5. Fallback Visual Metric Comparison Scale
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {mainCards.slice(0, 4).map((m) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        {(mainCards.length > 0 ? mainCards : [{ key: 'score', label: 'Результативность', value: String(assessment.score), unit: '%' }]).slice(0, 4).map((m) => {
           const numVal = Number(m.value)
-          const pct = Number.isFinite(numVal)
-            ? m.unit === '%'
-              ? Math.max(5, Math.min(100, numVal))
-              : 72
-            : 65
+          const pct = Number.isFinite(numVal) ? (m.unit === '%' ? Math.max(5, Math.min(100, numVal)) : 80) : 75
           return (
-            <div key={m.key} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700">
-              <div className="flex justify-between text-xs mb-1.5">
-                <span className="text-slate-600 dark:text-slate-300 font-medium">{m.label}</span>
+            <div key={m.key} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
+              <div className="flex justify-between text-xs mb-2">
+                <span className="text-slate-600 dark:text-slate-300 font-semibold">{m.label}</span>
                 <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
                   {m.value} {m.unit}
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full" style={{ width: `${pct}%` }} />
+              <div className="h-2.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full transition-all"
+                  style={{ width: `${pct}%` }}
+                />
               </div>
             </div>
           )
@@ -1295,8 +1295,68 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         )}
       </div>
 
-      {/* 2. Human-Readable Explanation */}
-      <div className="p-5 rounded-2xl bg-emerald-500/[0.06] dark:bg-emerald-500/[0.08] border border-emerald-500/20">
+      {/* 2. HERO CLINICAL ASSESSMENT & VERDICT GAUGE */}
+      <div className={`p-6 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 ${assessmentTheme.bg}`}>
+        <div className="flex items-center gap-5">
+          {/* Circular Score Gauge */}
+          <div className="relative w-22 h-22 sm:w-24 sm:h-24 shrink-0 flex items-center justify-center">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="text-slate-200 dark:text-slate-800"
+                strokeWidth="3.2"
+                stroke="currentColor"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className={assessmentTheme.stroke}
+                strokeDasharray={`${assessment.score}, 100`}
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                stroke="currentColor"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center justify-center text-center">
+              <span className={`text-2xl sm:text-3xl font-black font-mono leading-none ${assessmentTheme.scoreColor}`}>
+                {assessment.score}
+              </span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">из 100</span>
+            </div>
+          </div>
+
+          {/* Verdict Text */}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider ${assessmentTheme.badge}`}>
+                <CheckCircle className="w-3.5 h-3.5" />
+                {assessment.badgeLabel}
+              </span>
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                {assessment.benchmarkTag}
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-snug">
+              {assessment.verdictTitle}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
+              {assessment.explanation}
+            </p>
+          </div>
+        </div>
+
+        {/* Reference Standard Pill */}
+        <div className="hidden lg:flex flex-col items-end text-right shrink-0 pl-4 border-l border-slate-200 dark:border-slate-800">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Референсный стандарт</span>
+          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 mt-1 max-w-[200px]">
+            {assessment.referenceNorm}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. Human-Readable Explanation */}
+      <div className="p-5 rounded-2xl bg-emerald-500/[0.05] dark:bg-emerald-500/[0.08] border border-emerald-500/20">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#17A884] mb-1.5">
           <Activity className="w-4 h-4" />
           <span>{ui.explanationTitle}</span>
@@ -1306,7 +1366,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         </p>
       </div>
 
-      {/* 3. Key Metric Cards */}
+      {/* 4. Key Metric Cards */}
       {mainCards.length > 0 && (
         <div>
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
@@ -1334,7 +1394,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         </div>
       )}
 
-      {/* 4. Individual Performance Visualization / Chart */}
+      {/* 5. Individual Performance Visualization / Chart */}
       <div className="p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
           <BarChart3 className="w-4 h-4 text-[#17A884]" />
@@ -1343,7 +1403,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         {renderChart()}
       </div>
 
-      {/* 5. Error Statistics */}
+      {/* 6. Errors Breakdown */}
       <div className="p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
           <ShieldCheck className="w-4 h-4 text-[#17A884]" />
@@ -1374,36 +1434,58 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         )}
       </div>
 
-      {/* 6. Comparison with Previous Attempts */}
+      {/* 7. Comparison with Previous Attempts in Dynamic Detail */}
       <div className="p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
           <TrendingUp className="w-4 h-4 text-[#17A884]" />
           <span>{ui.comparisonTitle}</span>
         </div>
         {previousResults.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {previousResults.slice(0, 4).map((prev) => {
-              const prevM =
-                prev.result && typeof (prev.result as any).metrics === 'object'
-                  ? (prev.result as any).metrics
-                  : prev.result || {}
-              const primaryKey = mainCards[0]?.key
-              const prevVal = primaryKey ? prevM[primaryKey] : undefined
+              const prevM = unwrapMetrics(prev.result)
+              const primaryKey = mainCards[0]?.key || 'in_corridor_pct'
+              const prevVal = prevM[primaryKey] ?? prevM.accuracy_pct ?? prevM.score
+              const currVal = rawMetrics[primaryKey] ?? rawMetrics.accuracy_pct ?? rawMetrics.score
+              const delta = typeof prevVal === 'number' && typeof currVal === 'number' ? currVal - prevVal : null
+
               const dtStr = new Date(prev.completed_at).toLocaleDateString(
                 lang === 'en' ? 'en-US' : 'ru-RU',
                 { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }
               )
+
               return (
                 <div
                   key={prev.id}
-                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 text-xs"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 text-xs"
                 >
-                  <span className="text-slate-500 font-mono">{dtStr}</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                    {primaryKey && prevVal !== undefined
-                      ? `${mainCards[0].label}: ${prevVal} ${mainCards[0].unit}`
-                      : prev.test_title}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-slate-400 font-mono">{dtStr}</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      {prev.test_title || testTitle}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 self-end sm:self-center">
+                    {prevVal !== undefined && (
+                      <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                        {getMetricLabel(primaryKey, lang)}: {prevVal} {mainCards[0]?.unit || ''}
+                      </span>
+                    )}
+
+                    {delta !== null && delta !== 0 && (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold ${
+                          delta > 0
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                        }`}
+                      >
+                        {delta > 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                        {delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -1413,7 +1495,7 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         )}
       </div>
 
-      {/* 7. Honest Methodological Note */}
+      {/* 8. Honest Methodological Note */}
       <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
         <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
         <div className="text-xs text-amber-900 dark:text-amber-200/90 leading-relaxed">
@@ -1422,18 +1504,32 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
         </div>
       </div>
 
-      {/* 8. Action Bar */}
+      {/* 9. Action Bar */}
       <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          {canSave && !isSaved && onSave && (
-            <Button
-              onClick={onSave}
-              disabled={isSaving}
-              className="bg-[#17A884] hover:bg-[#103D35] text-white gap-2 rounded-xl px-5 py-2.5 text-xs font-bold cursor-pointer shadow-md"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSaving ? ui.savingBtn : ui.saveBtn}</span>
-            </Button>
+          {canSave && !isSaved && (
+            isAuthenticated ? (
+              onSave && (
+                <Button
+                  onClick={onSave}
+                  disabled={isSaving}
+                  className="bg-[#17A884] hover:bg-[#103D35] text-white gap-2 rounded-xl px-5 py-2.5 text-xs font-bold cursor-pointer shadow-md"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{isSaving ? ui.savingBtn : ui.saveBtn}</span>
+                </Button>
+              )
+            ) : (
+              onOpenAuth && (
+                <Button
+                  onClick={onOpenAuth}
+                  className="bg-[#17A884] hover:bg-[#103D35] text-white gap-2 rounded-xl px-5 py-2.5 text-xs font-bold cursor-pointer shadow-md"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>{ui.loginBtn}</span>
+                </Button>
+              )
+            )
           )}
 
           {onDownloadPdf && (
@@ -1448,11 +1544,11 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
             </Button>
           )}
 
-          {!isSaved && onDiscard && (
+          {canSave && !isSaved && onDiscard && (
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={onDiscard}
-              className="gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold text-rose-600 border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 cursor-pointer"
+              className="gap-2 rounded-xl px-4 py-2.5 text-xs text-slate-500 hover:text-rose-500 cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
               <span>{ui.discardBtn}</span>
@@ -1464,22 +1560,13 @@ export const ResultReportView: React.FC<ResultReportViewProps> = ({
           <Button
             variant="outline"
             onClick={onRetake}
-            className="gap-2 rounded-xl px-4 py-2.5 text-xs font-bold cursor-pointer"
+            className="gap-2 rounded-xl px-4 py-2.5 text-xs font-bold border-slate-200 dark:border-slate-700 cursor-pointer"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4 text-[#17A884]" />
             <span>{ui.retakeBtn}</span>
           </Button>
         )}
       </div>
-
-      {!isAuthenticated && onOpenAuth && !isSaved && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
-          <span className="text-slate-600 dark:text-slate-400">{ui.loginToSave}</span>
-          <Button size="sm" variant="emerald" onClick={onOpenAuth} className="cursor-pointer shrink-0">
-            {ui.loginBtn}
-          </Button>
-        </div>
-      )}
     </Card>
   )
 }

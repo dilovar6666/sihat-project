@@ -20,6 +20,11 @@ import { FloatingAiButton } from './components/FloatingAiButton'
 import { ProfileDrawer } from './components/ProfileDrawer'
 import { NotificationsDrawer, type NotificationItem } from './components/NotificationsDrawer'
 import { Footer } from './components/Footer'
+import { CookieConsentBanner } from './components/CookieConsentBanner'
+import { PrivacyPolicyPage } from './components/PrivacyPolicyPage'
+import { TermsPage } from './components/TermsPage'
+import { FeedbackPage } from './components/FeedbackPage'
+
 import { translations } from './i18n'
 import type { Language } from './i18n'
 import { getPlatformSettings } from './lib/settings'
@@ -81,6 +86,9 @@ export default function App() {
     | 'register'
     | 'forgot-password'
     | 'reset-password'
+    | 'privacy'
+    | 'terms'
+    | 'feedback'
 
   const parseHash = (): { page: PageId; testSlug: string | null; token: string | null } => {
     const pathname = typeof window !== 'undefined' ? window.location.pathname.replace(/^\//, '').trim() : ''
@@ -130,6 +138,9 @@ export default function App() {
         'register',
         'forgot-password',
         'reset-password',
+        'privacy',
+        'terms',
+        'feedback',
       ].includes(raw)
     ) {
       return { page: raw as PageId, testSlug: null, token }
@@ -805,6 +816,22 @@ export default function App() {
           />
         )}
 
+                {currentPage === 'privacy' && (
+          <PrivacyPolicyPage lang={lang} onBack={() => handleNavigate('home')} />
+        )}
+
+        {currentPage === 'terms' && (
+          <TermsPage lang={lang} onBack={() => handleNavigate('home')} />
+        )}
+
+        {currentPage === 'feedback' && (
+          <FeedbackPage
+            lang={lang}
+            onBack={() => handleNavigate('home')}
+            userEmail={user?.email || ''}
+          />
+        )}
+
         {currentPage === 'contact' && (
           <ContactSection lang={lang} t={t} onNotify={(msg) => addToast(msg, 'info')} />
         )}
@@ -974,6 +1001,9 @@ export default function App() {
           ))}
         </div>
       )}
+
+            {/* Cookie Consent Banner */}
+      <CookieConsentBanner lang={lang} onNavigate={handleNavigate} />
 
       {/* Fluid Theme Wave Shockwave Ring Originating from Button Coordinates */}
       {themeWave && (

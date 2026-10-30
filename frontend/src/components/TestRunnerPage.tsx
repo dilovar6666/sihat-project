@@ -267,10 +267,15 @@ export const TestRunnerPage: React.FC<TestRunnerPageProps> = ({
     setSavedSuccess(false)
     setSavedResultId(null)
 
+    const pMetrics = (payload.metrics as any) || {}
+    const innerMetrics = pMetrics.metrics && typeof pMetrics.metrics === 'object' ? pMetrics.metrics : pMetrics
+    const innerSeries = pMetrics.series || (pMetrics.metrics && pMetrics.metrics.series) || {}
+
     let resolvedResult: Record<string, unknown> = {
       version: 2,
       engine: slug,
-      metrics: payload.metrics,
+      metrics: innerMetrics,
+      series: innerSeries,
       summary: payload.summary,
     }
 

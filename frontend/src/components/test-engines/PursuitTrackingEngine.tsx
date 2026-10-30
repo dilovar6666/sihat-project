@@ -318,6 +318,10 @@ export const PursuitTrackingEngine: React.FC<InteractiveEngineProps> = ({
       metrics: {
         version: 2,
         engine: 'pursuit',
+        time_on_target_pct: tot,
+        deviation_rmse_pct: rmseDev,
+        mean_deviation_pct: meanDev,
+        tracking_duration_sec: task.duration_sec,
         metrics: {
           time_on_target_pct: tot,
           deviation_rmse_pct: rmseDev,
