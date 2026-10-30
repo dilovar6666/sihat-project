@@ -36,6 +36,7 @@ import { apiRequest } from '../api'
 import type { Language } from '../i18n'
 import type { SavedResult, UserProfile } from '../types'
 import { usePlatformSettings } from '../lib/settings'
+import { ResultsComparisonView } from './ResultsComparisonView'
 import {
   ResultReportView,
   unwrapMetrics,
@@ -116,7 +117,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [vaultDisplayMode, setVaultDisplayMode] = useState<'cards' | 'table'>('cards')
   const [searchFilter, setSearchFilter] = useState('')
   const [historySlugFilter, setHistorySlugFilter] = useState<string>('all')
-  const [compareSlug, setCompareSlug] = useState<string>('all')
   const [inspectingResult, setInspectingResult] = useState<SavedResult | null>(null)
   // Lock body scroll and listen for Escape key when inspecting result modal is open
   useEffect(() => {
@@ -478,18 +478,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       }
     })
     return Array.from(map.entries())
-  }, [results])
-
-  const groupedBySlug = useMemo(() => {
-    const groups: Record<string, SavedResult[]> = {}
-    results.forEach((r) => {
-      if (!groups[r.test_slug]) groups[r.test_slug] = []
-      groups[r.test_slug].push(r)
-    })
-    Object.values(groups).forEach((arr) =>
-      arr.sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
-    )
-    return groups
   }, [results])
 
   const categoryCounts = useMemo(() => {
@@ -1378,141 +1366,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
           {/* TAB 4: COMPARISONS */}
           {activeTab === 'comparisons' && (
-            <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 dark:border-[#1E302B] space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-[#1E302B]">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">{t.compareTitle}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{t.compareSubtitle}</p>
-                </div>
-
-                <select
-                  value={compareSlug}
-                  onChange={(e) => setCompareSlug(e.target.value)}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#1E302B] bg-slate-50 dark:bg-[#131C1A] text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
-                >
-                  <option value="all">{t.compareSelectAll}</option>
-                  {uniqueSlugsInResults.map(([slug, title]) => (
-                    <option key={slug} value={slug}>
-                      {title} ({groupedBySlug[slug]?.length || 0})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {Object.entries(groupedBySlug)
-                .filter(([slug, arr]) => (compareSlug === 'all' ? arr.length >= 1 : slug === compareSlug))
-                .map(([slug, attempts]) => {
-                  const latest = attempts[0]
-                  const prev = attempts[1]
-                  const latestMetrics = unwrapMetrics(latest.result)
-                  const prevMetrics = prev ? unwrapMetrics(prev.result) : {}
-                  const metricKeys = getTopMetricKeys(latestMetrics, 4)
-
-                  return (
-                    <div
-                      key={slug}
-                      className="p-5 sm:p-6 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200/80 dark:border-[#1E302B] space-y-4 hover:border-emerald-500/30 transition-all duration-200"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                            {latest.test_title || slug}
-                          </h4>
-                          <div className="flex items-center gap-2 text-xs text-slate-400 font-mono mt-0.5">
-                            <span>
-                              {attempts.length === 1
-                                ? (lang === 'tj' ? '1 кӯшиши сабтшуда' : lang === 'en' ? '1 saved attempt' : '1 сохранённая попытка')
-                                : (lang === 'tj' ? `Ҳамагӣ кӯшишҳо: ${attempts.length}` : lang === 'en' ? `Total attempts: ${attempts.length}` : `Всего попыток: ${attempts.length}`)}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {new Date(latest.completed_at).toLocaleDateString(
-                                lang === 'en' ? 'en-US' : lang === 'tj' ? 'tg-TJ' : 'ru-RU',
-                                { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-                              )}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setInspectingResult(latest)}
-                            className="text-xs gap-1.5 cursor-pointer hover:border-emerald-500/40"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>{lang === 'tj' ? 'Ҳисобот' : lang === 'en' ? 'Report' : 'Отчёт'}</span>
-                          </Button>
-                          <Button
-                            variant="emerald"
-                            size="sm"
-                            onClick={() => onNavigate(`test/${slug}`)}
-                            className="text-xs gap-1 cursor-pointer"
-                          >
-                            <span>{lang === 'tj' ? 'Кӯшиши нав' : lang === 'en' ? 'New Attempt' : 'Новая попытка'}</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {metricKeys.length === 0 ? (
-                        <div className="p-4 rounded-xl bg-white dark:bg-[#0E1715] border border-slate-200/70 dark:border-[#1E302B] text-xs text-slate-500">
-                          {lang === 'tj' ? 'Маълумоти санҷиш бомуваффақият сабт шуд' : lang === 'en' ? 'Attempt completed and archived' : 'Данные попытки зафиксированы в архиве'}
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                          {metricKeys.map((k) => {
-                            const currVal = latestMetrics[k]
-                            const prevVal = prevMetrics[k]
-                            const numCurr = typeof currVal === 'number' ? currVal : null
-                            const numPrev = typeof prevVal === 'number' ? prevVal : null
-                            const diff =
-                              numCurr !== null && numPrev !== null
-                                ? Math.round((numCurr - numPrev) * 100) / 100
-                                : null
-
-                            return (
-                              <div
-                                key={k}
-                                className="p-3.5 rounded-xl bg-white dark:bg-[#0E1715] border border-slate-200/70 dark:border-[#1E302B] flex flex-col justify-between"
-                              >
-                                <div>
-                                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-1 line-clamp-1">
-                                    {getMetricLabel(k, lang)}
-                                  </div>
-                                  <div className="text-lg font-mono font-black text-slate-900 dark:text-white">
-                                    {formatMetricValue(k, currVal, lang)}
-                                  </div>
-                                </div>
-                                {prevVal !== undefined ? (
-                                  <div className="text-[11px] font-mono text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                                    {lang === 'tj' ? 'Пеш:' : lang === 'en' ? 'Prev:' : 'Пред.:'} {formatMetricValue(k, prevVal, lang)}{' '}
-                                    {diff !== null && diff !== 0 && (
-                                      <span className={diff > 0 ? "text-[#17A884] font-bold" : "text-amber-500 font-bold"}>
-                                        ({diff > 0 ? `+${diff}` : diff})
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="text-[11px] text-slate-400 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 inline-block" />
-                                    <span>{lang === 'tj' ? 'Андозагирии аввалия' : lang === 'en' ? 'Baseline score' : 'Базовое измерение'}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-
-              {results.length === 0 && (
-                <div className="py-10 text-center text-xs text-slate-400">{t.compareNeedMore}</div>
-              )}
-            </div>
+            <ResultsComparisonView
+              lang={lang}
+              results={results}
+              onNavigate={onNavigate}
+              onInspectResult={(res) => setInspectingResult(res)}
+            />
           )}
 
           {/* TAB 5: PERSONAL DATA */}
