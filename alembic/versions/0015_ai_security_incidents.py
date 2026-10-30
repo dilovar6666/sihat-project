@@ -53,8 +53,6 @@ def upgrade() -> None:
                 nullable=False,
             ),
         )
-        op.create_index("ix_ai_security_incidents_user_id", "ai_security_incidents", ["user_id"])
-        op.create_index("ix_ai_security_incidents_status", "ai_security_incidents", ["status"])
 
 
 def downgrade() -> None:
