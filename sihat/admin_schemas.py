@@ -37,6 +37,8 @@ class AdminDashboardOutput(BaseModel):
     total_completed_attempts: int
     total_saved_results: int
     tickets_by_status: dict[str, int]
+    results_by_test: dict[str, int] = Field(default_factory=dict)
+    results_by_category: dict[str, int] = Field(default_factory=dict)
 
 
 class AdminCategoryUpdateInput(BaseModel):

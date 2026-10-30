@@ -1308,7 +1308,7 @@ def _gen_color_perception(rng: random.Random) -> tuple[dict, dict]:
     protan_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "protan"]
     deutan_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "deutan"]
     tritan_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "tritan"]
-    shape_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] in ("shape", "baseline") and p["id"] != "base-12"]
+    shape_pool = [p for p in _COLOR_PLATES_POOL if p["weight"] == "shape"]
 
     selected = [
         rng.choice(baseline_pool),
