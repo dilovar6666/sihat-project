@@ -259,7 +259,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
       : 'reaction-speed'
 
   return (
-    <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 overflow-hidden">
+    <section className="relative pt-12 pb-4 md:pt-16 md:pb-6 overflow-hidden">
       {/* Background Image with Scrim */}
       <div className="absolute inset-0 pointer-events-none select-none overflow-hidden z-0">
         <div

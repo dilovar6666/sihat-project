@@ -275,7 +275,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
   }
 
   return (
-    <section aria-label="Интерактивная лента скринингов" className="w-full mt-12 sm:mt-16">
+    <section aria-label="Интерактивная лента скринингов" className="w-full mt-6 sm:mt-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-2 px-1">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-700 dark:text-[#2EC4A7] border border-emerald-500/20 mb-2">
@@ -321,7 +321,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
         </button>
       </div>
 
-      <div className="relative w-full overflow-hidden marquee-edge-mask py-44 -my-32 select-none">
+      <div className="relative w-full overflow-hidden marquee-edge-mask py-28 -my-28 select-none">
         <div
           className={`flex items-center gap-3.5 w-max will-change-transform ${
             isPaused ? 'marquee-paused' : 'animate-marquee-scroll'
