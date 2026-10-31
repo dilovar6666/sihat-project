@@ -102,6 +102,8 @@ def _ticket_output(
         message=item.message,
         status=item.status,
         is_blocked=item.is_blocked,
+        is_ai_active=getattr(item, 'is_ai_active', True),
+        needs_human=getattr(item, 'needs_human', False),
         admin_notes=item.admin_notes,
         created_at=item.created_at.isoformat(),
         updated_at=item.updated_at.isoformat() if item.updated_at else item.created_at.isoformat(),
@@ -129,6 +131,8 @@ def _ticket_detail_output(
         message=item.message,
         status=item.status,
         is_blocked=item.is_blocked,
+        is_ai_active=getattr(item, 'is_ai_active', True),
+        needs_human=getattr(item, 'needs_human', False),
         admin_notes=item.admin_notes,
         created_at=item.created_at.isoformat(),
         updated_at=item.updated_at.isoformat() if item.updated_at else item.created_at.isoformat(),
@@ -191,13 +195,16 @@ async def create_support_ticket(
 ) -> SupportTicketDetailOutput:
     client_ip = request.client.host if request.client else "unknown"
     _enforce_support_rate_limit(f"{user.id if user else client_ip}")
+    contact_email = (user.email if user and user.email else payload.contact_email).strip().lower()
     ticket = SupportTicket(
         user_id=user.id if user else None,
-        contact_email=payload.contact_email,
+        contact_email=contact_email,
         subject=payload.subject.strip(),
         message=payload.message.strip(),
         status="open",
         is_blocked=False,
+        is_ai_active=True,
+        needs_human=False,
     )
     db.add(ticket)
     await db.flush()
@@ -266,14 +273,10 @@ async def list_my_support_tickets(
     if not user:
         raise HTTPException(status_code=401, detail="Authentication required")
     
-    conditions = [SupportTicket.user_id == user.id]
-    if user.email:
-        conditions.append(SupportTicket.contact_email == user.email)
-
     tickets = (
         await db.scalars(
             select(SupportTicket)
-            .where(or_(*conditions))
+            .where(SupportTicket.user_id == user.id)
             .order_by(SupportTicket.updated_at.desc())
         )
     ).all()
@@ -451,6 +454,59 @@ async def toggle_block_support_ticket(
     await db.commit()
     await db.refresh(ticket)
     return _ticket_output(ticket)
+
+
+
+@router.post("/support/tickets/{ticket_id}/request-human", response_model=SupportTicketDetailOutput)
+async def request_human_support(
+    ticket_id: str,
+    db: AsyncSession = Depends(get_db_session),
+    user: User | None = Depends(get_current_user_optional),
+) -> SupportTicketDetailOutput:
+    ticket = await db.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Support ticket not found")
+    if user and ticket.user_id and ticket.user_id != user.id and getattr(user, 'role', '') != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    ticket.is_ai_active = False
+    ticket.needs_human = True
+    ticket.status = "in_progress"
+    ticket.admin_notes = "[ЭСКАЛАЦИЯ]: Пользователь запросил связь с администратором. ИИ отключён."
+
+    system_msg = SupportMessage(
+        ticket_id=ticket.id,
+        sender_type="ai",
+        sender_id=None,
+        sender_name="Служба поддержки SIHAT",
+        message="🛑 ИИ-ассистент отключён. Ваше обращение передано администратору платформы. Администратор подключится к диалогу в этом чате в ближайшее время.",
+        read_by_user=True,
+        read_by_admin=False,
+    )
+    db.add(system_msg)
+    await db.commit()
+    await db.refresh(ticket)
+    await db.refresh(system_msg)
+
+    # Broadcast to ticket room & global admin channel
+    msg_dict = _message_output(system_msg).model_dump()
+    ticket_dict = _ticket_output(ticket).model_dump()
+    await ws_manager.broadcast_new_message(
+        ticket_id=ticket.id,
+        message=msg_dict,
+        ticket=ticket_dict,
+        recipient_user_id=ticket.user_id,
+        event="human_requested",
+    )
+
+    messages = (
+        await db.scalars(
+            select(SupportMessage)
+            .where(SupportMessage.ticket_id == ticket_id)
+            .order_by(SupportMessage.created_at.asc())
+        )
+    ).all()
+    return _ticket_detail_output(ticket, list(messages), unread_user_count=0, unread_admin_count=1)
 
 
 @router.delete("/support/tickets/{ticket_id}")

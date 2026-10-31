@@ -10,6 +10,8 @@ import {
   Clock,
   ArrowLeft,
   Headphones,
+  ShieldAlert,
+  UserCheck,
   RefreshCw,
   Search,
   Sparkles,
@@ -24,6 +26,7 @@ import {
   toggleBlockSupportTicket,
   deleteSupportTicket,
   createSupportTicket,
+  requestHumanSupport,
 } from '../api'
 import type { Language } from '../i18n'
 
@@ -196,6 +199,33 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
     },
   }[lang]
 
+
+  const [requestingHuman, setRequestingHuman] = useState(false)
+
+  const handleRequestHuman = async () => {
+    if (!activeTicket || requestingHuman) return
+    setRequestingHuman(true)
+    try {
+      const updated = await requestHumanSupport(activeTicket.id)
+      setActiveTicket((prev) => (prev ? { ...prev, ...updated, is_ai_active: false, needs_human: true } : null))
+      setTickets((prev) =>
+        prev.map((t) => (t.id === activeTicket.id ? { ...t, ...updated, is_ai_active: false, needs_human: true } : t))
+      )
+      onNotify?.(
+        lang === 'tj'
+          ? 'ИИ хомӯш карда шуд. Муроҷиат ба маъмури платформа фиристода шуд.'
+          : lang === 'en'
+          ? 'AI disabled. Your inquiry has been forwarded to the administrator.'
+          : 'ИИ отключён. Запрос передан администратору платформы.',
+        'info'
+      )
+    } catch (err: unknown) {
+      onNotify?.(err instanceof Error ? err.message : 'Error', 'error')
+    } finally {
+      setRequestingHuman(false)
+    }
+  }
+
   // Auto-scroll messages to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -282,7 +312,7 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
           if (!isMounted) return
           try {
             const data = JSON.parse(event.data)
-            if (data.event === 'new_message' && data.ticket_id === selectedTicketId) {
+            if ((data.event === 'new_message' || data.event === 'human_requested') && data.ticket_id === selectedTicketId) {
               const newMsg = data.message
               setActiveTicket((prev) => {
                 if (!prev) return null
@@ -291,6 +321,8 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
                   ...prev,
                   messages: [...(prev.messages || []), newMsg],
                   status: data.ticket?.status || prev.status,
+                  is_ai_active: data.ticket?.is_ai_active ?? prev.is_ai_active,
+                  needs_human: data.ticket?.needs_human ?? prev.needs_human,
                   admin_notes: data.ticket?.admin_notes ?? prev.admin_notes,
                 }
               })
@@ -683,8 +715,20 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Top Action Buttons: Block, Delete */}
-                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                {/* Top Action Buttons: Request Human, Block, Delete */}
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 flex-wrap">
+                  {activeTicket.is_ai_active !== false && !activeTicket.is_blocked && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRequestHuman}
+                      disabled={requestingHuman}
+                      className="border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-bold"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 mr-1 text-amber-400" />
+                      {lang === 'tj' ? 'Пайваст бо одам' : lang === 'en' ? 'Call Admin' : 'Позвать человека'}
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -719,6 +763,31 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
                   </Button>
                 </div>
               </div>
+
+              {/* AI vs Human State Banner */}
+              {activeTicket.is_ai_active !== false ? (
+                <div className="px-4 py-2.5 bg-gradient-to-r from-cyan-950/40 to-slate-900 border-b border-cyan-500/30 flex items-center justify-between text-xs text-cyan-300">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse shrink-0" />
+                    <span>{lang === 'tj' ? 'Чат бо ёрдамчии AI. Ҷавобҳо фаврӣ меоянд.' : lang === 'en' ? 'Chatting with AI Assistant. Instant answers.' : 'Чат с ИИ-ассистентом. Ответы приходят мгновенно.'}</span>
+                  </div>
+                  <button
+                    onClick={handleRequestHuman}
+                    disabled={requestingHuman}
+                    className="text-[11px] underline hover:text-white cursor-pointer font-bold text-amber-300 shrink-0"
+                  >
+                    {lang === 'tj' ? 'Пайваст бо маъмур →' : lang === 'en' ? 'Switch to human admin →' : 'Позвать администратора →'}
+                  </button>
+                </div>
+              ) : (
+                <div className="px-4 py-2.5 bg-gradient-to-r from-amber-950/40 to-slate-900 border-b border-amber-500/40 flex items-center gap-2 text-xs text-amber-300">
+                  <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                  <div className="flex-1">
+                    <span className="font-bold">{lang === 'tj' ? 'ИИ хомӯш карда шудааст.' : lang === 'en' ? 'AI is disabled.' : 'ИИ отключён.'}</span>{' '}
+                    <span>{lang === 'tj' ? 'Муроҷиат ба маъмури платформа равона шудааст. Интизори пайвастшавии мутахассис бошед.' : lang === 'en' ? 'Transferred to the human administrator. An admin will join shortly.' : 'Диалог передан администратору платформы. Ожидайте ответа администратора.'}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Chat Messages History */}
               <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-[380px] max-h-[520px]">

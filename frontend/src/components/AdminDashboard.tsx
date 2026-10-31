@@ -107,6 +107,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [adminReplyText, setAdminReplyText] = useState('')
   const [adminSendingReply, setAdminSendingReply] = useState(false)
   const [adminTicketSearch, setAdminTicketSearch] = useState('')
+  const [adminSupportViewMode, setAdminSupportViewMode] = useState<'escalated' | 'all'>('escalated')
   const [adminTicketStatusFilter, setAdminTicketStatusFilter] = useState<'all' | 'open' | 'in_progress' | 'resolved' | 'closed'>('all')
 
   const selectAndLoadAdminTicket = async (ticketId: string) => {
@@ -1611,7 +1612,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {/* Left panel: List & filters */}
                 <div className="lg:col-span-5 border-r border-slate-200 dark:border-[#1E302B] flex flex-col bg-white dark:bg-[#0E1715]/70">
                   {/* Filters */}
-                  <div className="p-3 border-b border-slate-200 dark:border-[#1E302B] space-y-2">
+                  <div className="p-3 border-b border-slate-200 dark:border-[#1E302B] space-y-2.5">
+                    {/* View Mode: Escalated vs All */}
+                    <div className="flex rounded-xl bg-slate-100 dark:bg-[#131C1A] p-1 border border-slate-200 dark:border-[#1E302B] text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setAdminSupportViewMode('escalated')}
+                        className={`flex-1 py-1 px-2 rounded-lg font-bold text-center transition-all ${
+                          adminSupportViewMode === 'escalated'
+                            ? 'bg-amber-500 text-black shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Требуют админа ({adminTickets.filter((t) => t.needs_human || !t.is_ai_active || t.admin_notes?.includes('ЭСКАЛАЦИЯ')).length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdminSupportViewMode('all')}
+                        className={`flex-1 py-1 px-2 rounded-lg font-bold text-center transition-all ${
+                          adminSupportViewMode === 'all'
+                            ? 'bg-[#17A884] text-black shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Все ({adminTickets.length})
+                      </button>
+                    </div>
+
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
@@ -1652,13 +1679,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#1E302B]/60 p-2 space-y-1">
                     {adminTickets
                       .filter((t) => {
+                        const isEscalated = Boolean(t.needs_human || !t.is_ai_active || t.admin_notes?.includes('ЭСКАЛАЦИЯ'))
+                        const matchesMode = adminSupportViewMode === 'all' || isEscalated
                         const matchesFilter = adminTicketStatusFilter === 'all' || t.status === adminTicketStatusFilter
                         const matchesSearch =
                           !adminTicketSearch.trim() ||
                           t.subject?.toLowerCase().includes(adminTicketSearch.toLowerCase()) ||
                           t.contact_email?.toLowerCase().includes(adminTicketSearch.toLowerCase()) ||
                           t.last_message?.toLowerCase().includes(adminTicketSearch.toLowerCase())
-                        return matchesFilter && matchesSearch
+                        return matchesMode && matchesFilter && matchesSearch
                       })
                       .length === 0 ? (
                       <div className="py-12 text-center text-xs text-slate-400">
@@ -1716,9 +1745,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   {t.contact_email}
                                 </span>
                                 <div className="flex items-center gap-1">
-                                  {t.admin_notes?.includes('ЭСКАЛАЦИЯ') && (
-                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                      Эскалация ИИ
+                                  {Boolean(t.needs_human || !t.is_ai_active || t.admin_notes?.includes('ЭСКАЛАЦИЯ')) ? (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
+                                      Требует админа
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
+                                      Чат с ИИ
                                     </span>
                                   )}
                                   <Badge variant={t.status === 'resolved' ? 'emerald' : t.status === 'in_progress' ? 'cyan' : 'outline'}>

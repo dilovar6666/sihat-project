@@ -128,6 +128,8 @@ export type SupportTicket = {
   message: string
   status: 'open' | 'in_progress' | 'resolved' | 'closed'
   is_blocked?: boolean
+  is_ai_active?: boolean
+  needs_human?: boolean
   admin_notes: string | null
   created_at: string
   updated_at?: string | null

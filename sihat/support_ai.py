@@ -1,7 +1,7 @@
 """AI Support Agent for SIHAT HealthTech Platform.
 - Automatically handles and answers simple inquiries (tests, methodologies, privacy, PDF exports, navigation).
-- Detects complex issues (bugs, technical failures, account problems, complaints, requests for humans)
-  and immediately escalates to a human administrator with priority flags.
+- Detects requests for human administrator or complex issues and permanently disables AI for that chat,
+  escalates the ticket, and alerts the administrator.
 """
 
 from datetime import datetime, timezone
@@ -21,20 +21,17 @@ logger = logging.getLogger(__name__)
 
 # Explicit triggers that require immediate handoff to human administrator
 HUMAN_AGENT_TRIGGERS = [
-    r"позовите\s+(человека|оператора|админа|администратора|специалиста)",
-    r"живой\s+человек",
-    r"свяжите\s+с\s+(человеком|оператором|админом|администратором|специалистом)",
-    r"соедините\s+с\s+(человеком|оператором|админом|администратором|специалистом)",
-    r"нужен\s+(человек|оператор|администратор|живой\s+человек|специалист)",
-    r"хочу\s+поговорить\s+с\s+(человеком|админом|оператором)",
-    r"одамашро\s+фарёд\s+кун",
-    r"оператор\s+(лозим|даркор)",
-    r"бо\s+одам\s+гап\s+занам",
-    r"мутахассис\s+лозим",
-    r"(talk|speak)\s+to\s+(a\s+)?(human|person|agent|representative|operator)",
-    r"(connect|transfer)\s+me\s+to\s+(a\s+)?(human|person|agent|admin)",
-    r"real\s+person",
-    r"human\s+support",
+    r"\bпозови(те)?\s*(человека|оператора|админа|администратора|специалиста|сотрудника|менеджера)\b",
+    r"\b(свяжи|свяжите|соедини|соедините)\s*(с\s*)?(человеком|оператором|админом|администратором|специалистом|поддержкой)\b",
+    r"\b(нужен|нужна|требуется)\s*(человек|оператор|администратор|админ|специалист|сотрудник|живой)\b",
+    r"\bхочу\s*(поговорить|пообщаться)\s*с\s*(человеком|админом|оператором)\b",
+    r"\b(живой\s+человек|позовите\s+админа|позови\s+человека)\b",
+    r"\b(одам|корманд|мутахассис|админ|оператор)\s*(лозим|даркор|фарёд)\b",
+    r"\bбо\s*(одам|администратор|мутахассис)\s*пайваст\b",
+    r"\b(talk|speak)\s+to\s+(a\s+)?(human|person|agent|representative|operator|admin)\b",
+    r"\b(connect|transfer)\s+me\s+to\s+(a\s+)?(human|person|agent|admin|operator)\b",
+    r"\b(human\s+support|real\s+person)\b",
+    r"^\s*(человек|админ|оператор|human|admin)\s*$",
 ]
 
 CRITICAL_COMPLEX_TRIGGERS = [
@@ -69,20 +66,20 @@ def detect_language(text: str) -> str:
 def _format_escalation_reply(lang: str, reason: str) -> str:
     if lang == "tj":
         return (
-            "Салом! Муроҷиати шумо сабт шуд ва аз рӯи хусусияти худ иштироки шахсии мутахассисро талаб мекунад.\n\n"
-            f"📌 **Ҳолат:** Барои баррасии шахсӣ ба мудири навбатдори SIHAT равона гардид ({reason}).\n\n"
-            "Мутахассис огоҳинома гирифт ва дар ҳамин чат ба шумо посух хоҳад дод. Лутфан дар тамос бошед!"
+            "🛑 **Ёрдамчии AI хомӯш карда шуд.**\n\n"
+            "Муроҷиати шумо ба мудири навбатдори платформаи SIHAT равона карда шуд.\n"
+            "Маъмур огоҳинома гирифт ва ба зудӣ дар ҳамин чат ба шумо посух хоҳад дод. Лутфан интизор шавед!"
         )
     if lang == "en":
         return (
-            "Hello! Your request has been recorded and classified as requiring personal review by a SIHAT administrator.\n\n"
-            f"📌 **Status:** Escalated to human administrator for personal review ({reason}). Priority: High.\n\n"
-            "A support specialist has been notified and will reply directly in this chat thread shortly. Thank you for your patience!"
+            "🛑 **AI assistant is disabled.**\n\n"
+            "Your inquiry has been transferred to the duty administrator of the SIHAT platform.\n"
+            "The administrator has been notified and will reply in this chat thread shortly. Please stand by!"
         )
     return (
-        "Здравствуйте! Ваш запрос зафиксирован и классифицирован как требующий индивидуального участия специалиста / администратора платформы.\n\n"
-        f"📌 **Статус:** Передано администратору на личное рассмотрение ({reason}). Приоритет: высокий.\n\n"
-        "Дежурный специалист уже получил уведомление и ответит вам прямо в этом диалоге в ближайшее время. Пожалуйста, оставайтесь на связи!"
+        "🛑 **ИИ-ассистент отключён.**\n\n"
+        "Ваше обращение передано дежурному администратору платформы SIHAT.\n"
+        "Администратор получил уведомление и скоро подключится к диалогу в этом чате. Пожалуйста, ожидайте ответа!"
     )
 
 
@@ -98,109 +95,100 @@ def _get_offline_knowledge_reply(text: str, lang: str) -> str | None:
                 "• **Мақсад:** Пайдарпай ёфтани рақамҳо аз 1 то 25 дар шабакаи 5×5.\n"
                 "• **Чӣ санҷида мешавад:** Суръати коркарди иттилооти визуалӣ ва паҳншавии таваҷҷӯҳ.\n"
                 "• Барои гузаштан: ба бахши «Феҳристи тестҳо» гузаред ва «Ҷадвали Шульте»-ро интихоб намоед.\n\n"
-                "💡 *Агар ба шумо кӯмаки инсон лозим бошад, танҳо нависед: «Одамашро фарёд кун».*"
+                "💡 Агар хоҳед, ки бо одам суҳбат кунед, нависед: «Позовите админа» ё тугмаи болоро пахш кунед."
             )
         return (
             "**Таблица Шульте** — это научно обоснованный тест на концентрацию и устойчивость внимания.\n\n"
             "• **Задача:** Находить и кликать числа от 1 до 25 по порядку как можно быстрее.\n"
-            "• **Что измеряется:** Время прохождения, темп внимания и динамика усталости.\n"
-            "• Как начать: перейдите в раздел «Каталог тестов» и нажмите на карточку «Концентрация внимания (Шульте)».\n\n"
-            "💡 *Если вам потребуется связь с человеком, напишите: «Позовите человека».*"
+            "• **Что измеряется:** Время прохождения, темп внимания и динамика врабатываемости/усталости.\n"
+            "• **Как начать:** Перейдите в «Каталог тестов» и выберите «Таблицы Шульте».\n\n"
+            "💡 Если вам нужен живой администратор, напишите «Позовите админа» или нажмите кнопку «Позвать человека» вверху."
         )
 
     # 2. Stroop test
     if "струп" in low or "stroop" in low:
-        if lang == "tj":
-            return (
-                "**Санҷиши Струп** — пажӯҳиши чандирии маърифатӣ ва таваҷҷӯҳи интихобӣ мебошад.\n\n"
-                "• **Вазифа:** Ба шумо калима бо ранги дигар нишон дода мешавад (масалан, калимаи «СУРХ» бо ранги кабуд навишта шудааст). Шумо бояд ранги ҳарфро интихоб намоед, на худи калимаро.\n"
-                "• **Чӣ санҷида мешавад:** Назорати маърифатӣ ва суръати боздории вокунишҳои автоматикӣ.\n\n"
-                "💡 *Агар ба шумо мутахассис лозим бошад, нависед: «Одамашро фарёд кун».*"
-            )
         return (
-            "**Эффект Струпа** — исследование когнитивной гибкости и избирательного внимания.\n\n"
-            "• **Суть:** Вам показывается слово (например, «КРАСНЫЙ»), написанное синим цветом. Задача — выбрать именно цвет шрифта, преодолевая автоматическое чтение слова.\n"
-            "• **Что измеряется:** Когнитивный контроль и скорость торможения импульсивных реакций.\n\n"
-            "💡 *Если вам потребуется связь с человеком, напишите: «Позовите человека».*"
+            "**Эффект Струпа** — классический тест когнитивной гибкости и избирательного внимания.\n\n"
+            "• **Задача:** Называть цвет шрифта, игнорируя значение написанного слова.\n"
+            "• **Интерференция:** Измеряет время задержки при конфликте зрительного и семантического восприятия.\n\n"
+            "💡 Чтобы связаться с администратором, напишите: «Позовите человека»."
         )
 
-    # 3. Privacy & explicit consent
-    if any(w in low for w in ["согласи", "приватн", "сохран", "махфият", "save", "privacy"]):
-        if lang == "tj":
-            return (
-                "**Назорати нигоҳдории натиҷаҳо дар SIHAT:**\n\n"
-                "1. Платформа дар реҷаи ҳадди аксари маҳфият (privacy-first) кор мекунад.\n"
-                "2. Дар танзимоти утоқи шахсӣ тугмачаи **«Нигоҳдорӣ танҳо бо розигии возеҳ»** мавҷуд аст.\n"
-                "3. Ҳангоми фаъол будани ин тугмача, натиҷаҳо ба пойгоҳи додаҳо танҳо баъд аз пахши тугмаи «Нигоҳ доштани натиҷа» сабт мешаванд.\n"
-                "4. Шумо метавонед дар дилхоҳ вақт сабтҳои худро пурра нест кунед.\n\n"
-                "💡 *Агар саволи мураккаб дошта бошед, нависед: «Одамашро фарёд кун».*"
-            )
+    # 3. Corsi block
+    if "корси" in low or "corsi" in low:
         return (
-            "**Контроль сохранения результатов в SIHAT:**\n\n"
-            "1. По умолчанию платформа работает в режиме максимальной приватности.\n"
-            "2. В настройках личного кабинета есть тумблер **«Сохранение только с явного согласия»**.\n"
-            "3. При включённом тумблере результаты упражнений сохраняются в базу данных только если вы явно нажмёте кнопку «Сохранить результат».\n"
-            "4. В любой момент вы можете экспортировать архив или удалить свои попытки в один клик.\n\n"
-            "💡 *Если вам нужен оператор, напишите: «Позовите человека».*"
+            "**Блоки Корси (Corsi Block-Tapping)** — золотой стандарт оценки рабочей пространственной памяти.\n\n"
+            "• **Задача:** Воспроизвести последовательность загорающихся кубиков в прямом или обратном порядке.\n"
+            "• **Объем:** Определяет объем вашей зрительно-пространственной кратковременной памяти.\n\n"
+            "💡 Чтобы связаться с администратором, напишите: «Позовите человека»."
         )
 
-    # 4. PDF Report
-    if any(w in low for w in ["pdf", "скачать", "отчет", "экспорт", "ҳисобот", "download"]):
-        if lang == "tj":
-            return (
-                "**Экспорти ҳисоботи PDF дар SIHAT:**\n\n"
-                "1. Ба Утоқи шахсӣ → бахши «Натиҷаҳои ман» гузаред ё санҷиши анҷомёфтаро боз кунед.\n"
-                "2. Дар қисми боло тугмаи **«Экспорти ҳисоботи PDF»**-ро пахш намоед.\n"
-                "3. Дар танзимот метавонед тугмачаи «Шомил кардани шиносномаи методӣ дар PDF»-ро фаъол созед, то маълумоти илмӣ ба таври худкор илова шавад.\n\n"
-                "💡 *Барои тамос бо мутахассис нависед: «Одамашро фарёд кун».*"
-            )
+    # 4. Privacy & saving results
+    if any(k in low for k in ["приватн", "сохран", "баз", "данны", "privacy", "махфи"]):
         return (
-            "**Экспорт PDF-отчётов в SIHAT:**\n\n"
-            "1. Перейдите в Личный кабинет → вкладка «Мои результаты» или откройте завершённое тестирование.\n"
-            "2. В верхней части нажмите кнопку **«Экспорт отчёта PDF»**.\n"
-            "3. В настройках кабинета можно включить тумблер **«Включать паспорт методики в PDF»**, чтобы в отчёт автоматически добавлялись научные источники и параметры оборудования.\n\n"
-            "💡 *Если у вас возникла техническая сложность, напишите: «Позовите человека».*"
+            "**Конфиденциальность и хранение данных в SIHAT:**\n\n"
+            "• Платформа работает по принципу явного согласия (Explicit Consent).\n"
+            "• Результаты тестов сохраняются в базе **только если вы нажмёте кнопку «Сохранить результат»**.\n"
+            "• Вы можете полностью отключить автосохранение в Личном кабинете (раздел «Настройки»).\n"
+            "• В истории сохраняются только объективные метрики без диагнозов.\n\n"
+            "💡 Если у вас есть вопрос к администрации, напишите «Позовите человека»."
         )
 
-    # 5. Audio / Sound
-    if any(w in low for w in ["звук", "овоз", "аудио", "sound", "слух"]):
+    # 5. PDF Export
+    if any(k in low for k in ["pdf", "экспорт", "скачать отч", "распечат"]):
         return (
-            "**Настройка звукового сопровождения:**\n\n"
-            "• Проверьте тумблер **«Звуковое сопровождение в тестах»** в Личном кабинете → вкладка «Настройки».\n"
-            "• Там же доступна кнопка **«Проверить звук»**, воспроизводящая тестовый сигнал частотой 1000 Гц.\n"
-            "• Убедитесь, что звук включен на вашем устройстве и в браузере предоставлен доступ к аудио.\n\n"
-            "💡 *Если звук всё равно не воспроизводится, напишите: «Позовите человека».*"
+            "**Экспорт отчётов в PDF:**\n\n"
+            "• После завершения любого упражнения или в Личном кабинете нажмите «Скачать отчёт PDF».\n"
+            "• В отчёт включаются графики, сырые метрики, паспорт методики и сравнение с референтными нормами.\n\n"
+            "💡 Если нужна помощь специалиста, напишите: «Позовите человека»."
+        )
+
+    # 6. General Greetings
+    if any(k in low for k in ["привет", "здравствуй", "салом", "добрый день", "добрый вечер", "hello", "hi"]):
+        return (
+            "Здравствуйте! Я ИИ-ассистент первой линии платформы SIHAT.\n\n"
+            "Я готов ответить на ваши вопросы по 15 упражнениям скрининга (внимание, память, реакция, слух, зрение), сохранению результатов или экспорту отчётов в PDF.\n\n"
+            "Чем я могу вам помочь?\n\n"
+            "💡 Если вам требуется связь с живым администратором, просто напишите: «Позовите админа» или нажмите кнопку «Позвать человека» вверху."
+        )
+
+    # 7. Short or unclear query
+    if len(clean_text(text)) < 5 or bool(re.match(r"^[a-zA-Zа-яА-Я0-9\s,\.]+$", text) and len(text.split()) <= 2):
+        return (
+            "Здравствуйте! Я ИИ-ассистент службы поддержки SIHAT.\n\n"
+            "Уточните, пожалуйста, ваш вопрос подробнее (например: как пройти тест Шульте, как сохранить результаты или скачать PDF).\n\n"
+            "💡 Если вы хотите связаться с живым администратором платформы, напишите: «Позовите человека» или нажмите кнопку «Позвать человека» вверху."
         )
 
     return None
 
 
-async def classify_and_generate_reply(user_msg: str, lang: str) -> tuple[bool, str, str]:
-    """Returns (is_simple, reason, reply_text).
-    is_simple=False triggers admin escalation flag.
-    """
-    clean = user_msg.strip()
+def clean_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
 
-    # 1. Check human escalation
+
+async def classify_and_generate_reply(text: str, lang: str) -> tuple[bool, str, str]:
+    """Returns (is_simple, reason, reply_text).
+    is_simple=False means it is escalated to human administrator.
+    """
+    clean = clean_text(text)
+
+    # 1. Check explicit human request
     for pat in _COMPILED_HUMAN:
         if pat.search(clean):
-            reason = "Запрос связи с администратором / оператором"
-            reply = _format_escalation_reply(lang, reason)
-            return False, reason, reply
+            return False, "Запрос связи с администратором / оператором", _format_escalation_reply(lang, "Запрос связи с администратором")
 
-    # 2. Check critical triggers
+    # 2. Check critical technical/financial/legal issues
     for pat in _COMPILED_CRITICAL:
         if pat.search(clean):
-            reason = "Сложная техническая неполадка, ошибка или жалоба"
-            reply = _format_escalation_reply(lang, reason)
-            return False, reason, reply
+            return False, "Критический технический или юридический инцидент", _format_escalation_reply(lang, "Критический инцидент")
 
     # 3. Check offline knowledge base
     offline = _get_offline_knowledge_reply(clean, lang)
     if offline:
         return True, "Автоответ на частый вопрос о платформе", offline
 
-    # 4. Use Gemini LLM
+    # 4. Use Gemini LLM if configured
     settings = get_settings()
     active_key = settings.gemini_api_key.get_secret_value() if settings.gemini_is_configured else None
     if not active_key:
@@ -209,7 +197,8 @@ async def classify_and_generate_reply(user_msg: str, lang: str) -> tuple[bool, s
             "Базовый автоответ",
             "Здравствуйте! Благодарим за обращение в службу поддержки SIHAT.\n\n"
             "SIHAT — интерактивная платформа для научно обоснованного скрининга когнитивных и сенсорных способностей (15 упражнений на внимание, память, реакцию, слух и зрение). Обратите внимание: платформа не ставит клинических диагнозов.\n\n"
-            "Вы можете изучить методики в «Паспорте методик» или начать тестирование из каталога. Если ваш вопрос требует участия специалиста, напишите: «Позовите человека»."
+            "Вы можете изучить методики в «Паспорте методик» или начать тестирование из каталога.\n\n"
+            "💡 Если ваш вопрос требует участия специалиста, напишите: «Позовите админа» или нажмите кнопку «Позвать человека» вверху."
         )
 
     system_prompt = (
@@ -217,8 +206,8 @@ async def classify_and_generate_reply(user_msg: str, lang: str) -> tuple[bool, s
         "SIHAT включает 15 научно обоснованных упражнений (Шульте, Струп, Корси, Тахистоскоп, Двойная переработка, Реакция на свет/звук, Звуковой порог, Поле зрения, Контрастность Габора, Тремор, Пинч-захват, Координация).\n"
         "SIHAT предоставляет скрининг и самоконтроль, НЕ ставит диагнозов.\n"
         "Правила классификации:\n"
-        "1. 'is_simple': true — если вопрос касается работы тестов, нахождения результатов, скачивания PDF, приватности, паспортов методик, общих вопросов здоровья и скрининга.\n"
-        "   В этом случае дайте исчерпывающий, вежливый, четкий ответ со списками. В конце обязательно добавьте: '💡 Если вам потребуется помощь человека, напишите: «Позовите человека»'.\n"
+        "1. 'is_simple': true — если вопрос касается работы тестов, нахождения результатов, скачивания PDF, приватности, паспортов методик, общих вопросов платформы.\n"
+        "   В этом случае дайте исчерпывающий, вежливый, четкий ответ со списками. В конце обязательно добавьте: '💡 Если вам потребуется помощь человека, напишите: «Позовите админа»'.\n"
         "2. 'is_simple': false — если вопрос содержит баг, ошибку сайта, жалобу, взлом, требование возврата денег или запрос связи с живым человеком.\n"
         "Язык ответа: строго язык запроса (" + lang + ").\n"
         'Верните строго JSON: {"is_simple": true|false, "reason": "...", "reply": "..."}'
@@ -255,11 +244,12 @@ async def classify_and_generate_reply(user_msg: str, lang: str) -> tuple[bool, s
                 logger.warning("Gemini support responder failed on %s: %s", model, e)
                 continue
 
-    # Fallback
+    # Safe friendly fallback
     return (
         True,
-        "Стандартный автоответ",
-        "Здравствуйте! Ваше обращение принято службой поддержки SIHAT. Если вам требуется индивидуальная консультация администратора платформы, пожалуйста, напишите «Позовите человека» прямо в этот чат."
+        "Консультация службы поддержки",
+        "Здравствуйте! Я ИИ-ассистент платформы SIHAT. Готов помочь вам с прохождением когнитивных упражнений, сохранением результатов или экспортом PDF-отчётов.\n\n"
+        "💡 Если вам требуется индивидуальный ответ администратора, напишите «Позовите человека» или воспользуйтесь кнопкой «Позвать человека» вверху диалога."
     )
 
 
@@ -270,10 +260,17 @@ async def process_user_support_message_ai(
     user: User | None,
 ) -> SupportMessage | None:
     """Processes user support message with AI.
-    Generates AI reply, updates ticket status/escalation notes, commits to DB,
-    and broadcasts via WebSocket to both user and admin rooms in real-time.
+    - If AI is inactive (disabled by escalation), ignores completely.
+    - If user requests human or encounters critical issue, turns off AI permanently for this ticket,
+      marks needs_human=True, sends escalation handoff, and broadcasts to admin.
+    - Otherwise, generates helpful AI response and keeps it between user and AI.
     """
     if ticket.is_blocked:
+        return None
+
+    # Check if AI was already disabled for this ticket
+    if not getattr(ticket, "is_ai_active", True):
+        logger.info("AI is inactive for ticket %s; skipping AI response.", ticket.id)
         return None
 
     lang = detect_language(user_msg_text)
@@ -281,8 +278,10 @@ async def process_user_support_message_ai(
 
     # 1. Update ticket status & escalation flag
     if not is_simple:
+        ticket.is_ai_active = False
+        ticket.needs_human = True
         ticket.status = "in_progress"
-        ticket.admin_notes = f"[ЭСКАЛАЦИЯ АДМИНИСТРАТОРУ]: {reason}. Требуется личный ответ администратора."
+        ticket.admin_notes = f"[ЭСКАЛАЦИЯ АДМИНИСТРАТОРУ]: {reason}. ИИ отключён."
     else:
         if ticket.status == "open":
             ticket.status = "in_progress"
@@ -303,7 +302,7 @@ async def process_user_support_message_ai(
     await db.refresh(ai_msg)
     await db.refresh(ticket)
 
-    # 3. Broadcast AI message in real time to ticket room, user, and admins
+    # 3. Broadcast AI message in real time
     msg_dict = {
         "id": ai_msg.id,
         "ticket_id": ai_msg.ticket_id,
@@ -317,14 +316,21 @@ async def process_user_support_message_ai(
     }
     ticket_dict = {
         "id": ticket.id,
+        "user_id": ticket.user_id,
+        "contact_email": ticket.contact_email,
+        "subject": ticket.subject,
         "status": ticket.status,
         "is_blocked": ticket.is_blocked,
+        "is_ai_active": ticket.is_ai_active,
+        "needs_human": ticket.needs_human,
         "admin_notes": ticket.admin_notes,
         "last_message": ai_msg.message,
         "last_message_at": ai_msg.created_at.isoformat(),
         "unread_user_count": 1,
-        "unread_admin_count": 0,
+        "unread_admin_count": 1 if ticket.needs_human else 0,
     }
+
+    event_name = "human_requested" if not is_simple else "new_message"
 
     try:
         await ws_manager.broadcast_new_message(
@@ -332,6 +338,7 @@ async def process_user_support_message_ai(
             message=msg_dict,
             ticket=ticket_dict,
             recipient_user_id=ticket.user_id,
+            event=event_name,
         )
     except Exception as e:
         logger.warning("Failed to broadcast AI message: %s", e)

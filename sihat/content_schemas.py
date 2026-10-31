@@ -114,6 +114,8 @@ class SupportTicketOutput(BaseModel):
     message: str
     status: str
     is_blocked: bool = False
+    is_ai_active: bool = True
+    needs_human: bool = False
     admin_notes: str | None = None
     created_at: str
     updated_at: str | None = None

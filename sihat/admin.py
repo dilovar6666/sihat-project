@@ -123,6 +123,8 @@ def _admin_ticket_output(
         message=item.message,
         status=item.status,
         is_blocked=item.is_blocked,
+        is_ai_active=getattr(item, 'is_ai_active', True),
+        needs_human=getattr(item, 'needs_human', False),
         admin_notes=item.admin_notes,
         created_at=item.created_at.isoformat(),
         updated_at=item.updated_at.isoformat() if item.updated_at else item.created_at.isoformat(),
@@ -150,6 +152,8 @@ def _admin_ticket_detail_output(
         message=item.message,
         status=item.status,
         is_blocked=item.is_blocked,
+        is_ai_active=getattr(item, 'is_ai_active', True),
+        needs_human=getattr(item, 'needs_human', False),
         admin_notes=item.admin_notes,
         created_at=item.created_at.isoformat(),
         updated_at=item.updated_at.isoformat() if item.updated_at else item.created_at.isoformat(),
@@ -419,6 +423,7 @@ async def update_category(
 @router.get("/tests")
 async def list_all_admin_tests(
     status_filter: str | None = Query(default=None, alias="status"),
+    filter_type: str | None = Query(default="needs_human", alias="filter"),
     db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[dict]:
@@ -688,10 +693,19 @@ async def delete_article(
 @router.get("/support/tickets", response_model=list[SupportTicketOutput])
 async def list_support_tickets(
     status_filter: str | None = Query(default=None, alias="status"),
+    filter_type: str | None = Query(default="needs_human", alias="filter"),
     db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[SupportTicketOutput]:
     stmt = select(SupportTicket).order_by(SupportTicket.updated_at.desc())
+    if filter_type == "needs_human":
+        stmt = stmt.where(
+            or_(
+                SupportTicket.needs_human.is_(True),
+                SupportTicket.is_ai_active.is_(False),
+                SupportTicket.admin_notes.contains("ЭСКАЛАЦИЯ"),
+            )
+        )
     if status_filter:
         stmt = stmt.where(SupportTicket.status == status_filter)
     tickets = (await db.scalars(stmt)).all()
@@ -772,6 +786,9 @@ async def admin_reply_support_ticket(
         read_by_user=False,
         read_by_admin=True,
     )
+    ticket.is_ai_active = False
+    ticket.needs_human = False
+    ticket.status = "in_progress"
     db.add(msg)
 
     # Automatically set ticket status to in_progress if currently open
@@ -961,6 +978,7 @@ def _incident_output(item: AiSecurityIncident) -> AiSecurityIncidentOutput:
 @router.get("/ai-incidents", response_model=list[AiSecurityIncidentOutput])
 async def list_ai_security_incidents(
     status_filter: str | None = Query(default=None, alias="status"),
+    filter_type: str | None = Query(default="needs_human", alias="filter"),
     db: AsyncSession = Depends(get_db_session),
     _: User = Depends(require_admin),
 ) -> list[AiSecurityIncidentOutput]:

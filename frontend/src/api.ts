@@ -231,6 +231,12 @@ export async function deleteSupportTicket(ticketId: string): Promise<{ status: s
   })
 }
 
+export async function requestHumanSupport(ticketId: string): Promise<SupportTicket> {
+  return apiRequest<SupportTicket>(`/support/tickets/${ticketId}/request-human`, {
+    method: 'POST',
+  })
+}
+
 export async function fetchSupportUnreadCount(): Promise<number> {
   try {
     const res = await apiRequest<{ unread_count: number }>('/support/unread-count')

@@ -250,6 +250,8 @@ class SupportTicket(Base):
         String(16), default="open", server_default="open", index=True
     )
     is_blocked: Mapped[bool] = mapped_column(default=False, server_default="false")
+    is_ai_active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    needs_human: Mapped[bool] = mapped_column(default=False, server_default="false", index=True)
     admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
