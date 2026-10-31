@@ -626,38 +626,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }
 
-  if (!token || !isAdmin) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-16 animate-in fade-in duration-300">
-        <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-8 sm:p-12 shadow-2xl border border-slate-200/80 dark:border-[#1E302B] text-center">
-          <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-6">
-            <Lock className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-3">
-            Панель управления администратора
-          </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed mb-6">
-            Этот раздел защищён и доступен исключительно сотрудникам с ролью системного администратора SIHAT.
-          </p>
-          <Button
-            onClick={() => {
-              if (onNavigate) onNavigate('login')
-            }}
-            className="bg-[#103D35] hover:bg-[#17A884] text-white px-8 py-3 rounded-xl font-bold cursor-pointer"
-          >
-            Войти как администратор
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  const totalSaved = data?.total_saved_results || 0
-  const totalCompleted = Math.max(data?.total_completed_attempts || 0, totalSaved)
-  const totalPurged = Math.max(0, totalCompleted - totalSaved)
-  const totalUsers = data?.total_users || adminUsers.length
-  const activeUsers = data?.active_users || adminUsers.filter((u) => u.is_active).length
-
   const filteredTests = useMemo(() => {
     return adminTests.filter((test) => {
       const st = test.availability_status || test.status
@@ -700,6 +668,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     (usersPage - 1) * USERS_PER_PAGE,
     usersPage * USERS_PER_PAGE
   )
+
+  if (!token || !isAdmin) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16 animate-in fade-in duration-300">
+        <div className="bg-white dark:bg-[#0E1715] rounded-3xl p-8 sm:p-12 shadow-2xl border border-slate-200/80 dark:border-[#1E302B] text-center">
+          <div className="w-16 h-16 rounded-3xl bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-3">
+            Панель управления администратора
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed mb-6">
+            Этот раздел защищён и доступен исключительно сотрудникам с ролью системного администратора SIHAT.
+          </p>
+          <Button
+            onClick={() => {
+              if (onNavigate) onNavigate('login')
+            }}
+            className="bg-[#103D35] hover:bg-[#17A884] text-white px-8 py-3 rounded-xl font-bold cursor-pointer"
+          >
+            Войти как администратор
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const totalSaved = data?.total_saved_results || 0
+  const totalCompleted = Math.max(data?.total_completed_attempts || 0, totalSaved)
+  const totalPurged = Math.max(0, totalCompleted - totalSaved)
+  const totalUsers = data?.total_users || adminUsers.length
+  const activeUsers = data?.active_users || adminUsers.filter((u) => u.is_active).length
+
+
 
 
   const handleBlockUserFromIncident = async (incident: AiSecurityIncident) => {
