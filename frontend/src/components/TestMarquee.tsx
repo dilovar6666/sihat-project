@@ -379,7 +379,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
       {/* Header with counter and catalog link */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-4 px-1 max-w-7xl mx-auto">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 mb-2">
             <span className="w-2 h-2 rounded-full bg-[#17A884] animate-pulse" />
             <span>
               {lang === 'tj'
@@ -388,13 +388,13 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                 ? 'Interactive Exercise Stream'
                 : 'Каталог упражнений'}
             </span>
-            <span className="text-zinc-600">•</span>
-            <span className="font-mono text-emerald-300">
+            <span className="text-zinc-400 dark:text-zinc-600">•</span>
+            <span className="font-mono text-emerald-700 dark:text-emerald-300">
               {readyTests.length} {lang === 'tj' ? 'методика' : lang === 'en' ? 'methods' : 'методик'}
             </span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             <span>
               {lang === 'tj'
                 ? 'Ҳамаи машқҳои дастраси платформа'
@@ -405,7 +405,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
             <Sparkles className="w-5 h-5 text-[#17A884] hidden sm:inline-block" />
           </h2>
 
-          <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-2xl">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 mt-1 max-w-2xl">
             {lang === 'tj'
               ? 'Феҳристи интерактивии усулҳои стандартишуда барои санҷиши диққат, хотира, биноӣ, шунавоӣ ва вокуниш.'
               : lang === 'en'
@@ -417,7 +417,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
         <button
           type="button"
           onClick={onOpenCatalog}
-          className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#0B1513] border border-slate-800 text-xs font-bold text-slate-200 hover:text-[#17A884] hover:border-emerald-500/40 hover:bg-[#0E1A17] transition-all cursor-pointer shadow-md group"
+          className="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white dark:bg-[#0B1513] border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 hover:text-[#17A884] dark:hover:text-[#17A884] hover:border-emerald-500/40 hover:bg-slate-50 dark:hover:bg-[#0E1A17] transition-all cursor-pointer shadow-xs group"
         >
           <span>
             {lang === 'tj'
@@ -445,22 +445,22 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
             return (
               <div
                 key={key}
-                className="w-[280px] sm:w-[305px] h-[375px] shrink-0 bg-[#0B1513] border border-slate-800/90 rounded-3xl p-4 flex flex-col justify-between transition-all duration-300 ease-out hover:scale-[1.04] sm:hover:scale-[1.06] hover:-translate-y-2 hover:border-[#17A884] hover:shadow-2xl hover:shadow-emerald-500/25 group-hover:opacity-75 hover:!opacity-100 cursor-pointer group/card relative z-10 hover:z-30"
+                className="w-[280px] sm:w-[305px] h-[375px] shrink-0 bg-white dark:bg-[#0B1513] border border-slate-200/90 dark:border-slate-800/90 rounded-3xl p-4 flex flex-col justify-between transition-all duration-300 ease-out hover:scale-[1.04] sm:hover:scale-[1.06] hover:-translate-y-2 hover:border-[#17A884] shadow-md dark:shadow-none hover:shadow-2xl hover:shadow-emerald-500/25 group-hover:opacity-75 hover:!opacity-100 cursor-pointer group/card relative z-10 hover:z-30"
                 onClick={() => onStartAttempt(test as TestItem)}
               >
                 {/* 1. Cover Image with Badges */}
-                <div className="relative h-[160px] w-full rounded-2xl overflow-hidden mb-3 bg-[#080E0D] shadow-inner shrink-0">
+                <div className="relative h-[160px] w-full rounded-2xl overflow-hidden mb-3 bg-slate-100 dark:bg-[#080E0D] shadow-inner shrink-0">
                   <img
                     src={coverUrl}
                     alt={altText}
                     loading="lazy"
                     className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500 ease-out"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#080E0D]/90 via-[#080E0D]/30 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
 
                   {/* Top Pill */}
                   <div className="absolute top-2.5 left-2.5">
-                    <span className="text-[10px] font-bold py-1 px-2.5 rounded-full backdrop-blur-md shadow-md bg-[#0E2C26]/90 text-[#2EC4A7] border border-[#17A884]/40">
+                    <span className="text-[10px] font-bold py-1 px-2.5 rounded-full backdrop-blur-md shadow-md bg-white/90 dark:bg-[#0E2C26]/90 text-emerald-800 dark:text-[#2EC4A7] border border-emerald-500/30 dark:border-[#17A884]/40">
                       {isValidated
                         ? lang === 'tj'
                           ? 'Методикаи исботшуда'
@@ -499,16 +499,16 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
 
                 {/* 2. Text Content */}
                 <div className="flex-1 flex flex-col justify-start px-0.5 mb-3">
-                  <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 leading-snug line-clamp-1 group-hover/card:text-emerald-300 transition-colors">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1.5 leading-snug line-clamp-1 group-hover/card:text-[#17A884] dark:group-hover/card:text-emerald-300 transition-colors">
                     {title}
                   </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2">
                     {desc}
                   </p>
                 </div>
 
                 {/* 3. Action Buttons (Always 100% visible, fully rendered, never clipped) */}
-                <div className="pt-2.5 border-t border-slate-800/80 flex items-center gap-2.5">
+                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-2.5">
                   <Button
                     type="button"
                     variant="outline"
@@ -517,7 +517,7 @@ export const TestMarquee: React.FC<TestMarqueeProps> = ({
                       e.stopPropagation()
                       onSelectTest(test as TestItem)
                     }}
-                    className="flex-1 text-xs h-9 rounded-xl font-bold cursor-pointer border-slate-800 bg-[#070D0B] hover:border-[#17A884] text-slate-300 hover:text-white"
+                    className="flex-1 text-xs h-9 rounded-xl font-bold cursor-pointer border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#070D0B] hover:border-[#17A884] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#0E1A17] transition-colors"
                   >
                     <FileText className="w-3.5 h-3.5 text-[#17A884]" />
                     <span>{lang === 'tj' ? 'Шиноснома' : lang === 'en' ? 'Passport' : 'Паспорт'}</span>
