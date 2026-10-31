@@ -561,22 +561,22 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
   const displayArticles = articles.length > 0 ? articles : fallbackArticles
 
   return (
-    <div id="faq" className="min-h-screen bg-[#070D0B] text-slate-100 pb-24">
+    <div id="faq" className="min-h-screen bg-transparent text-slate-900 dark:text-slate-100 pb-24 transition-colors duration-200">
       {/* 1. HERO SECTION WITH SPOTLIGHT SEARCH */}
-      <section className="relative pt-24 pb-14 px-4 sm:px-6 lg:px-8 overflow-hidden border-b border-emerald-950/40">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[320px] bg-gradient-to-b from-[#17A884]/15 via-emerald-900/5 to-transparent blur-3xl pointer-events-none -z-10" />
+      <section className="relative pt-24 pb-14 px-4 sm:px-6 lg:px-8 overflow-hidden border-b border-slate-200/80 dark:border-emerald-950/40">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[320px] bg-gradient-to-b from-[#17A884]/15 via-emerald-500/5 dark:via-emerald-900/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
         <div className="max-w-4xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[#17A884] text-xs font-semibold tracking-wide">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[#103D35] dark:text-[#17A884] text-xs font-semibold tracking-wide">
             <Sparkles className="w-3.5 h-3.5 animate-pulse" />
             <span>{labels.heroPill}</span>
           </div>
 
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
             {labels.heroTitle}
           </h1>
 
-          <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
             {labels.heroSubtitle}
           </p>
 
@@ -584,25 +584,25 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
           <div className="pt-2 max-w-2xl mx-auto">
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/30 to-teal-500/30 rounded-2xl blur opacity-30 group-hover:opacity-70 transition duration-300" />
-              <div className="relative flex items-center bg-[#0B1513] border border-emerald-500/30 rounded-2xl shadow-2xl overflow-hidden focus-within:border-[#17A884] focus-within:ring-2 focus-within:ring-[#17A884]/20 transition-all">
-                <Search className="w-5 h-5 text-emerald-400 ml-4.5 shrink-0" />
+              <div className="relative flex items-center bg-white dark:bg-[#0B1513] border border-slate-200 dark:border-emerald-500/30 rounded-2xl shadow-xl overflow-hidden focus-within:border-[#17A884] focus-within:ring-2 focus-within:ring-[#17A884]/20 transition-all">
+                <Search className="w-5 h-5 text-emerald-600 dark:text-emerald-400 ml-4.5 shrink-0" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={labels.searchPlaceholder}
-                  className="w-full bg-transparent px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none"
+                  className="w-full bg-transparent px-4 py-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="mr-3 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer text-xs"
+                    className="mr-3 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-xs"
                   >
                     ✕
                   </button>
                 )}
                 <div className="pr-4 hidden sm:flex items-center text-[10px] font-mono text-slate-500">
-                  <span className="px-1.5 py-0.5 rounded border border-slate-700 bg-slate-900/60">
+                  <span className="px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900/60 text-slate-500">
                     ESC
                   </span>
                 </div>
@@ -610,14 +610,14 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
             </div>
 
             {searchQuery && (
-              <div className="text-xs text-slate-400 mt-2 text-left px-2 flex items-center justify-between">
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-left px-2 flex items-center justify-between">
                 <span>
                   {labels.resultsCount}{' '}
-                  <strong className="text-emerald-400">{filteredFaqs.length}</strong>
+                  <strong className="text-emerald-600 dark:text-emerald-400">{filteredFaqs.length}</strong>
                 </span>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="text-emerald-400 hover:underline cursor-pointer"
+                  className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer font-semibold"
                 >
                   Сбросить поиск
                 </button>
@@ -641,8 +641,8 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                 }
                 className={`p-4 sm:p-5 rounded-2xl text-left border transition-all cursor-pointer relative overflow-hidden group ${
                   isSelected
-                    ? 'bg-gradient-to-br from-[#103D35] to-[#0D2621] border-[#17A884] shadow-lg shadow-emerald-950/50 scale-[1.02]'
-                    : 'bg-[#0B1513] border-slate-800/80 hover:border-emerald-500/40 hover:bg-[#0E1A17]'
+                    ? 'bg-gradient-to-br from-[#103D35] to-[#0D2621] border-[#17A884] shadow-lg shadow-emerald-950/30 scale-[1.02] text-white'
+                    : 'bg-white dark:bg-[#0B1513] border-slate-200/80 dark:border-slate-800/80 hover:border-emerald-500/40 hover:bg-slate-50 dark:hover:bg-[#0E1A17] shadow-sm'
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -650,7 +650,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
                       isSelected
                         ? 'bg-[#17A884] text-white'
-                        : 'bg-emerald-950/60 text-emerald-400 group-hover:bg-[#17A884]/20'
+                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 group-hover:bg-[#17A884]/20'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -659,16 +659,20 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${
                       isSelected
                         ? 'bg-emerald-400/20 border-emerald-400/40 text-emerald-200'
-                        : 'bg-slate-900 border-slate-800 text-slate-400'
+                        : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
                     {cat.count}
                   </span>
                 </div>
-                <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+                <h3 className={`text-xs sm:text-sm font-bold transition-colors ${
+                  isSelected ? 'text-white' : 'text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-300'
+                }`}>
                   {cat.label}
                 </h3>
-                <p className="text-[11px] text-slate-400 mt-1 line-clamp-1 hidden sm:block">
+                <p className={`text-[11px] mt-1 line-clamp-1 hidden sm:block ${
+                  isSelected ? 'text-emerald-100/80' : 'text-slate-500 dark:text-slate-400'
+                }`}>
                   {cat.desc}
                 </p>
               </button>
@@ -678,19 +682,19 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
 
         {selectedCategory !== 'all' && (
           <div className="mt-4 flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Фильтр:</span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold">
+            <span className="text-slate-500 dark:text-slate-400">Фильтр:</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-semibold">
               {categoryConfigs.find((c) => c.id === selectedCategory)?.label}
               <button
                 onClick={() => setSelectedCategory('all')}
-                className="hover:text-white cursor-pointer ml-1"
+                className="hover:text-slate-900 dark:hover:text-white cursor-pointer ml-1"
               >
                 ✕
               </button>
             </span>
             <button
               onClick={() => setSelectedCategory('all')}
-              className="text-slate-400 hover:text-white text-xs underline cursor-pointer ml-2"
+              className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs underline cursor-pointer ml-2"
             >
               Показать все
             </button>
@@ -704,9 +708,9 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
           {/* LEFT: Accordion List (8 cols) */}
           <div className="lg:col-span-8 space-y-3.5">
             {filteredFaqs.length === 0 ? (
-              <div className="p-12 text-center rounded-3xl border border-dashed border-slate-800 bg-[#0B1513]/60 space-y-4">
-                <HelpCircle className="w-10 h-10 text-slate-600 mx-auto" />
-                <p className="text-sm font-semibold text-slate-300">
+              <div className="p-12 text-center rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-[#0B1513]/60 space-y-4 shadow-sm">
+                <HelpCircle className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto" />
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-300">
                   По запросу «{searchQuery}» ответов не найдено.
                 </p>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -733,8 +737,8 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     key={item.id}
                     className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
                       isOpen
-                        ? 'bg-[#0D1A16] border-emerald-500/40 shadow-xl shadow-emerald-950/30'
-                        : 'bg-[#0B1513] border-slate-800/80 hover:border-slate-700 hover:bg-[#0E1A17]'
+                        ? 'bg-emerald-50/70 dark:bg-[#0D1A16] border-emerald-500/40 shadow-lg shadow-emerald-950/10'
+                        : 'bg-white dark:bg-[#0B1513] border-slate-200/80 dark:border-slate-800/80 hover:border-emerald-500/40 hover:bg-slate-50/80 dark:hover:bg-[#0E1A17] shadow-xs'
                     }`}
                   >
                     <button
@@ -743,18 +747,18 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                       className="w-full p-4 sm:p-5 text-left flex items-start justify-between gap-4 cursor-pointer select-none"
                     >
                       <div className="space-y-1.5 flex-1 pr-2">
-                        <span className="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-mono tracking-wide uppercase bg-emerald-950/70 border border-emerald-800/40 text-emerald-400">
+                        <span className="inline-block px-2.5 py-0.5 rounded-md text-[10px] font-mono tracking-wide uppercase bg-emerald-100/80 dark:bg-emerald-950/70 border border-emerald-300/60 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-400">
                           {tagText}
                         </span>
-                        <h2 className="text-sm sm:text-base font-bold text-white group-hover:text-emerald-300 transition-colors leading-snug">
+                        <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors leading-snug">
                           {qText}
                         </h2>
                       </div>
                       <div
                         className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border transition-all duration-200 ${
                           isOpen
-                            ? 'bg-emerald-500 text-white border-emerald-400 rotate-180'
-                            : 'bg-slate-900 border-slate-800 text-slate-400'
+                            ? 'bg-[#17A884] text-white border-emerald-400 rotate-180'
+                            : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400'
                         }`}
                       >
                         <ChevronDown className="w-4 h-4" />
@@ -762,15 +766,15 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     </button>
 
                     {isOpen && (
-                      <div className="px-5 pb-5 pt-1 border-t border-emerald-950/40 space-y-4 animate-in fade-in duration-200">
-                        <p className="text-xs sm:text-sm text-slate-300 font-reading leading-relaxed">
+                      <div className="px-5 pb-5 pt-1 border-t border-slate-200/80 dark:border-emerald-950/40 space-y-4 animate-in fade-in duration-200">
+                        <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-reading leading-relaxed">
                           {aText}
                         </p>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/60 text-xs text-slate-400">
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-200 dark:border-slate-800/60 text-xs text-slate-500 dark:text-slate-400">
                           <span>{labels.wasHelpful}</span>
                           {feedback ? (
-                            <span className="text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                            <span className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
                               <Check className="w-3.5 h-3.5" />
                               {labels.thanksFeedback}
                             </span>
@@ -779,7 +783,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleFeedback(item.id, 'up')}
-                                className="px-2.5 py-1 rounded-lg border border-slate-800 hover:border-emerald-500 hover:text-emerald-400 hover:bg-emerald-950/30 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
                               >
                                 <ThumbsUp className="w-3 h-3" />
                                 <span>Да</span>
@@ -787,7 +791,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleFeedback(item.id, 'down')}
-                                className="px-2.5 py-1 rounded-lg border border-slate-800 hover:border-rose-500 hover:text-rose-400 hover:bg-rose-950/30 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
+                                className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-rose-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors flex items-center gap-1 text-[11px] cursor-pointer"
                               >
                                 <ThumbsDown className="w-3 h-3" />
                                 <span>Нет</span>
@@ -805,11 +809,11 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
 
           {/* RIGHT: Support & Knowledge Hub (4 cols) — STICKY */}
           <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-24">
-            <Card className="p-5 rounded-3xl bg-[#0B1513] border-slate-800/90 shadow-xl space-y-4">
+            <Card className="p-5 rounded-3xl bg-white dark:bg-[#0B1513] border-slate-200/80 dark:border-slate-800/90 shadow-xl space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-emerald-400" />
-                  <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">
+                  <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                     {labels.knowledgeTitle}
                   </h3>
                 </div>
@@ -825,20 +829,20 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     <div
                       key={art.id}
                       onClick={() => onNavigateArticle?.(art)}
-                      className="p-3 rounded-2xl bg-[#070D0B] border border-slate-800/80 hover:border-emerald-500/40 hover:bg-emerald-950/15 transition-all cursor-pointer group"
+                      className="p-3 rounded-2xl bg-slate-50 dark:bg-[#070D0B] border border-slate-200/80 dark:border-slate-800/80 hover:border-emerald-500/40 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/15 transition-all cursor-pointer group"
                     >
                       <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono mb-1">
-                        <span className="uppercase tracking-wider text-emerald-400/80">
+                        <span className="uppercase tracking-wider text-emerald-700 dark:text-emerald-400/80 font-bold">
                           {art.category}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-2.5 h-2.5" /> 3 {labels.readTimeMin}
                         </span>
                       </div>
-                      <h4 className="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors line-clamp-2">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-300 transition-colors line-clamp-2">
                         {loc.title}
                       </h4>
-                      <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
                         {loc.summary}
                       </p>
                     </div>
@@ -847,57 +851,57 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
               </div>
             </Card>
 
-            <Card className="p-5 rounded-3xl bg-[#0B1513] border-slate-800/90 shadow-xl space-y-3.5">
-              <div className="flex items-center justify-between border-b border-slate-800/70 pb-2.5">
-                <span className="text-xs font-bold text-white flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-400" />
+            <Card className="p-5 rounded-3xl bg-white dark:bg-[#0B1513] border-slate-200/80 dark:border-slate-800/90 shadow-xl space-y-3.5">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/70 pb-2.5">
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   {labels.systemHealthTitle}
                 </span>
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-400">
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                   99.9%
                 </span>
               </div>
 
               <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between text-slate-300">
+                <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
                   <span className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     {labels.engineOnline}
                   </span>
-                  <span className="text-[11px] font-mono text-emerald-400">OK</span>
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">OK</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-300">
+                <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
                   <span className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     {labels.dbOnline}
                   </span>
-                  <span className="text-[11px] font-mono text-emerald-400">OK</span>
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">OK</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-300">
+                <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
                   <span className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                     {labels.zeroRetentionActive}
                   </span>
-                  <span className="text-[11px] font-mono text-emerald-400">Active</span>
+                  <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">Active</span>
                 </div>
               </div>
             </Card>
 
-            <div className="p-5 rounded-3xl bg-gradient-to-br from-[#103D35]/80 via-[#0B1F1B] to-[#070D0B] border border-emerald-500/30 shadow-xl space-y-3">
+            <div className="p-5 rounded-3xl bg-gradient-to-br from-[#103D35]/10 via-emerald-500/5 to-teal-500/5 dark:from-[#103D35]/80 dark:via-[#0B1F1B] dark:to-[#070D0B] border border-emerald-500/25 dark:border-emerald-500/30 shadow-xl space-y-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-[#17A884] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-[#103D35] dark:text-[#17A884] flex items-center justify-center">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-white">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">
                     {labels.aiAssistantCardTitle}
                   </h4>
-                  <span className="text-[10px] text-emerald-300/80">Онлайн 24/7</span>
+                  <span className="text-[10px] text-emerald-700 dark:text-emerald-300/80 font-semibold">Онлайн 24/7</span>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                 {labels.aiAssistantCardDesc}
               </p>
 
@@ -912,8 +916,8 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
               </Button>
             </div>
 
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-200/90 text-[11px] flex items-start gap-2.5 leading-relaxed">
-              <PhoneCall className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200/90 text-[11px] flex items-start gap-2.5 leading-relaxed">
+              <PhoneCall className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
               <span>{labels.emergencyNotice}</span>
             </div>
           </div>
@@ -922,7 +926,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
 
       {/* 4. INLINE SPLIT SECTION: СЛЕВА ФОТОГРАФИЯ И КАРТОЧКА ДОВЕРИЯ, СПРАВА ФОРМА ВОПРОСА */}
       <section id="ask-question" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20">
-        <div className="rounded-3xl bg-[#0B1513] border border-emerald-500/35 shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
+        <div className="rounded-3xl bg-white dark:bg-[#0B1513] border border-slate-200 dark:border-emerald-500/35 shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12">
           {/* СЛЕВА: ФОТОГРАФИЯ + КАРТОЧКА СЛУЖБЫ ЗАБОТЫ (5 cols) */}
           <div className="lg:col-span-5 relative min-h-[380px] lg:min-h-full flex flex-col justify-between p-6 sm:p-8 overflow-hidden bg-[#070D0B]">
             {/* Thematic photo background */}
@@ -986,27 +990,27 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
           </div>
 
           {/* СПРАВА: ФОРМА ОБРАЩЕНИЯ (7 cols) */}
-          <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center space-y-5 bg-gradient-to-br from-[#0B1513] via-[#0E1E1A] to-[#0B1513]">
+          <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-center space-y-5 bg-white dark:bg-gradient-to-br dark:from-[#0B1513] dark:via-[#0E1E1A] dark:to-[#0B1513]">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold tracking-wide">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[#103D35] dark:text-emerald-400 text-[11px] font-semibold tracking-wide">
                 <MessageSquarePlus className="w-3.5 h-3.5" />
                 <span>{labels.inlineSectionPill}</span>
               </div>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 {labels.inlineFormTitle}
               </h3>
-              <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed">
                 {labels.inlineFormSubtitle}
               </p>
             </div>
 
             {submitSuccess && (
-              <div className="p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-200 text-xs sm:text-sm space-y-3 animate-in fade-in duration-300">
-                <div className="flex items-center gap-2.5 font-bold text-emerald-300">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div className="p-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm space-y-3 animate-in fade-in duration-300">
+                <div className="flex items-center gap-2.5 font-bold text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>{labels.successMsg}</span>
                 </div>
-                <p className="font-mono bg-black/40 px-3 py-2 rounded-xl text-emerald-300 border border-emerald-500/20 text-xs inline-block">
+                <p className="font-mono bg-black/10 dark:bg-black/40 px-3 py-2 rounded-xl text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 text-xs inline-block">
                   {submitSuccess}
                 </p>
                 <div>
@@ -1014,7 +1018,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={() => setSubmitSuccess(null)}
-                    className="text-xs cursor-pointer text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20"
+                    className="text-xs cursor-pointer text-emerald-700 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/20"
                   >
                     {labels.sendAnotherBtn}
                   </Button>
@@ -1023,8 +1027,8 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
             )}
 
             {submitError && (
-              <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2.5">
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-500 dark:text-rose-400 shrink-0" />
                 <span>{submitError}</span>
               </div>
             )}
@@ -1033,7 +1037,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
               <form onSubmit={handleSubmitQuestion} className="space-y-4 pt-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                       {labels.emailLabel}
                     </label>
                     <input
@@ -1042,18 +1046,18 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                       value={contactEmail}
                       onChange={(e) => setContactEmail(e.target.value)}
                       placeholder="name@example.com"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#070D0B] text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:bg-white dark:focus:bg-[#070D0B] transition-all shadow-xs"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                       {labels.categoryLabel}
                     </label>
                     <select
                       value={ticketCategory}
                       onChange={(e) => setTicketCategory(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer transition-all shadow-inner"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#070D0B] text-xs sm:text-sm text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer transition-all shadow-xs"
                     >
                       <option value="question">Вопрос по методике</option>
                       <option value="privacy">Приватность и Zero-Retention</option>
@@ -1064,7 +1068,7 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     {labels.subjectLabel}
                   </label>
                   <input
@@ -1073,12 +1077,12 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     value={ticketSubject}
                     onChange={(e) => setTicketSubject(e.target.value)}
                     placeholder="Краткая суть вопроса"
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#070D0B] text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:bg-white dark:focus:bg-[#070D0B] transition-all shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                     {labels.messageLabel}
                   </label>
                   <textarea
@@ -1087,12 +1091,12 @@ export const KnowledgeFaq: React.FC<KnowledgeFaqProps> = ({
                     value={ticketMessage}
                     onChange={(e) => setTicketMessage(e.target.value)}
                     placeholder="Опишите ваш вопрос, методику или возникшую сложность как можно подробнее..."
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-700/80 bg-[#070D0B] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 resize-none transition-all shadow-inner"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-[#070D0B] text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:bg-white dark:focus:bg-[#070D0B] resize-none transition-all shadow-xs"
                   />
                 </div>
 
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-[11px] text-slate-400 font-mono hidden sm:inline-block">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono hidden sm:inline-block">
                     SLA: ответ в течение 24 часов
                   </span>
                   <Button
