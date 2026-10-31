@@ -2817,38 +2817,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-400">Пользователь:</span>
+                <span className="text-slate-500 dark:text-slate-400">Пользователь:</span>
                 <span className="font-bold text-slate-900 dark:text-white">{selectedIncidentForInspection.user_name || '—'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Email:</span>
+                <span className="text-slate-500 dark:text-slate-400">Email:</span>
                 <span className="font-mono text-slate-900 dark:text-white">{selectedIncidentForInspection.user_email}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Статус:</span>
-                <span className="font-bold">{selectedIncidentForInspection.status}</span>
+                <span className="text-slate-500 dark:text-slate-400">Статус:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{selectedIncidentForInspection.status}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Всего перехвачено:</span>
-                <span className="font-bold text-amber-400">{selectedIncidentForInspection.queries_log?.length || 0} запросов</span>
+                <span className="text-slate-500 dark:text-slate-400">Всего перехвачено:</span>
+                <span className="font-bold text-amber-600 dark:text-amber-400">{selectedIncidentForInspection.queries_log?.length || 0} запросов</span>
               </div>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Журнал перехваченных промптов</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Журнал перехваченных промптов</h4>
               {selectedIncidentForInspection.queries_log?.map((q, idx) => (
                 <div
                   key={idx}
-                  className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-xs font-mono"
+                  className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs font-mono"
                 >
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800 pb-1.5">
-                    <span className="text-amber-400 font-bold">[{q.category}]</span>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 pb-1.5">
+                    <span className="text-amber-700 dark:text-amber-400 font-bold">[{q.category}]</span>
                     <span>{q.timestamp ? new Date(q.timestamp).toLocaleString('ru-RU') : 'Недавно'}</span>
                   </div>
-                  <div className="text-rose-300 font-bold text-[11px]">
+                  <div className="text-rose-600 dark:text-rose-300 font-bold text-[11px]">
                     Причина: {q.reason} (Уровень: {q.severity})
                   </div>
-                  <div className="p-2.5 rounded-lg bg-black/60 text-slate-100 whitespace-pre-wrap break-words border border-slate-800/80">
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-black/60 text-slate-900 dark:text-slate-100 whitespace-pre-wrap break-words border border-slate-200 dark:border-slate-800/80 shadow-xs">
                     {q.text}
                   </div>
                   {q.ip && (
@@ -2860,11 +2860,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               ))}
             </div>
 
-            <div className="pt-4 border-t border-slate-100 dark:border-[#1E302B] flex flex-wrap items-center justify-end gap-2">
+            <div className="pt-4 border-t border-slate-200 dark:border-[#1E302B] flex flex-wrap items-center justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedIncidentForInspection(null)}
+                className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Закрыть
               </Button>
@@ -2873,7 +2874,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => handleDismissIncident(selectedIncidentForInspection)}
-                  className="text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/10"
+                  className="text-emerald-700 dark:text-emerald-400 border-emerald-500/40 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
                 >
                   Помиловать / Отклонить
                 </Button>

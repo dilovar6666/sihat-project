@@ -32,14 +32,14 @@ export function Modal({ isOpen, onClose, children, className, title, description
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/40 dark:bg-black/75 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Content */}
       <div
         className={cn(
-          'relative z-50 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl liquid-glass p-6 sm:p-8 shadow-2xl transition-all',
+          'relative z-50 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-[#0E1715] border border-slate-200/90 dark:border-[#1E302B] text-slate-900 dark:text-slate-100 p-6 sm:p-8 shadow-2xl transition-all',
           className
         )}
       >
