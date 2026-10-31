@@ -66,6 +66,7 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
   const [deleting, setDeleting] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   const t = {
     ru: {
@@ -228,7 +229,7 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
 
   // Auto-scroll messages to bottom
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (chatContainerRef.current) { chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight }
   }
 
   // Load ticket list
@@ -790,7 +791,7 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
               )}
 
               {/* Chat Messages History */}
-              <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-[380px] max-h-[520px]">
+              <div ref={chatContainerRef} className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-[380px] max-h-[520px]">
                 {loadingChat && (!activeTicket.messages || activeTicket.messages.length === 0) ? (
                   <div className="py-20 text-center text-xs text-slate-400 animate-pulse">
                     Загрузка диалога...
