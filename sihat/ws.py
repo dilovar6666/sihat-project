@@ -86,9 +86,10 @@ class ConnectionManager:
         message: dict[str, Any],
         ticket: dict[str, Any] | None = None,
         recipient_user_id: str | None = None,
+        event: str = "new_message",
     ) -> None:
         payload = {
-            "event": "new_message",
+            "event": event,
             "ticket_id": ticket_id,
             "message": message,
             "ticket": ticket,
