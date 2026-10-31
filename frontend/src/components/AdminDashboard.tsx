@@ -1713,9 +1713,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {/* 2-Column Split: Tickets list on left, Chat room on right */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 rounded-2xl border border-slate-200 dark:border-[#1E302B] overflow-hidden min-h-[580px] bg-slate-50/50 dark:bg-[#0B1513]/60">
+              <div className="flex flex-col lg:flex-row rounded-2xl border border-slate-200 dark:border-[#1E302B] overflow-hidden h-[740px] max-h-[calc(100vh-140px)] min-h-[580px] bg-slate-50/50 dark:bg-[#0B1513]/60">
                 {/* Left panel: List & filters */}
-                <div className="lg:col-span-5 border-r border-slate-200 dark:border-[#1E302B] flex flex-col bg-white dark:bg-[#0E1715]/70">
+                <div className="w-full lg:w-[350px] xl:w-[380px] shrink-0 border-r border-slate-200 dark:border-[#1E302B] flex flex-col h-full bg-white dark:bg-[#0E1715]/70 overflow-hidden">
                   {/* Filters */}
                   <div className="p-3 border-b border-slate-200 dark:border-[#1E302B] space-y-2.5">
                     {/* View Mode: Escalated vs All */}
@@ -1872,7 +1872,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 {/* Right panel: Chat Thread with user */}
-                <div className="lg:col-span-7 flex flex-col bg-white dark:bg-[#080E0D]/80">
+                <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#080E0D]/80 overflow-hidden">
                   {selectedAdminTicketId && activeAdminTicketDetail ? (
                     <>
                       {/* Header */}
@@ -1918,7 +1918,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
 
                       {/* Messages Thread */}
-                      <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-3 min-h-[340px] max-h-[460px]">
+                      <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-3">
                         {/* Fallback initial message if messages list is empty */}
                         {(!activeAdminTicketDetail.messages || activeAdminTicketDetail.messages.length === 0) && (
                           <div className="flex flex-col items-start">

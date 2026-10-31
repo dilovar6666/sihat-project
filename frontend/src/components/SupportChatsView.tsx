@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  CheckCheck,
 } from 'lucide-react'
 import { Button } from './ui/Button'
 import { Badge } from './ui/Badge'
@@ -562,32 +563,40 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
       </div>
 
       {/* Main Support Chat Shell */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white dark:bg-[#0B1513]/90 rounded-3xl border border-slate-200/90 dark:border-[#1E302B] shadow-lg dark:shadow-xl overflow-hidden min-h-[640px]">
+      <div className="flex flex-col lg:flex-row bg-white dark:bg-[#0E1715] rounded-3xl border border-slate-200/90 dark:border-[#1E302B] shadow-2xl overflow-hidden h-[740px] max-h-[calc(100vh-140px)] min-h-[580px]">
         {/* Left Column: Tickets List */}
         <div
-          className={`lg:col-span-5 xl:col-span-4 border-r border-slate-200/90 dark:border-[#1E302B] flex flex-col ${
+          className={`w-full lg:w-[320px] xl:w-[360px] shrink-0 border-r border-slate-200/90 dark:border-[#1E302B] flex flex-col h-full bg-slate-50/60 dark:bg-[#0A1210] overflow-hidden ${
             selectedTicketId ? 'hidden lg:flex' : 'flex'
           }`}
         >
-          {/* Search Bar */}
-          <div className="p-4 border-b border-slate-200/90 dark:border-[#1E302B] bg-slate-50/60 dark:bg-[#0E1715]/60">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          {/* Search Bar & New Chat Button */}
+          <div className="p-3 border-b border-slate-200/90 dark:border-[#1E302B] bg-white/80 dark:bg-[#0E1715]/80 backdrop-blur-sm flex items-center gap-2 shrink-0">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.searchPlaceholder}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#17A884] focus:bg-white shadow-xs transition-all"
+                className="w-full pl-8 pr-3 py-1.5 rounded-full bg-slate-100 dark:bg-[#14201D] border border-transparent focus:border-emerald-500/50 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none transition-all"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setIsNewModalOpen(true)}
+              className="w-8 h-8 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-[#17A884] flex items-center justify-center shrink-0 transition-colors cursor-pointer"
+              title={t.newTicketBtn}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* List items */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#1E302B]/60 p-2 space-y-1">
+          {/* List items with Internal Independent Scrollbar */}
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#162521] p-1.5 space-y-0.5">
             {loadingList && tickets.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400 animate-pulse">
-                Загрузка обращений...
+                Загрузка чатов...
               </div>
             ) : filteredTickets.length === 0 ? (
               <div className="p-8 text-center space-y-3">
@@ -612,42 +621,69 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
               filteredTickets.map((ticket) => {
                 const isSelected = ticket.id === selectedTicketId
                 const hasUnread = (ticket.unread_user_count || 0) > 0
+                const initials = ticket.subject
+                  ? ticket.subject.replace(/[\[\]]/g, '').trim().slice(0, 2).toUpperCase()
+                  : 'ЧТ'
 
                 return (
                   <button
                     key={ticket.id}
                     onClick={() => setSelectedTicketId(ticket.id)}
-                    className={`w-full text-left p-3.5 rounded-2xl transition-all relative flex flex-col gap-2 group cursor-pointer ${
+                    className={`w-full text-left p-2.5 rounded-2xl transition-all relative flex items-center gap-3 group cursor-pointer ${
                       isSelected
-                        ? 'bg-emerald-500/10 dark:bg-[#17A884]/15 border border-emerald-500/30 dark:border-[#17A884]/30 text-slate-900 dark:text-white shadow-xs'
-                        : 'bg-transparent hover:bg-slate-100/80 dark:hover:bg-[#131C1A]/80 border border-transparent text-slate-700 dark:text-slate-300'
+                        ? 'bg-emerald-500/15 dark:bg-emerald-500/20 text-slate-900 dark:text-white'
+                        : 'hover:bg-slate-200/60 dark:hover:bg-[#13201D] text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {hasUnread && (
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#17A884] shrink-0 animate-pulse shadow-sm shadow-[#17A884]" />
-                        )}
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate group-hover:text-[#17A884] transition-colors">
-                          {ticket.subject}
-                        </h4>
+                    {/* Telegram Avatar */}
+                    <div className="relative shrink-0">
+                      <div
+                        className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-xs ${
+                          ticket.is_blocked || ticket.status === 'closed'
+                            ? 'bg-slate-400 dark:bg-slate-700'
+                            : isSelected
+                            ? 'bg-gradient-to-tr from-emerald-500 to-teal-600'
+                            : 'bg-gradient-to-tr from-teal-600 to-emerald-700'
+                        }`}
+                      >
+                        {initials}
                       </div>
-                      <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 shrink-0">
-                        {formatTime(ticket.last_message_at || ticket.updated_at || ticket.created_at)}
-                      </span>
+                      {/* Status indicator dot */}
+                      {ticket.is_ai_active !== false && !ticket.is_blocked && ticket.status !== 'closed' ? (
+                        <span
+                          className="w-3 h-3 rounded-full bg-teal-400 border-2 border-white dark:border-[#0E1715] absolute bottom-0 right-0 shadow-xs"
+                          title="ИИ онлайн"
+                        />
+                      ) : ticket.needs_human || !ticket.is_ai_active ? (
+                        <span
+                          className="w-3 h-3 rounded-full bg-amber-400 border-2 border-white dark:border-[#0E1715] absolute bottom-0 right-0 shadow-xs"
+                          title="Ожидает администратора"
+                        />
+                      ) : null}
                     </div>
 
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                      {ticket.last_message || ticket.message}
-                    </p>
-
-                    <div className="flex items-center justify-between pt-1">
-                      {renderStatusBadge(ticket)}
-                      {hasUnread && (
-                        <span className="px-2 py-0.5 rounded-full bg-[#17A884] text-white dark:text-black text-[10px] font-extrabold">
-                          +{ticket.unread_user_count}
+                    {/* Title and Snippet */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                          {ticket.subject}
+                        </h4>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0 font-mono">
+                          {formatTime(ticket.last_message_at || ticket.updated_at || ticket.created_at)}
                         </span>
-                      )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate leading-snug">
+                          {ticket.last_message || ticket.message}
+                        </p>
+                        {hasUnread ? (
+                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-xs">
+                            {ticket.unread_user_count}
+                          </span>
+                        ) : ticket.is_blocked ? (
+                          <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                        ) : null}
+                      </div>
                     </div>
                   </button>
                 )
@@ -658,101 +694,90 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
 
         {/* Right Column: Chat Thread */}
         <div
-          className={`lg:col-span-7 xl:col-span-8 flex flex-col bg-slate-50/50 dark:bg-[#080E0D]/60 ${
+          className={`flex-1 flex flex-col h-full bg-slate-100/60 dark:bg-[#070D0C] overflow-hidden ${
             !selectedTicketId ? 'hidden lg:flex' : 'flex'
           }`}
         >
           {selectedTicketId && activeTicket ? (
             <>
-              {/* Chat Header */}
-              <div className="p-4 sm:p-5 border-b border-slate-200/90 dark:border-[#1E302B] bg-white dark:bg-[#0E1715]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              {/* Telegram Chat Header */}
+              <div className="px-4 py-3 border-b border-slate-200/90 dark:border-[#1E302B] bg-white/95 dark:bg-[#0E1715]/95 backdrop-blur-sm flex items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
                   <button
                     onClick={() => setSelectedTicketId(null)}
-                    className="lg:hidden p-2 rounded-xl bg-slate-100 dark:bg-[#131C1A] text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shrink-0 cursor-pointer"
+                    className="lg:hidden p-1.5 rounded-full bg-slate-100 dark:bg-[#14201D] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shrink-0 cursor-pointer"
                     title={t.backToList}
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
 
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
+                    {activeTicket.subject.replace(/[\[\]]/g, '').trim().slice(0, 2).toUpperCase()}
+                  </div>
+
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                         {activeTicket.subject}
                       </h3>
                       {renderStatusBadge(activeTicket)}
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
-                      <span>ID: {activeTicket.id.slice(0, 8)}</span>
-                      <span>•</span>
-                      <span>{formatTime(activeTicket.created_at)}</span>
-                    </p>
+                    <div className="flex items-center gap-1.5 text-xs">
+                      {activeTicket.is_blocked || activeTicket.status === 'closed' ? (
+                        <span className="text-slate-400 text-[11px] flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                          {t.statusClosed}
+                        </span>
+                      ) : activeTicket.is_ai_active !== false ? (
+                        <span className="text-teal-600 dark:text-teal-400 text-[11px] font-medium flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                          {lang === 'tj' ? 'Ёвари зеҳнии сунъӣ фаъол аст' : lang === 'en' ? 'AI Assistant online' : 'ИИ-ассистент онлайн • мгновенный ответ'}
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 dark:text-amber-400 text-[11px] font-medium flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          {lang === 'tj' ? 'Ба маъмур гузаронида шуд' : lang === 'en' ? 'Transferred to admin' : 'Передано администратору'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Top Action Buttons: Block, Delete */}
-                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 flex-wrap">
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
                     onClick={handleToggleBlock}
-                    className={`text-xs ${
-                      activeTicket.is_blocked
-                        ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
-                        : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30'
-                    }`}
+                    className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#14201D] text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
+                    title={activeTicket.is_blocked ? t.unblockBtn : t.blockBtn}
                   >
-                    {activeTicket.is_blocked ? (
-                      <>
-                        <Unlock className="w-3.5 h-3.5 mr-1" />
-                        {t.unblockBtn}
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-3.5 h-3.5 mr-1" />
-                        {t.blockBtn}
-                      </>
-                    )}
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                    {activeTicket.is_blocked ? <Unlock className="w-4 h-4 text-emerald-500" /> : <Lock className="w-4 h-4" />}
+                  </button>
+                  <button
                     onClick={() => setDeleteConfirmId(activeTicket.id)}
-                    className="text-xs text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                    className="p-2 rounded-full hover:bg-rose-50 dark:hover:bg-rose-950/30 text-rose-500 transition-colors cursor-pointer"
+                    title={t.deleteBtn}
                   >
-                    <Trash2 className="w-3.5 h-3.5 mr-1" />
-                    {t.deleteBtn}
-                  </Button>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* AI vs Human State Banner */}
-              {activeTicket.is_ai_active !== false ? (
-                <div className="px-4 py-2.5 bg-gradient-to-r from-teal-50/90 to-cyan-50/90 dark:from-cyan-950/40 dark:to-slate-900 border-b border-teal-200/80 dark:border-cyan-500/30 flex items-center justify-between text-xs text-teal-800 dark:text-cyan-300">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400 animate-pulse shrink-0" />
-                    <span>
-                      {lang === 'tj'
-                        ? 'Чат бо ёвари зеҳнии сунъӣ (AI). Барои гузаштан ба маъмур — танҳо дар чат нависед: «Ба маъмур гузаронед».'
-                        : lang === 'en'
-                        ? 'Chatting with AI Assistant. To reach human staff, simply write "Call admin" directly in chat.'
-                        : 'Чат с ИИ-ассистентом. Чтобы переключить на администратора — просто напишите в чат: «Позовите админа».'}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="px-4 py-2.5 bg-gradient-to-r from-amber-50/90 to-orange-50/90 dark:from-amber-950/40 dark:to-slate-900 border-b border-amber-200/80 dark:border-amber-500/40 flex items-center gap-2 text-xs text-amber-900 dark:text-amber-300">
-                  <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 animate-pulse" />
-                  <div className="flex-1">
-                    <span className="font-bold">{lang === 'tj' ? 'ИИ хомӯш карда шудааст.' : lang === 'en' ? 'AI is disabled.' : 'ИИ отключён.'}</span>{' '}
-                    <span>{lang === 'tj' ? 'Муроҷиат ба маъмури платформа равона шудааст. Интизори пайвастшавии мутахассис бошед.' : lang === 'en' ? 'Transferred to the human administrator. An admin will join shortly.' : 'Диалог передан администратору платформы. Ожидайте ответа администратора.'}</span>
-                  </div>
+              {/* Telegram System Escalation Pill */}
+              {activeTicket.is_ai_active === false && (
+                <div className="mx-auto my-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2 shadow-xs shrink-0 max-w-fit">
+                  <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                  <span>
+                    {lang === 'tj'
+                      ? 'Муроҷиат ба маъмури платформа равона шуд. Озодона нависед.'
+                      : lang === 'en'
+                      ? 'Transferred to the human administrator.'
+                      : 'Диалог передан администратору платформы.'}
+                  </span>
                 </div>
               )}
 
-              {/* Chat Messages History */}
-              <div ref={chatContainerRef} className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 min-h-[380px] max-h-[520px]">
+              {/* Chat Messages History - Telegram Style */}
+              <div ref={chatContainerRef} className="flex-1 p-3.5 sm:p-5 overflow-y-auto space-y-3">
                 {loadingChat && (!activeTicket.messages || activeTicket.messages.length === 0) ? (
                   <div className="py-20 text-center text-xs text-slate-400 animate-pulse">
                     Загрузка диалога...
@@ -762,13 +787,11 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
                     {/* Fallback initial ticket message if messages table was empty */}
                     {(!activeTicket.messages || activeTicket.messages.length === 0) && (
                       <div className="flex flex-col items-end">
-                        <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-sm p-4 bg-emerald-600 dark:bg-[#17A884]/20 border border-emerald-600/40 dark:border-[#17A884]/40 text-white dark:text-slate-100 text-xs shadow-md space-y-1">
-                          <div className="text-[10px] font-bold text-emerald-100 dark:text-[#17A884] uppercase tracking-wider">
-                            {t.youBadge}
-                          </div>
-                          <p className="whitespace-pre-wrap leading-relaxed">{activeTicket.message}</p>
-                          <div className="text-[10px] text-emerald-100/70 dark:text-slate-400 text-right mt-1 font-mono">
-                            {formatTime(activeTicket.created_at)}
+                        <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-tr-xs px-4 py-2.5 bg-emerald-600 dark:bg-[#103D35] text-white shadow-sm text-xs sm:text-[13px] leading-relaxed">
+                          <p className="whitespace-pre-wrap break-words">{activeTicket.message}</p>
+                          <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-100/80 dark:text-emerald-300/80 select-none mt-1 font-mono">
+                            <span>{formatTime(activeTicket.created_at)}</span>
+                            <CheckCheck className="w-3.5 h-3.5 inline text-emerald-200" />
                           </div>
                         </div>
                       </div>
@@ -778,43 +801,42 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
                       const isAdmin = msg.sender_type === 'admin'
                       const isAi = msg.sender_type === 'ai'
 
+                      if (!isAdmin && !isAi) {
+                        return (
+                          <div key={msg.id} className="flex flex-col items-end">
+                            <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-tr-xs px-4 py-2.5 bg-emerald-600 dark:bg-[#103D35] text-white shadow-sm text-xs sm:text-[13px] leading-relaxed">
+                              <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                              <div className="flex items-center justify-end gap-1 text-[10px] text-emerald-100/80 dark:text-emerald-300/80 select-none mt-1 font-mono">
+                                <span>{formatTime(msg.created_at)}</span>
+                                <CheckCheck className="w-3.5 h-3.5 inline text-emerald-200" />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      {/* AI or Admin incoming bubble */}
                       return (
-                        <div
-                          key={msg.id}
-                          className={`flex flex-col ${isAdmin || isAi ? 'items-start' : 'items-end'}`}
-                        >
-                          <div
-                            className={`max-w-[88%] sm:max-w-[75%] rounded-2xl p-4 text-xs leading-relaxed shadow-md space-y-1.5 ${
-                              isAi
-                                ? 'rounded-tl-sm bg-gradient-to-br from-teal-50 to-cyan-50/60 dark:from-teal-950/40 dark:via-[#103D35]/30 dark:to-[#0E1715] border border-teal-200 dark:border-teal-500/40 text-slate-800 dark:text-slate-100 shadow-teal-900/10'
-                                : isAdmin
-                                ? 'rounded-tl-sm bg-white dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-slate-800 dark:text-slate-200 shadow-xs'
-                                : 'rounded-tr-sm bg-emerald-600 dark:bg-[#17A884]/20 border border-emerald-600/40 dark:border-[#17A884]/40 text-white dark:text-slate-100'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-3 text-[10px] font-bold pb-1 border-b border-black/5 dark:border-white/5">
+                        <div key={msg.id} className="flex flex-col items-start">
+                          <div className="max-w-[85%] sm:max-w-[70%] rounded-2xl rounded-tl-xs px-4 py-2.5 bg-white dark:bg-[#182522] border border-slate-200/90 dark:border-[#233832] text-slate-900 dark:text-slate-100 shadow-sm text-xs sm:text-[13px] leading-relaxed">
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold pb-1">
                               {isAi ? (
-                                <span className="inline-flex items-center gap-1.5 text-teal-800 dark:text-cyan-300 font-extrabold uppercase tracking-wide">
-                                  <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-cyan-400 animate-pulse" />
+                                <span className="text-teal-600 dark:text-teal-400 flex items-center gap-1">
+                                  <Sparkles className="w-3 h-3 text-teal-500 animate-pulse" />
                                   <span>{msg.sender_name || 'ИИ-ассистент SIHAT'}</span>
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] bg-teal-500/15 dark:bg-cyan-500/20 text-teal-800 dark:text-cyan-300 border border-teal-500/25 dark:border-cyan-500/30 font-mono">Автоответ</span>
-                                </span>
-                              ) : isAdmin ? (
-                                <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-extrabold uppercase tracking-wide">
-                                  <Headphones className="w-3 h-3 text-[#17A884]" />
-                                  {msg.sender_name || t.teamBadge}
+                                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-teal-500/15 text-teal-600 dark:text-teal-300">AI</span>
                                 </span>
                               ) : (
-                                <span className="text-emerald-100 dark:text-[#17A884] font-extrabold uppercase tracking-wide">
-                                  {msg.sender_name || t.youBadge}
+                                <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                  <Headphones className="w-3 h-3" />
+                                  <span>{msg.sender_name || t.teamBadge}</span>
                                 </span>
                               )}
-                              <span className="text-slate-400 font-mono text-[10px]">
-                                {formatTime(msg.created_at)}
-                              </span>
                             </div>
-
-                            <p className="whitespace-pre-wrap">{msg.message}</p>
+                            <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                            <div className="flex items-center justify-end text-[10px] text-slate-400 dark:text-slate-500 select-none mt-1 font-mono">
+                              <span>{formatTime(msg.created_at)}</span>
+                            </div>
                           </div>
                         </div>
                       )
@@ -825,10 +847,10 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
                 )}
               </div>
 
-              {/* Chat Input or Blocked Banner */}
-              <div className="p-4 border-t border-slate-200/90 dark:border-[#1E302B] bg-white dark:bg-[#0E1715]/90 shrink-0">
+              {/* Chat Input or Blocked Banner - Telegram Style */}
+              <div className="p-3 bg-white dark:bg-[#0E1715] border-t border-slate-200/90 dark:border-[#1E302B] shrink-0">
                 {activeTicket.is_blocked ? (
-                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 text-xs text-amber-800 dark:text-amber-200">
                       <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                       <span>{t.chatBlockedBanner}</span>
@@ -849,35 +871,23 @@ export const SupportChatsView: React.FC<SupportChatsViewProps> = ({
                       e.preventDefault()
                       handleSendMessage()
                     }}
-                    className="space-y-2"
+                    className="flex items-center gap-2 max-w-4xl mx-auto"
                   >
-                    <div className="relative flex items-end gap-2">
-                      <textarea
-                        rows={2}
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault()
-                            handleSendMessage()
-                          }
-                        }}
-                        placeholder={t.replyPlaceholder}
-                        className="flex-1 p-3 rounded-2xl bg-slate-50 dark:bg-[#131C1A] border border-slate-200 dark:border-[#1E302B] text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#17A884] focus:bg-white dark:focus:bg-[#131C1A] resize-none transition-all shadow-xs"
-                      />
-                      <Button
-                        type="submit"
-                        variant="emerald"
-                        disabled={!replyText.trim() || sending}
-                        className="h-11 px-5 rounded-xl shrink-0 shadow-lg shadow-[#17A884]/20"
-                      >
-                        <Send className={`w-4 h-4 ${sending ? 'animate-spin' : ''}`} />
-                        <span className="hidden sm:inline ml-1.5">{t.sendBtn}</span>
-                      </Button>
-                    </div>
-                    <div className="text-[10px] text-slate-500 text-right">
-                      {t.pressEnterHint}
-                    </div>
+                    <input
+                      type="text"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder={t.replyPlaceholder}
+                      className="flex-1 px-4 py-2.5 rounded-full bg-slate-100 dark:bg-[#14201D] border border-slate-200/80 dark:border-[#1E302B] text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!replyText.trim() || sending}
+                      className="w-10 h-10 rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 disabled:opacity-40 disabled:hover:bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md transition-all cursor-pointer"
+                      title={t.sendBtn}
+                    >
+                      <Send className={`w-4 h-4 ml-0.5 ${sending ? 'animate-spin' : ''}`} />
+                    </button>
                   </form>
                 )}
               </div>
