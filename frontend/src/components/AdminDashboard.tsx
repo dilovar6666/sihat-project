@@ -189,6 +189,109 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }
 
+  // Real-time WebSocket connection for instant support tickets & message updates in Admin Dashboard
+  useEffect(() => {
+    if (!token || user?.role !== 'admin') return
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${wsProtocol}//${window.location.host}/api/ws/support?token=${encodeURIComponent(token)}`
+
+    let ws: WebSocket | null = null
+    let pingTimer: any = null
+    let isMounted = true
+
+    const connectWs = () => {
+      try {
+        ws = new WebSocket(wsUrl)
+        ws.onopen = () => {
+          pingTimer = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'ping' }))
+            }
+          }, 25000)
+        }
+
+        ws.onmessage = (event) => {
+          if (!isMounted) return
+          try {
+            const data = JSON.parse(event.data)
+            if (data.event === 'new_message' || data.event === 'human_requested') {
+              const ticketId = data.ticket_id
+              const newMsg = data.message
+              const ticketInfo = data.ticket
+
+              if (data.event === 'human_requested') {
+                onNotify('🔔 Пользователь запросил связь с администратором в чате!', 'warning')
+              }
+
+              // Update active ticket detail if currently open
+              setActiveAdminTicketDetail((prev) => {
+                if (!prev || prev.id !== ticketId) return prev
+                if (prev.messages?.some((m: any) => m.id === newMsg.id)) return prev
+                return {
+                  ...prev,
+                  messages: [...(prev.messages || []), newMsg],
+                  status: ticketInfo?.status || prev.status,
+                  is_ai_active: ticketInfo?.is_ai_active ?? prev.is_ai_active,
+                  needs_human: ticketInfo?.needs_human ?? prev.needs_human,
+                  admin_notes: ticketInfo?.admin_notes ?? prev.admin_notes,
+                  last_message: newMsg.message,
+                  last_message_at: newMsg.created_at,
+                }
+              })
+
+              // Update or prepend in admin tickets list
+              setAdminTickets((prev) => {
+                const idx = prev.findIndex((t) => t.id === ticketId)
+                if (idx >= 0) {
+                  const updated = [...prev]
+                  updated[idx] = {
+                    ...updated[idx],
+                    last_message: newMsg.message,
+                    last_message_at: newMsg.created_at,
+                    status: ticketInfo?.status || updated[idx].status,
+                    needs_human: ticketInfo?.needs_human ?? updated[idx].needs_human,
+                    is_ai_active: ticketInfo?.is_ai_active ?? updated[idx].is_ai_active,
+                    admin_notes: ticketInfo?.admin_notes ?? updated[idx].admin_notes,
+                    unread_admin_count: selectedAdminTicketId === ticketId ? 0 : ((updated[idx].unread_admin_count || 0) + 1),
+                  }
+                  return updated.sort((a, b) => new Date(b.last_message_at || 0).getTime() - new Date(a.last_message_at || 0).getTime())
+                } else if (ticketInfo) {
+                  return [{ ...ticketInfo, messages: [newMsg] }, ...prev]
+                }
+                return prev
+              })
+            } else if (data.event === 'ticket_updated') {
+              const ticketId = data.ticket_id
+              const ticketInfo = data.ticket
+              setActiveAdminTicketDetail((prev) => (prev && prev.id === ticketId ? { ...prev, ...ticketInfo } : prev))
+              setAdminTickets((prev) =>
+                prev.map((t) => (t.id === ticketId ? { ...t, ...ticketInfo } : t))
+              )
+            }
+          } catch {}
+        }
+
+        ws.onerror = () => {}
+        ws.onclose = () => {
+          if (pingTimer) clearInterval(pingTimer)
+          if (isMounted) setTimeout(connectWs, 3000)
+        }
+      } catch {}
+    }
+
+    connectWs()
+
+    return () => {
+      isMounted = false
+      if (pingTimer) clearInterval(pingTimer)
+      if (ws) {
+        ws.onclose = null
+        ws.close()
+      }
+    }
+  }, [token, user?.role, selectedAdminTicketId])
+
   // System Settings State
   const [maintenanceMode, setMaintenanceMode] = useState(false)
   const [allowRegistration, setAllowRegistration] = useState(true)
@@ -241,7 +344,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const isAdmin = user?.role === 'admin'
 
   const loadAllAdminData = async () => {
-    if (!token || !isAdmin) return
+    if (!token || user?.role !== 'admin') return
     setLoading(true)
     try {
       const [dashRes, testsRes, usersRes, catsRes, knowledgeRes, faqsRes, ticketsRes, aiIncidentsRes] =
@@ -600,7 +703,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   const handleBlockUserFromIncident = async (incident: AiSecurityIncident) => {
-    if (!token || !isAdmin) return
+    if (!token || user?.role !== 'admin') return
     if (!confirm(`Вы действительно хотите заблокировать пользователя ${incident.user_email}? Он потеряет доступ к платформе и ИИ-ассистенту.`)) return
     setAiIncidentActionLoading(true)
     try {
@@ -624,7 +727,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   }
 
   const handleDismissIncident = async (incident: AiSecurityIncident) => {
-    if (!token || !isAdmin) return
+    if (!token || user?.role !== 'admin') return
     setAiIncidentActionLoading(true)
     try {
       await apiRequest(`/admin/ai-incidents/${incident.id}/dismiss`, {

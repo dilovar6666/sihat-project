@@ -120,7 +120,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [activeTab, setActiveTab] = useState<ProfileTab>(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash
-      if (hash.includes('tab=support') || hash.includes('support')) return 'support'
+      if (user?.role !== 'admin' && (hash.includes('tab=support') || hash.includes('support'))) return 'support'
       if (hash.includes('tab=comparisons')) return 'comparisons'
       if (hash.includes('tab=results')) return 'results'
       if (hash.includes('tab=history')) return 'history'
@@ -128,6 +128,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     }
     return 'overview'
   })
+
+  // Prevent admin from viewing regular user support tab in profile (admins have full Support Hub in Admin Panel)
+  useEffect(() => {
+    if (user?.role === 'admin' && activeTab === 'support') {
+      setActiveTab('overview')
+    }
+  }, [user?.role, activeTab])
   const [selectedSupportTicketId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       const match = window.location.hash.match(/ticket=([a-zA-Z0-9-]+)/)
@@ -689,7 +696,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     { id: 'personal', label: t.tabPersonal, icon: <User className="w-4 h-4" /> },
     { id: 'security', label: t.tabSecurity, icon: <Lock className="w-4 h-4" /> },
     { id: 'settings', label: t.tabSettings, icon: <Sliders className="w-4 h-4" /> },
-    { id: 'support', label: t.tabSupport, icon: <Headphones className="w-4 h-4" /> },
+    ...(user?.role !== 'admin'
+      ? [{ id: 'support' as ProfileTab, label: t.tabSupport, icon: <Headphones className="w-4 h-4" /> }]
+      : []),
   ]
 
   const totalCount = results.length
@@ -962,32 +971,34 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
               )}
 
-              {/* Support & Chat Quick Card */}
-              <div className="p-5 rounded-3xl bg-gradient-to-r from-[#17A884]/15 via-[#103D35]/20 to-transparent border border-[#17A884]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-2xl bg-[#17A884]/20 border border-[#17A884]/40 text-[#17A884] flex items-center justify-center shrink-0">
-                    <Headphones className="w-5 h-5" />
+              {/* Support & Chat Quick Card (only for non-admin users) */}
+              {user?.role !== 'admin' && (
+                <div className="p-5 rounded-3xl bg-gradient-to-r from-[#17A884]/15 via-[#103D35]/20 to-transparent border border-[#17A884]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-2xl bg-[#17A884]/20 border border-[#17A884]/40 text-[#17A884] flex items-center justify-center shrink-0">
+                      <Headphones className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        {lang === 'tj' ? 'Хадамоти дастгирӣ ва чатҳо' : lang === 'en' ? 'Support Desk & Direct Chats' : 'Служба поддержки и чаты'}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {lang === 'tj' ? 'Муроҷиатҳои худро пайгирӣ кунед ва бо мутахассисон дар гуфтугӯ бошед.' : lang === 'en' ? 'Direct secure dialog with platform engineers. Follow up on your inquiries.' : 'Прямой диалог со специалистами. Ответы на ваши обращения и консультация.'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                      {lang === 'tj' ? 'Хадамоти дастгирӣ ва чатҳо' : lang === 'en' ? 'Support Desk & Direct Chats' : 'Служба поддержки и чаты'}
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {lang === 'tj' ? 'Муроҷиатҳои худро пайгирӣ кунед ва бо мутахассисон дар гуфтугӯ бошед.' : lang === 'en' ? 'Direct secure dialog with platform engineers. Follow up on your inquiries.' : 'Прямой диалог со специалистами. Ответы на ваши обращения и консультация.'}
-                    </p>
-                  </div>
+                  <Button
+                    variant="emerald"
+                    size="sm"
+                    onClick={() => setActiveTab('support')}
+                    className="shrink-0 text-xs shadow-md shadow-[#17A884]/20"
+                  >
+                    {unreadSupportCount > 0
+                      ? `Новые ответы (${unreadSupportCount}) →`
+                      : (lang === 'tj' ? 'Кушодани чатҳо →' : lang === 'en' ? 'Open Support Chats →' : 'Открыть чаты с поддержкой →')}
+                  </Button>
                 </div>
-                <Button
-                  variant="emerald"
-                  size="sm"
-                  onClick={() => setActiveTab('support')}
-                  className="shrink-0 text-xs shadow-md shadow-[#17A884]/20"
-                >
-                  {unreadSupportCount > 0
-                    ? `Новые ответы (${unreadSupportCount}) →`
-                    : (lang === 'tj' ? 'Кушодани чатҳо →' : lang === 'en' ? 'Open Support Chats →' : 'Открыть чаты с поддержкой →')}
-                </Button>
-              </div>
+              )}
 
               {/* 3 Real KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
@@ -1646,7 +1657,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           )}
 
           {/* TAB 8: SUPPORT & CHATS */}
-          {activeTab === 'support' && (
+          {activeTab === 'support' && user?.role !== 'admin' && (
             <SupportChatsView
               user={user}
               lang={lang}
